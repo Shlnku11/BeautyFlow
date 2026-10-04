@@ -55,7 +55,16 @@ test('business owner can register and log back in using a server-side session', 
     data: { displayName: 'E2E Staff', color: 'teal', acceptsOnlineBooking: true },
   });
   expect(staffResponse.status()).toBe(201);
-  expect((await staffResponse.json()).data).toMatchObject({ displayName: 'E2E Staff', color: 'teal', isActive: true });
+  // Playwright returns parsed JSON as untyped data; this test uses only the contract's id field.
+  const createdStaff = (await staffResponse.json()).data as { id: string };
+  expect(createdStaff).toMatchObject({ displayName: 'E2E Staff', color: 'teal', isActive: true });
+
+  const serviceResponse = await page.request.post('http://localhost:3000/api/services', {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] },
+  });
+  expect(serviceResponse.status()).toBe(201);
+  expect((await serviceResponse.json()).data).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
 
   const rejectedTenantOverride = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: 'http://localhost:3000' },

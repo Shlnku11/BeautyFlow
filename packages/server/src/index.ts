@@ -11,6 +11,7 @@ import { IMPLEMENTED_AUTH_ROUTE_IDS, registerAuthRoutes } from './http/auth-rout
 import { configurePersistentRateLimit } from './http/rate-limit-adapter';
 import { getEnv } from './config/env';
 import { IMPLEMENTED_STAFF_ROUTE_IDS, registerStaffRoutes } from './http/staff-routes';
+import { IMPLEMENTED_SERVICE_ROUTE_IDS, registerServiceRoutes } from './http/service-routes';
 
 export const app: Express = express();
 configureAuthRouteRuntime();
@@ -43,6 +44,7 @@ app.get('/api/health', defineExpressRoute({
 }));
 registerAuthRoutes(app);
 registerStaffRoutes(app);
+registerServiceRoutes(app);
 
 function isPermissionKey(value: string): value is PermissionKey {
   return Object.hasOwn(PERMISSION_SCOPES, value);
@@ -66,7 +68,7 @@ function defaultRateLimit(contract: (typeof MVP_ROUTE_CONTRACTS)[number]): RateL
 }
 
 for (const contract of MVP_ROUTE_CONTRACTS) {
-  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id)) continue;
+  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id)) continue;
   const limit = contract.rateLimit && isRateLimitPolicy(contract.rateLimit)
     ? contract.rateLimit
     : defaultRateLimit(contract);

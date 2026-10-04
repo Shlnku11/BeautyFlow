@@ -8,7 +8,7 @@
 - **Эндпоинты** — ID из API_CONTRACTS/MVP_SCOPE (64 в MVP). **Модели** — коллекции из DATA_MODEL. **Тесты** — по TESTING_STRATEGY. **Готово, когда** — проверяемые критерии; общая Definition of Done — PRODUCT_SPEC §7 действует на каждом этапе.
 - Этапы выполняются основным исполнителем, без task-пакетов; каждый этап закрывается typecheck, lint, релевантными тестами и build.
 - **Проверки после каждого этапа:** lint, typecheck, unit, integration, миграции, build, проверка затронутых API, роли, изоляция A/B, браузерный сценарий (если есть UI), обновление `PROGRESS.md`. Недоступная проверка фиксируется честно.
-- **Среда проверки Claude:** в среде подготовки нет доступа к npm-registry и MongoDB — команды `npm install`, интеграционные тесты и спайк этапа 0 выполняет **владелец** (или CI) и присылает вывод. Claude не заявляет «проверено», пока вывода нет.
+- Проверки выполняются основным исполнителем в рабочей копии; недоступные проверки фиксируются как непроверенные, без отметки «готово».
 - **Усиленное ревью** (DEEPSEEK_HANDOFF_RULES §8 п.6) — для стопок с транзакциями и гонками: `STF-02`, `BLK-02`, `APT-02/05/06`, `PUB-06/09/10`, `PAY-02/06`, воркер.
 
 ## Сводка
@@ -35,7 +35,7 @@
 ## Этап 0. Спайк `occupiedKeys` (1–2 дня)
 
 **Цель:** на реальном MongoDB 8.0 replica set доказать (или опровергнуть) механизм защиты от двойной записи (DATA_MODEL §17) до начала этапа 6.
-**Исполнитель:** Claude пишет `scripts/spike-occupied-keys.ts` и отчёт; **запускает владелец** (Docker с `mongo:8.0` + replica set); результаты присылает Claude.
+**Исполнитель:** основной исполнитель готовит spike-скрипт и отчёт; запуск выполняется на MongoDB 8.0 replica set.
 **Эндпоинты:** нет. **Модели:** временная коллекция `spikeAppointments` (удаляется после спайка).
 **Что проверяется:**
 1. Уникальный partial multikey-индекс `{occupiedKeys:1}` (`partialFilterExpression:{occupiedKeys:{$exists:true}}`) создаётся и работает на 8.0.
@@ -52,17 +52,17 @@
 ## Этап 1. Фундамент
 
 **Цель:** воспроизводимая сборка и каркас сервера.
-**Исполнитель:** Claude. **Зависит от:** — (спайк идёт параллельно).
+**Исполнитель:** основной исполнитель. **Зависит от:** — (спайк идёт параллельно).
 **Содержание:** workspace root config; `packages/client` Vite + React Router v7 + Tailwind; `packages/server` Express 5 + `defineExpressRoute`; `packages/shared`; Node 24 / MongoDB 8 rs0; перенос этапа 1 без переписывания (models, tenant plugin/exempt, transactions/connection, errors/responses/logger, permissions/money/time/env, migration runner, shared types, api-client/hooks). Настраиваются env, CSRF/rate-limit, health route, tokens, Docker, lint/typecheck/test/build.
 **Эндпоинты:** `SYS-01`. **Модели:** — (подключение и плагин).
-**Тесты:** unit для `money`, `time` (DST), `permissions` (полнота роль×ключ), `tenantPlugin` (запрос без `businessId` → ошибка), `defineRoute` (порядок pipeline, формат ошибок), `env`; integration: подключение, `withTransaction` (повтор при transient), миграция 000 (индексы через `listIndexes`).
-**Готово, когда:** lint, typecheck, unit, migrate и build проходят; `GET /api/health` отвечает; Next.js artifacts удалены; UI и API стартуют отдельно.
+**Тесты:** unit для `money`, `time` (DST), `permissions` (полнота роль×ключ), `tenantPlugin` (запрос без `businessId` → ошибка), `defineExpressRoute` (порядок pipeline, формат ошибок), `env`; integration: подключение, `withTransaction` (повтор при transient), миграция 000 (индексы через `listIndexes`).
+**Готово, когда:** lint, typecheck, unit, migrate и build проходят; `GET /api/health` отвечает; Next-specific файлы удалены; UI и API стартуют отдельно.
 
 ## Этап 2. Модели, Zod-схемы, интерфейсы, UI-компоненты
 
 **Цель:** все контракты в коде.
-**Исполнитель:** Claude. **Зависит от:** 1.
-**Содержание:** 19 Mongoose-моделей по DATA_MODEL; Zod-схемы `src/shared/schemas/*` (strict); заготовки 15 репозиториев и 14 сервисов (сигнатуры, `TODO: TASK-XXX`); заготовки маршрутов MVP (`defineRoute`, тело — «not implemented»); UI-компоненты дизайн-системы (Button, Input, Textarea, Select, Checkbox, Radio, Dialog, Table, Toast, Skeleton, EmptyState, ErrorState, Badge, Card, Tabs, Pagination); фикстуры `builders`, `world-ab`, `clock`; **`NotificationService.enqueue*` — рабочая реализация** (постановка в очередь с `dedupeKey`), чтобы сервисы этапов 4–6 могли ставить уведомления.
+**Исполнитель:** основной исполнитель. **Зависит от:** 1.
+**Содержание:** 19 Mongoose-моделей по DATA_MODEL; Zod-схемы `packages/shared/src/schemas/*` (strict); заготовки 15 репозиториев и 14 сервисов (сигнатуры, `TODO: TASK-XXX`); заготовки маршрутов MVP (`defineExpressRoute`, тело — «not implemented»); UI-компоненты дизайн-системы (Button, Input, Textarea, Select, Checkbox, Radio, Dialog, Table, Toast, Skeleton, EmptyState, ErrorState, Badge, Card, Tabs, Pagination); фикстуры `builders`, `world-ab`, `clock`; **`NotificationService.enqueue*` — рабочая реализация** (постановка в очередь с `dedupeKey`), чтобы сервисы этапов 4–6 могли ставить уведомления.
 **Эндпоинты:** нет. **Модели:** все.
 **Тесты:** unit для Zod (границы, strict, нормализация), `dedupeKey`, `enqueue` (идемпотентность); integration: индексы моделей = DATA_MODEL; `ImmutableDocumentError` у `transactions`; `world-ab` создаётся и данные A и B пересекаются по телефонам/именам; UI-компоненты — axe-тест и тест клавиатуры (`Dialog`, `Select`, `Tabs`); `check:contrast` по токенам.
 **Готово, когда:** typecheck чистый; все схемы и модели импортируются; заготовки маршрутов проходят `routes.contract` (реестр = MVP-ID, 64); UI-компоненты работают в «песочнице-странице» без предупреждений; `npm run check:docs` зелёный.
@@ -70,7 +70,7 @@
 ## Этап 3. Auth, AppShell, login/register
 
 **Цель:** вход в систему и защита API.
-**Исполнитель:** Claude. **Зависит от:** 2.
+**Исполнитель:** основной исполнитель. **Зависит от:** 2.
 **Эндпоинты (8):** `AUTH-01`, `AUTH-02`, `AUTH-03`, `AUTH-04`, `AUTH-06`, `AUTH-07`, `AUTH-08`, `AUTH-09`.
 **Модели:** users, sessions, businesses, businessMembers, settings, rateLimits, auditLogs (запись).
 **Содержание:** пароли (argon2id), сессии (HMAC-хэш, TTL, скользящее/абсолютное окно), токены приглашения/сброса, `TenantContext`, RBAC, rate limiting, CSRF, `AuthService.createInvitedUser`, AppShell, auth screens and React Router v7 UX guards.
@@ -80,7 +80,7 @@
 ## Этап 4. Staff + Services + Schedule
 
 **Цель:** справочники и расписание — основа записи.
-**Исполнитель:** Luna (стопки). **Зависит от:** 3.
+**Исполнитель:** основной исполнитель. **Зависит от:** 3.
 **Эндпоинты (20):** `STF-01…04`, `STF-06…12`, `BLK-01…03`, `SVC-01`, `SVC-02`, `SVC-04`, `MEM-01`, `MEM-03`, `MEM-04`.
 **Модели:** staff, staffSchedules, staffExceptions, blockedPeriods, services, staffServices, businessMembers (чтение/статус), users (создание invited — через `AuthService`).
 **Стопки:** Services; Staff (+schedule, exceptions, services); BlockedPeriods; Members. UI: `/app/staff`, `/app/staff/[id]` (вкладки), `/app/services`, «Команда» в настройках.
@@ -89,67 +89,67 @@
 
 ## Этап 5. Customers + Settings
 
-**Исполнитель:** Luna. **Зависит от:** 3.
+**Исполнитель:** основной исполнитель. **Зависит от:** 3.
 **Эндпоинты (8):** `CUS-01…04`, `CUS-06`, `SET-01`, `SET-02`, `SET-03`.
 **Модели:** customers, settings, businesses (профиль), appointments/transactions (чтение для сводки).
-**Независимые файлы:** `src/server/domain/phone.ts` (нормализация по `countryCode`). **Стопки:** Customers; Settings. UI: `/app/customers[/id]`, `/app/settings` (Бизнес, Запись).
+**Независимые файлы:** `packages/server/src/domain/phone.ts` (нормализация по `countryCode`). **Стопки:** Customers; Settings. UI: `/app/customers[/id]`, `/app/settings` (Бизнес, Запись).
 **Тесты:** телефон в A и B → независимые клиенты; префиксный поиск и экранирование регулярных выражений; `phone`/`email` нормализация (RU/KZ/KG/US/OTHER); master видит `limited`-DTO; `SET-02` — `slug` → 422, `privacy.*`, блокировка смены `timezone/currency` (проверка с будущими записями — после этапа 6); `SET-03` диапазоны.
 **Готово, когда:** CRUD клиентов и поиск работают, карточка показывает историю (пока пустую — реальные нули), настройки сохраняются и валидируются; A/B и роли зелёные.
 
 ## Этап 6. Booking (6a / 6b / 6c)
 
 **Зависит от:** 4, 5 и результата этапа 0 (go).
-### 6a. Движок записи — Claude
-**Содержание:** `src/server/domain/booking-engine/*` (время, рабочие интервалы, слоты, доступность, `occupiedKeys`, переходы статусов) по BOOKING_ENGINE_SPEC; чистые функции без I/O.
+### 6a. Движок записи — основной исполнитель
+**Содержание:** `packages/server/src/domain/booking-engine/*` (время, рабочие интервалы, слоты, доступность, `occupiedKeys`, переходы статусов) по BOOKING_ENGINE_SPEC; чистые функции без I/O.
 **Тесты:** unit — кейсы 1–15 BOOKING_ENGINE_SPEC §13 (включая DST-матрицу и `TZ`-вариации процесса).
 **Готово, когда:** все 15 unit-кейсов зелёные; свойства: слоты не пересекаются с занятостью/блоками/перерывами; детерминизм.
-### 6b. Внутренняя запись и статусы — Luna
+### 6b. Внутренняя запись и статусы — основной исполнитель
 **Эндпоинты (7):** `AVL-01`, `APT-01…06`. **Модели:** appointments, customers (find-or-create), staff (`bookingVersion`), notifications (enqueue).
 **Тесты:** кейсы 16–25 BOOKING_ENGINE_SPEC §13 (гонки: 20 параллельных → 1; «any master»; блок × запись; перенос в занятый слот; идемпотентность); матрица переходов × роли; A/B (чужие `customerId/staffId/serviceId` → 404, ничего не создано); `visitNote` для master.
 **Готово, когда:** race-набор (`test:race`, ≥20 итераций) и изоляция зелёные; усиленное ревью `APT-02/05/06` пройдено; запись создаёт уведомления (в очереди).
-### 6c. Публичная запись — Luna
+### 6c. Публичная запись — основной исполнитель
 **Эндпоинты (10):** `PUB-01…10`. UI: `/b/[slug]` (5 шагов + подтверждение), `/b/[slug]/manage/[token]`.
 **Тесты:** кейсы §13 (23–24), `PUB-06` (идемпотентность, honeypot, `requireConsent`, чужие service/staff → 404, клиент не изменяется), токен (неверный/истёкший/чужой → единый 404, окно отмены, лимит переносов), rate limit, E2E-2/3, клавиатурный проход (E2E-10), мобильный (E2E-9).
 **Готово, когда:** клиент записывается, получает подтверждение (письмо — после этапа 8), отменяет и переносит по ссылке; слот освобождается; запись видна в `APT-01`.
 
 ## Этап 7. Calendar
 
-**Исполнитель:** Luna. **Зависит от:** 6. **Эндпоинты (1):** `CAL-01`. **Модели:** appointments, blockedPeriods, staffSchedules/Exceptions (чтение).
+**Исполнитель:** основной исполнитель. **Зависит от:** 6. **Эндпоинты (1):** `CAL-01`. **Модели:** appointments, blockedPeriods, staffSchedules/Exceptions (чтение).
 **UI:** `/app/calendar` — день/неделя, фильтр мастеров, события со статусами, блокировки, индикатор загрузки, «Список записей» (доступная альтернатива), создание записи из пустого слота, панель записи (статусы, перенос, заметки, оплата — после этапа 9).
 **Тесты:** границы дня/недели в поясе бизнеса и в DST-неделю; формула `load` = DASHBOARD_SPEC §3.5; master получает только свои данные (чужой `staffId` → 404); A/B; axe и клавиатура.
 **Готово, когда:** владелец видит загрузку и записи по мастерам, master — только свои; нет горизонтального скролла страницы на 320–1440 px.
 
 ## Этап 8. Notifications + email
 
-**Исполнитель:** Luna. **Зависит от:** 6. **Эндпоинты (1):** `SYS-02`. **Модели:** notifications (воркер), settings (флаги видов).
+**Исполнитель:** основной исполнитель. **Зависит от:** 6. **Эндпоинты (1):** `SYS-02`. **Модели:** notifications (воркер), settings (флаги видов).
 **Независимые файлы:** `dedupe-key.ts`, `backoff.ts`, шаблоны `templates/ru/*.ts`. **Стопка:** провайдеры (`smtp`, `console`, реестр адаптеров SMS/push), `runNotificationBatch`, `scripts/worker.ts`, `SYS-02`.
 **Тесты:** NOTIFICATIONS_SPEC §10 (13 кейсов, без UI-журнала); параллельные воркеры; backoff; recovery зависших `processing`; guard `STALE/LATE`; `ConsoleEmailProvider` запрещён в production.
 **Готово, когда:** письма подтверждения/изменения/отмены, напоминания 24 ч и 1 ч, «после визита», приглашение и сброс пароля реально уходят (проверено на тестовом SMTP); дублей нет; E2E: запись → письмо со ссылкой → отмена → письмо.
 
 ## Этап 9. Payments (упрощённые)
 
-**Исполнитель:** Luna. **Зависит от:** 6. **Эндпоинты (5):** `PAY-01`, `PAY-02`, `PAY-04`, `PAY-05`, `PAY-06`. **Модели:** payments, transactions (append-only), appointments (чтение).
+**Исполнитель:** основной исполнитель. **Зависит от:** 6. **Эндпоинты (5):** `PAY-01`, `PAY-02`, `PAY-04`, `PAY-05`, `PAY-06`. **Модели:** payments, transactions (append-only), appointments (чтение).
 **UI:** `/app/payments` (список-история с фильтрами, итоги, «Принять оплату», «Вернуть», «Отметить оплаченной/Отменить» для `pending`).
 **Тесты:** PAYMENTS_SPEC §8 без `TRX`-эндпоинтов, с `PAY-06`: одна `charge` на оплату; идемпотентность; гонка двух возвратов; откат при сбое; `ImmutableDocumentError`; master → 403; оплата по чужой записи → 404; после этапа `APT-03.payment` и `CUS-03.summary` показывают реальные суммы.
 **Готово, когда:** оплата и частичный/полный возврат работают, журнал в БД согласован; усиленное ревью `PAY-02/06` пройдено.
 
 ## Этап 10. Dashboard (минимальный)
 
-**Исполнитель:** Luna. **Зависит от:** 6, 9. **Эндпоинты (3):** `DSH-01`, `DSH-05`, `MST-01`. **Независимый файл:** `domain/dashboard-period.ts`.
+**Исполнитель:** основной исполнитель. **Зависит от:** 6, 9. **Эндпоинты (3):** `DSH-01`, `DSH-05`, `MST-01`. **Независимый файл:** `domain/dashboard-period.ts`.
 **UI:** `/app/dashboard` (период → 4 KPI → ближайшие записи), `/app/my-day` (master).
 **Тесты:** DASHBOARD_SPEC §7 только для `DSH-01`/`DSH-05` (+`MST-01`): границы периода в разных поясах и DST, доли без деления на ноль, изоляция A/B (снимки до/после), права, кросс-проверка выручки с `PAY-01 meta.totals`, пустая база.
 **Готово, когда:** цифры совпадают с эталонной фикстурой; пустые состояния и онбординг-чек-лист показываются.
 
 ## Этап 11. Очистка прототипа, финальный UI/a11y
 
-**Исполнитель:** Claude + Luna (UI-правки по задачам). **Зависит от:** 7, 8, 9, 10.
+**Исполнитель:** основной исполнитель. **Зависит от:** 7, 8, 9, 10.
 **Содержание:** удалить неиспользуемые остатки прототипа внутри `packages/client`, mock-локации и placehold.co; убрать `maximumScale: 1`, подключить кириллический шрифт; адаптивность календаря; проход по DESIGN_SYSTEM §9; `check:contrast` на реальном UI; `check:docs`.
 **Тесты:** axe на всех ключевых экранах, визуальные регрессии (KPI, календарь, таблица), ширины 320/375/768/1024/1440, `prefers-reduced-*`.
 **Готово, когда:** в `src` нет mock-данных и `localStorage` с ПД; 0 нарушений axe уровня serious/critical; документация соответствует коду.
 
 ## Этап 12. E2E, безопасность, деплой
 
-**Исполнитель:** Claude. **Зависит от:** 11.
+**Исполнитель:** основной исполнитель. **Зависит от:** 11.
 **Содержание:** E2E-сценарии TESTING_STRATEGY §11 (кроме post-MVP), nightly `test:race` ×50 и DST-матрица, чеклист безопасности §10, `npm audit`, сканер секретов, заголовки безопасности, настройка деплоя (контейнеры, обратный прокси/TLS, MongoDB replica set с аутентификацией, пользователь без `update/remove` на `transactions`, бэкапы и проверка восстановления, мониторинг воркера, SPF/DKIM/DMARC).
 **Готово, когда:** все пункты «Продукт (MVP) готов» PRODUCT_SPEC §7 выполнены; деплой проверен на стенде; инструкция восстановления из бэкапа проверена.
 
@@ -160,7 +160,7 @@
 | Gate | Условие | Блокирует |
 |---|---|---|
 | G0 | Отчёт спайка: **go** | Этап 6 |
-| G1 | Этапы 1–3 приняты (`lint`, `typecheck`, тесты, `migrate`, `build` зелёные у владельца) | Выдачу задач Luna |
+| G1 | Этапы 1–3 приняты (`lint`, `typecheck`, тесты, `migrate`, `build` зелёные) | Начало этапа 4 |
 | G2 | A/B-изоляция и роли зелёные для каждой завершённой стопки | Слияние стопки |
 | G3 | Усиленное ревью критических стопок пройдено | Слияние `STF-02`, `BLK-02`, `APT-*`, `PUB-*`, `PAY-*`, воркер |
 | G4 | Этап 11: mock-данных нет, axe чистый | Этап 12 |

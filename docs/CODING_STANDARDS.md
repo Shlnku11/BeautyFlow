@@ -76,7 +76,7 @@ Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Ser
 
 ## 8. API-соглашения
 
-- Все обработчики создаются через `defineRoute` (`id`, метод, путь, `auth`, `permission`, `contextSource`, схемы, `rateLimit`) — реестр используется contract-тестом.
+- Все обработчики создаются через `defineExpressRoute` (`id`, метод, путь, `auth`, `permission`, `contextSource`, схемы, `rateLimit`) — реестр используется contract-тестом.
 - Ответы: `ok(data, meta?)`, `created(data)`, `noContent()`; ошибки: бросаются как `AppError` и преобразуются единым обработчиком. Формат — API_CONTRACTS §0.
 - Классы ошибок (`packages/server/src/http/errors.ts`): `AppError(code, httpStatus, message, details?)` ← `ValidationError (422)`, `UnauthenticatedError (401)`, `ForbiddenError (403)`, `NotFoundError (404)`, `ConflictError (409)`, `RateLimitError (429)`, `BadRequestError (400)`; доменные коды — константы в `packages/shared/src/error-codes.ts`. Необработанные исключения → `500 INTERNAL` без деталей, полный лог с `requestId`.
 - Логи: структурированные JSON (`pino`-совместимый интерфейс — решение на Этапе 1), без паролей/токенов/полных email-тел; PII минимизировать.
@@ -124,4 +124,4 @@ Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Ser
 
 ## 16. Форматирование и инструменты
 
-Prettier (`semi: true`, `singleQuote: true`, `printWidth: 100`, `trailingComma: 'all'`), ESLint (`next/core-web-vitals`, `@typescript-eslint/strict`, `import`, `jsx-a11y`, `react-hooks`), EditorConfig. Скрипты (появятся на Этапе 1): `lint`, `typecheck`, `format:check`, `test:unit`, `test:integration`, `test:api`, `test:e2e`, `migrate`, `build`. Коммиты — Conventional Commits. Перед слиянием должны проходить `lint`, `typecheck`, тесты затронутого этапа и `build`.
+Prettier (`semi: true`, `singleQuote: true`, `printWidth: 100`, `trailingComma: 'all'`), ESLint (TypeScript strict, import boundaries, jsx-a11y, react-hooks), EditorConfig. Скрипты: `lint`, `typecheck`, `format:check`, `test:unit`, `test:integration`, `test:api`, `test:e2e`, `migrate`, `build`. Коммиты — Conventional Commits. Перед слиянием должны проходить `lint`, `typecheck`, тесты затронутого этапа и `build`.

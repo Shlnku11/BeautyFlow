@@ -1,6 +1,6 @@
 # TESTING_STRATEGY.md — Стратегия тестирования
 
-Код этапа 1 создан, см. `src/`. <!-- CHANGED: after stage 1 -->
+Код Vite + Express расположен в `packages/`; проверочные команды запускаются через npm scripts.
 
 ## 1. Принципы и пирамида
 
@@ -52,7 +52,7 @@
 
 ## 6. API/contract-тесты
 
-Реестр `defineRoute`: (а) множество ID в реестре = множеству **MVP-ID** (без пометки post-MVP) в API_CONTRACTS.md (парсится из документа; post-MVP ID в реестре отсутствуют); <!-- CHANGED: A3.5 --> (б) каждый маршрут: `ST-1` (401), `ST-2` (403 по матрице), `ST-3` (404 чужого), `ST-4` (strict-тело), `ST-5` (валидация), `ST-6` (rate limit для помеченных); (в) формат конверта успеха/ошибки; (г) коды из контракта; (д) DTO не содержат запрещённых полей (хэши, `occupiedKeys`, `bookingVersion`, `searchTokens`) — проверка через рекурсивный поиск по ключам; (е) `Cache-Control: no-store` на `/api/public/manage/*`; (ж) CSRF: мутация с чужим `Origin` → 403.
+Реестр `defineExpressRoute`: (а) множество ID в реестре = множеству **MVP-ID** (без пометки post-MVP) в API_CONTRACTS.md (парсится из документа; post-MVP ID в реестре отсутствуют); <!-- CHANGED: A3.5 --> (б) каждый маршрут: `ST-1` (401), `ST-2` (403 по матрице), `ST-3` (404 чужого), `ST-4` (strict-тело), `ST-5` (валидация), `ST-6` (rate limit для помеченных); (в) формат конверта успеха/ошибки; (г) коды из контракта; (д) DTO не содержат запрещённых полей (хэши, `occupiedKeys`, `bookingVersion`, `searchTokens`) — проверка через рекурсивный поиск по ключам; (е) `Cache-Control: no-store` на `/api/public/manage/*`; (ж) CSRF: мутация с чужим `Origin` → 403.
 
 ## 7. Гонки при записи (booking race)
 
