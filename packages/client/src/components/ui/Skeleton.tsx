@@ -1,0 +1,1 @@
+export function Skeleton({ label = 'Загрузка', className = '' }: { label?: string; className?: string }) { return <div aria-label={label} className={`animate-pulse rounded-lg bg-neutral-200 ${className}`} role="status"><span className="sr-only">{label}</span></div>; }

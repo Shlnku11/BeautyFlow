@@ -7,7 +7,7 @@ import {
   disconnectFromDatabase,
 } from '@/server/db/connection';
 import { withTransaction } from '@/server/db/transactions';
-import { up as createInitialIndexes } from '../../migrations/000_init';
+import { up as createInitialIndexes } from '../../packages/server/migrations/000_init';
 
 describe('database foundation', () => {
   let replicaSet: MongoMemoryReplSet | undefined;

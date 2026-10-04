@@ -1,0 +1,3 @@
+import { z } from 'zod';
+export const PublicBookingSchema = z.object({ serviceId: z.string().regex(/^[a-f\d]{24}$/i), staffId: z.union([z.string().regex(/^[a-f\d]{24}$/i), z.literal('any')]), startAt: z.iso.datetime(), firstName: z.string().trim().min(1).max(100), lastName: z.string().trim().max(100).optional(), phone: z.string().trim().min(5).max(32), email: z.string().trim().toLowerCase().pipe(z.email()).optional(), customerNote: z.string().trim().max(500).optional(), acceptPrivacy: z.literal(true).optional(), website: z.literal('') }).strict();
+export const ManageTokenParamsSchema = z.object({ slug: z.string().trim().min(1).max(100), token: z.string().min(32).max(512) }).strict();

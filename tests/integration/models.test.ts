@@ -2,7 +2,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { up as createInitialIndexes } from '../../migrations/000_init';
+import { up as createInitialIndexes } from '../../packages/server/migrations/000_init';
 import { ImmutableDocumentError } from '@/server/db/models/transactions';
 import {
   Appointment,

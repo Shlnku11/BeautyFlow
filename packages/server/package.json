@@ -1,0 +1,1 @@
+{"name":"@next-appointments/server","version":"1.0.0","private":true,"type":"module","scripts":{"build":"vite build --config vite.config.ts --ssr src/index.ts","start":"node ../../dist/server/index.js"},"dependencies":{"@next-appointments/shared":"1.0.0"}}

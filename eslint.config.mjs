@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['.next/**', 'node_modules/**', 'coverage/**', 'playwright-report/**', 'test-results/**'],
+    ignores: ['node_modules/**', 'coverage/**', 'playwright-report/**', 'test-results/**', 'dist/**'],
   },
   ...tseslint.configs.recommended,
   {
@@ -21,7 +21,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/app/**/*.tsx', 'src/components/**/*.{ts,tsx}', 'src/hooks/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
+    files: ['packages/client/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

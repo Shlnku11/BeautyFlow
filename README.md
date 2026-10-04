@@ -4,7 +4,7 @@ CRM для салонов красоты: онлайн-запись, распи�
 
 ## Стек
 
-- Node.js 24 LTS, Next.js App Router, React и TypeScript strict.
+- Node.js 24 LTS, React + Vite SPA, React Router v7, Express 5 API и TypeScript strict.
 - MongoDB 8.0 в режиме replica set `rs0`, Mongoose и миграции индексов.
 - Tailwind CSS 3 с цветовыми, типографическими и поверхностными токенами из `DESIGN_SYSTEM.md`.
 
@@ -29,17 +29,16 @@ CRM для салонов красоты: онлайн-запись, распи�
 | `npm test` | Unit/integration/API-тесты Vitest |
 | `npm run test:e2e` | Браузерные тесты Playwright |
 | `npm run migrate` | Идемпотентное создание коллекционных индексов |
-| `npm run build` | Production-сборка Next.js |
+| `npm run build` | Production-сборки Vite SPA и Express API |
 
 Тесты интеграции и API требуют MongoDB replica set. `TEST_MONGODB_URI` можно указать для отдельной тестовой базы.
 
 ## Структура
 
-- `src/app/` — App Router и API Route Handlers.
-- `src/components/`, `src/hooks/`, `src/lib/` — UI, клиентские хуки и общие клиентские утилиты.
-- `src/shared/` — общие типы, DTO, константы и коды ошибок.
-- `src/server/` — серверные HTTP, auth, database, domain, services и repositories.
-- `migrations/`, `scripts/`, `tests/` — миграции, фоновые задачи и тесты.
+- `packages/client/` — Vite, React Router, UI, хуки и клиентские утилиты.
+- `packages/server/` — Express API, Mongoose, auth, domain, services и repositories.
+- `packages/shared/` — общие Zod-схемы, типы, DTO, константы и error codes.
+- `packages/server/migrations/`, `packages/server/scripts/`, `tests/` — миграции, worker и тесты.
 - `docs/` — спецификации; контракты находятся в `DATA_MODEL_MONGODB.md`, `API_CONTRACTS.md` и `PERMISSIONS_MATRIX.md`.
 
 См. архитектуру в `docs/MASTER_ARCHITECTURE.md`; проектные решения и объём MVP — в остальных документах `docs/`.

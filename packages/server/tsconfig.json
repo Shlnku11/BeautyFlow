@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.json","compilerOptions":{"rootDir":"src","outDir":"dist","noEmit":true,"paths":{"@/*":["src/*"],"@/server/*":["src/*"],"@/shared/*":["../shared/src/*"]}},"include":["src/**/*.ts"]}

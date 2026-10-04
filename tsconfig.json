@@ -20,22 +20,19 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./packages/client/src/*"],
+      "@/server/*": ["./packages/server/src/*"],
+      "@/shared/*": ["./packages/shared/src/*"],
+      "@/lib/*": ["./packages/client/src/lib/*"],
+      "@/hooks/*": ["./packages/client/src/hooks/*"],
+      "@/components/*": ["./packages/client/src/components/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
     "**/*.ts",
     "**/*.tsx"
   ],
@@ -43,6 +40,7 @@
     "node_modules",
     "work",
     "outputs",
+    "dist",
     "easyappointments-*",
     "reference"
   ]

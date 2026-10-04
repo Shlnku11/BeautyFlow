@@ -1,0 +1,2 @@
+import type { ReactNode } from 'react';
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'success' | 'warning' | 'danger' }) { const tones = { neutral: 'bg-neutral-100 text-neutral-700', success: 'bg-success-bg text-success-fg', warning: 'bg-warning-bg text-warning-fg', danger: 'bg-error-bg text-error-fg' }; return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone]}`}>{children}</span>; }

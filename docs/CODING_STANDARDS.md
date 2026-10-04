@@ -8,7 +8,7 @@
 - **`any` запрещён** (в т.ч. `catch (err: any)` → `catch (err: unknown)` + сужение). ESLint: `@typescript-eslint/no-explicit-any: error`. `as`-приведения — только с комментарием-обоснованием; `@ts-ignore` запрещён, `@ts-expect-error` — только с описанием и ссылкой на задачу.
 - Типы данных API и форм выводятся из Zod: `type X = z.infer<typeof XSchema>`. Дублировать типы вручную нельзя.
 - Деньги — `number` (целые minor units) в типе `Minor` (branded), даты API — `string` ISO, внутри сервера — `Date`/luxon `DateTime`.
-- Идентификаторы — `string` в API/UI, `Types.ObjectId` только внутри `src/server/db` и репозиториев; преобразование — в одном месте.
+- Идентификаторы — `string` в API/UI, `Types.ObjectId` только внутри `packages/server/src/db` и репозиториев; преобразование — в одном месте.
 
 ## 2. Именование
 
@@ -43,30 +43,30 @@ packages/shared/src/       Zod, DTO, constants, error codes; dependency-free
 ```
 Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Service → Repository → Mongoose model
 ```
-- **Route Handler:** только разбор запроса, вызов сервиса, формирование ответа. Бизнес-логики и обращений к моделям нет.
-- **Service** (`src/server/services/*-service.ts`): бизнес-правила, проверка прав (`PermissionService`), транзакции, постановка уведомлений, аудит. Принимает `ctx: TenantContext` первым параметром.
-- **Repository** (`src/server/repositories/*-repository.ts`): единственное место с запросами к моделям; **первый параметр всегда `ctx: TenantContext`** (или `PublicContext`), `businessId` подмешивается репозиторием; методы возвращают plain-объекты (`lean`) или доменные типы, не Mongoose-документы.
-- **Domain** (`src/server/domain/*`): чистые функции (booking-engine, money, permissions, transitions) — без I/O.
-- Сервисы не вызывают Route Handlers; репозитории не вызывают сервисы. Межсервисные вызовы — через публичные методы сервисов.
+- **Express handler:** только разбор запроса, вызов сервиса, формирование ответа. Бизнес-логики и обращений к моделям нет.
+- **Service** (`packages/server/src/services/*-service.ts`): бизнес-правила, проверка прав (`PermissionService`), транзакции, постановка уведомлений, аудит. Принимает `ctx: TenantContext` первым параметром.
+- **Repository** (`packages/server/src/repositories/*-repository.ts`): единственное место с запросами к моделям; **первый параметр всегда `ctx: TenantContext`** (или `PublicContext`), `businessId` подмешивается репозиторием; методы возвращают plain-объекты (`lean`) или доменные типы, не Mongoose-документы.
+- **Domain** (`packages/server/src/domain/*`): чистые функции (booking-engine, money, permissions, transitions) — без I/O.
+- Сервисы не вызывают Express handlers; репозитории не вызывают сервисы. Межсервисные вызовы — через публичные методы сервисов.
 
 ## 5. Мультитенантность (жёсткие правила)
 
 1. `businessId` в сервисах/репозиториях берётся **только** из `ctx`. Любое поле `businessId` в теле/query/заголовке клиента запрещено (Zod `.strict()` → 422).
-2. Запрещены запросы к бизнес-коллекциям мимо репозитория; `Model.find(...)` вне `src/server/repositories` и `src/server/db` — ошибка ESLint (`no-restricted-syntax` по импорту моделей).
+2. Запрещены запросы к бизнес-коллекциям мимо репозитория; `Model.find(...)` вне `packages/server/src/repositories` и `packages/server/src/db` — ошибка ESLint (`no-restricted-syntax` по импорту моделей).
 3. Репозиторий обязан отдавать `null` (→ 404), если документ найден, но принадлежит другому бизнесу (фильтр по `businessId` делает это естественно).
 4. Все ссылки (`customerId`, `staffId`, `serviceId`, …) во входных данных проверяются загрузкой через репозиторий с тем же `ctx` до записи.
 5. Исключения из tenant-guard (`users`, `sessions`, `businesses`, `rateLimits`, `schemaMigrations`, claim воркера уведомлений) перечислены в одном файле `tenant-exempt.ts` с комментарием-обоснованием.
 
 ## 6. Валидация (Zod)
 
-- Все входные данные (body, query, params, env) валидируются Zod на границе. Схемы — в `src/shared/schemas/<feature>.ts`, используются и сервером, и формами.
+- Все входные данные (body, query, params, env) валидируются Zod на границе. Схемы — в `packages/shared/src/schemas/<feature>.ts`, используются и сервером, и формами.
 - Объекты — `.strict()`; строки — `trim()` и максимальные длины; числа — `int()` и диапазоны; даты — ISO-строки → `Date` в одном месте; enum — `z.enum` из констант DATA_MODEL.
 - Сообщения валидации — коды (`too_small` и т.д.), перевод на русский — в UI-словаре.
 - Ответы сервера не валидируются Zod в runtime, но DTO-мапперы обязательны (никаких «возврата документа как есть»).
 
 ## 7. Mongoose
 
-- Схемы в `src/server/db/models/*.ts`, одно имя модели — один файл; `timestamps: true`, `strict: 'throw'`, `autoIndex: false` (индексы — миграции), `optimisticConcurrency` где указано в DATA_MODEL.
+- Схемы в `packages/server/src/db/models/*.ts`, одно имя модели — один файл; `timestamps: true`, `strict: 'throw'`, `autoIndex: false` (индексы — миграции), `optimisticConcurrency` где указано в DATA_MODEL.
 - Подключение — один кеширующий коннектор (`global`), `maxPoolSize` из env; нельзя создавать соединение в обработчике.
 - Запросы читающие — `.lean()`; `select` явный для публичных DTO; **`populate` не используется** (явные запросы по id — предсказуемо и изолированно).
 - Транзакции — только через `withTransaction(fn)` (повтор при `TransientTransactionError` до 3 раз); внутри — все операции получают `session`.
@@ -78,7 +78,7 @@ Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Ser
 
 - Все обработчики создаются через `defineRoute` (`id`, метод, путь, `auth`, `permission`, `contextSource`, схемы, `rateLimit`) — реестр используется contract-тестом.
 - Ответы: `ok(data, meta?)`, `created(data)`, `noContent()`; ошибки: бросаются как `AppError` и преобразуются единым обработчиком. Формат — API_CONTRACTS §0.
-- Классы ошибок (`src/server/http/errors.ts`): `AppError(code, httpStatus, message, details?)` ← `ValidationError (422)`, `UnauthenticatedError (401)`, `ForbiddenError (403)`, `NotFoundError (404)`, `ConflictError (409)`, `RateLimitError (429)`, `BadRequestError (400)`; доменные коды — константы в `src/shared/error-codes.ts`. Необработанные исключения → `500 INTERNAL` без деталей, полный лог с `requestId`.
+- Классы ошибок (`packages/server/src/http/errors.ts`): `AppError(code, httpStatus, message, details?)` ← `ValidationError (422)`, `UnauthenticatedError (401)`, `ForbiddenError (403)`, `NotFoundError (404)`, `ConflictError (409)`, `RateLimitError (429)`, `BadRequestError (400)`; доменные коды — константы в `packages/shared/src/error-codes.ts`. Необработанные исключения → `500 INTERNAL` без деталей, полный лог с `requestId`.
 - Логи: структурированные JSON (`pino`-совместимый интерфейс — решение на Этапе 1), без паролей/токенов/полных email-тел; PII минимизировать.
 - Пути, методы и коды — **строго по API_CONTRACTS.md**; отклонения требуют правки контракта с разрешения.
 
@@ -106,11 +106,11 @@ Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Ser
 
 ## 12. i18n
 
-Строки интерфейса — только через словарь `src/shared/i18n/ru.ts` (типизированные ключи, функция `t(key, params)`); хардкод русского текста в компонентах запрещён (ESLint-правило/тест на кириллицу в `src/components`, `src/app`). Серверные письма — шаблоны по ключу локали. Даты/деньги — `Intl` с локалью и часовым поясом бизнеса, не ручная склейка.
+Строки интерфейса — только через словарь `packages/shared/src/i18n/ru.ts` (типизированные ключи, функция `t(key, params)`); хардкод русского текста в компонентах запрещён (ESLint-правило/тест на кириллицу в `packages/client`). Серверные письма — шаблоны по ключу локали. Даты/деньги — `Intl` с локалью и часовым поясом бизнеса, не ручная склейка.
 
 ## 13. Конфигурация и секреты
 
-- Все настройки — через env, читаются **только** в `src/server/config/env.ts` (Zod-валидация при старте; приложение не стартует с неверной конфигурацией). Клиенту доступно только `NEXT_PUBLIC_*` (без секретов).
+- Все настройки — через env, читаются **только** в `packages/server/src/config/env.ts` (Zod-валидация при старте; приложение не стартует с неверной конфигурацией). Клиенту доступны только публичные `VITE_*` (без секретов).
 - Секреты не попадают в код, тесты, логи, архивы; `.env*` в `.gitignore`; в репозитории только `.env.example` с пустыми/демо-значениями. Для тестов — отдельные тестовые значения, не совпадающие с production.
 - Сравнение секретов — `crypto.timingSafeEqual`.
 

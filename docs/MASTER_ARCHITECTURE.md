@@ -2,7 +2,7 @@
 
 Входные документы: PROJECT_AUDIT.md, MIGRATION_PLAN.md (технологические части заменены, см. ADR-000), ТЗ владельца. Связанные документы: PRODUCT_SPEC, DATA_MODEL_MONGODB, API_CONTRACTS, PERMISSIONS_MATRIX, BOOKING_ENGINE_SPEC, PAYMENTS_SPEC, NOTIFICATIONS_SPEC, DASHBOARD_SPEC, DESIGN_SYSTEM, UI_UX_SPEC, CODING_STANDARDS, TESTING_STRATEGY, DEEPSEEK_HANDOFF_RULES, ARCHITECTURE_DECISIONS.
 
-Статус: проект на момент документа — UI-прототип без backend (PROJECT_AUDIT). Всё ниже — целевая архитектура; код этапа 1 создан, см. `src/`. <!-- CHANGED: after stage 1 -->
+Статус: целевая архитектура React + Vite + Express. Реализация находится в `packages/`; фактическое состояние см. `PROGRESS.md`.
 
 ## 1. Принципы
 
@@ -10,7 +10,7 @@
 2. Данные — MongoDB + Mongoose (replica set для транзакций).
 3. Изоляция бизнесов обязательна на каждом слое (§9).
 4. Единые контракты (DATA_MODEL, API_CONTRACTS, PERMISSIONS) — первичны, код им следует.
-5. Бизнес-правила — в чистом домене (`src/server/domain`), I/O — в сервисах/репозиториях.
+5. Бизнес-правила — в чистом домене (`packages/server/src/domain`), I/O — в сервисах/репозиториях.
 6. Reference-проект (PHP) не используется в runtime и не копируется (ADR-012).
 7. UI — только через API (ADR-014); mock-данных в завершённых функциях нет.
 8. Простое надёжное решение предпочтительнее сложного; компромиссы фиксируются (ADR).
@@ -39,8 +39,8 @@ NextAppointments/
 │  ├─ client/                  Vite SPA, React Router v7, UI, экраны, хуки
 │  ├─ server/                  Express API, auth, db, repositories, services, domain
 │  └─ shared/                  Zod, DTO, error-codes, constants
-├─ migrations/                 NNN_name.ts — индексы и преобразования данных (000_init.ts — все индексы DATA_MODEL; ADR-015)
-├─ scripts/                    worker.ts, migrate.ts, seed.ts (dev, на фикстурах), check-contrast.ts, check-docs.ts
+├─ packages/server/migrations/ NNN_name.ts — индексы и преобразования данных
+├─ packages/server/scripts/    worker.ts, migrate.ts
 ├─ packages/client/src/        routes, components, hooks, lib, styles
 ├─ packages/server/src/        config, db/models, repositories, services, domain, auth, http, jobs
 ├─ packages/shared/src/        schemas, types, error-codes, constants, i18n
@@ -68,7 +68,7 @@ Vite + React SPA, React Router v7, TanStack Query, react-hook-form + Zod; Tailwi
 
 ## 8. Validation
 
-Zod на границах: тело/query/params/env. Схемы в `src/shared/schemas` (общие для форм и API), `.strict()`; нормализация (trim, lowercase email, E.164 телефон); ограничения длины/диапазонов — из DATA_MODEL. Неизвестные поля (в т.ч. `businessId`) → `422`. Бизнес-инварианты (пересечение интервалов расписания, кратность 5 минут) — в `domain` и дублируются индексами БД там, где возможно.
+Zod на границах: тело/query/params/env. Схемы в `packages/shared/src/schemas` (общие для форм и API), `.strict()`; нормализация (trim, lowercase email, E.164 телефон); ограничения длины/диапазонов — из DATA_MODEL. Неизвестные поля (в т.ч. `businessId`) → `422`. Бизнес-инварианты (пересечение интервалов расписания, кратность 5 минут) — в `packages/server/src/domain` и дублируются индексами БД там, где возможно.
 
 ## 9. Multi-tenancy
 
@@ -140,7 +140,7 @@ Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/play
 
 ## 18. Деплой
 
-Целевой вариант: контейнеры на VPS/PaaS за обратным прокси (TLS, HSTS); приложение `next start` (не статический экспорт); отдельный контейнер воркера; MongoDB — управляемый replica set (Atlas) или собственный replica set с аутентификацией и сетевой изоляцией; пользователь БД приложения с минимальными правами (для `transactions` — без `update/remove`). Порядок выкладки: сборка → `npm run migrate` → запуск app/worker → проверка `SYS-01`. Бэкапы: ежедневные снапшоты/`mongodump` + проверка восстановления; мониторинг: логи с `requestId`, алерты по воркеру и ошибкам 5xx. Альтернатива serverless допустима только с внешним cron для `SYS-02` и учётом пула соединений.
+Целевой вариант: Vite client как статические файлы через reverse proxy/CDN; Express API и worker — отдельные Node 24 процессы; MongoDB — управляемый replica set (Atlas) или собственный replica set с аутентификацией и сетевой изоляцией; пользователь БД приложения с минимальными правами (для `transactions` — без `update/remove`). Порядок выкладки: сборка → `npm run migrate` → запуск app/worker → проверка `SYS-01`. Бэкапы: ежедневные snapshots/`mongodump` + проверка восстановления; мониторинг: логи с `requestId`, алерты по воркеру и ошибкам 5xx.
 
 ## 19. Порядок и зависимости модулей (13 этапов: 0–12) <!-- CHANGED: A4, A2a (исполнитель — Codex Luna 6) -->
 
@@ -148,19 +148,19 @@ Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/play
 
 | Этап | Содержание | Пишет |
 |---|---|---|
-| 0 | Спайк `occupiedKeys`: реальный replica set, уникальный multikey-индекс, конкурентные вставки, отчёт | Claude |
-| 1 | Фундамент: env, logger, БД, defineRoute, tenantPlugin, обновление Next.js, lint/test, Docker, токены дизайна, примитивы | Claude |
-| 2 | Модели + Zod + интерфейсы репозиториев/сервисов + UI-компоненты дизайн-системы | Claude |
-| 3 | Auth: сессии, членства, RBAC, rate limit, AppShell, login/register | Claude |
-| 4 | Staff + Services + Schedule (включая приглашение master через `STF-02`) | Codex Luna 6 |
-| 5 | Customers + Settings | Codex Luna 6 |
-| 6 | Booking: 6a движок (после спайка), 6b внутренняя запись и статусы, 6c публичная запись и управление по токену | 6a — Claude; 6b, 6c — Codex Luna 6 |
-| 7 | Calendar | Codex Luna 6 |
-| 8 | Notifications + email (воркер, шаблоны, провайдеры) | Codex Luna 6 |
-| 9 | Payments (включая возврат `PAY-06`) | Codex Luna 6 |
-| 10 | Dashboard (минимальный: `DSH-01`, `DSH-05`, `MST-01`) | Codex Luna 6 |
-| 11 | Очистка прототипа, финальный UI/a11y | Claude + Codex Luna 6 |
-| 12 | E2E, безопасность, деплой | Claude |
+| 0 | Спайк `occupiedKeys`: реальный replica set, уникальный multikey-индекс, конкурентные вставки, отчёт | Основной исполнитель |
+| 1 | Фундамент: env, logger, БД, defineExpressRoute, tenantPlugin, monorepo Vite/Express, lint/test, Docker, токены и UI primitives | Основной исполнитель |
+| 2 | Модели + Zod + интерфейсы репозиториев/сервисов + UI-компоненты дизайн-системы | Основной исполнитель |
+| 3 | Auth: сессии, членства, RBAC, rate limit, AppShell, login/register | Основной исполнитель |
+| 4 | Staff + Services + Schedule (включая приглашение master через `STF-02`) | Основной исполнитель |
+| 5 | Customers + Settings | Основной исполнитель |
+| 6 | Booking: 6a движок (после спайка), 6b внутренняя запись и статусы, 6c публичная запись и управление по токену | Основной исполнитель |
+| 7 | Calendar | Основной исполнитель |
+| 8 | Notifications + email (воркер, шаблоны, провайдеры) | Основной исполнитель |
+| 9 | Payments (включая возврат `PAY-06`) | Основной исполнитель |
+| 10 | Dashboard (минимальный: `DSH-01`, `DSH-05`, `MST-01`) | Основной исполнитель |
+| 11 | Финальный UI/a11y и cleanup | Основной исполнитель |
+| 12 | E2E, безопасность, деплой | Основной исполнитель |
 
 ```
 0 спайк ─────────────────────────► 6a
@@ -168,8 +168,8 @@ Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/play
                           6 ─► 8        6 ─► 9 ─► 10 (нужны также 5, 6)
  7, 8, 9, 10 ─► 11 ─► 12
 ```
-Зависимости: `4` и `5` требуют `3`; `6` требует `4`, `5` и результата `0`; `7`, `8`, `9` требуют `6`; `10` требует `6`, `9`. Этапы 1–3 выполняет Claude (по команде владельца) до раздачи задач Codex Luna 6: инфраструктура, модели, auth и UI-компоненты дизайн-системы. **На момент выпуска этого пакета документации код этапов 1–3 не написан** (в репозитории только документация). <!-- CHANGED: ZIP -->
-**Уведомления между этапами:** `NotificationService.enqueue*` (постановка в очередь) реализует Claude на этапе 2, поэтому сервисы этапов 4 и 6 могут ставить уведомления сразу; воркер, шаблоны и провайдеры — этап 8. До этапа 8 уведомления накапливаются со статусом `scheduled` (в dev — `ConsoleEmailProvider`). Переход к следующему этапу — только по команде владельца. Обязательные проверки этапа — MIGRATION_PLAN §4 и TESTING_STRATEGY §15.
+Зависимости: `4` и `5` требуют `3`; `6` требует `4`, `5` и результата `0`; `7`, `8`, `9` требуют `6`; `10` требует `6`, `9`. Основной исполнитель выполняет этапы последовательно по PHASED_PLAN, сохраняя контракты стек-агностичных документов.
+**Уведомления между этапами:** enqueue реализуется до feature consumers; worker, templates and providers — этап 8. Обязательные проверки этапов — TESTING_STRATEGY §15.
 
 ## 20. Поток публичной записи
 
@@ -260,7 +260,7 @@ Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/play
 3. **Транзакции требуют replica set** (Docker, тесты, хостинг); часть бесплатных/упрощённых хостингов этого не даёт.
 4. **DST и пояса:** сложные граничные случаи; много тестов, ошибки вероятны именно здесь.
 5. **Собственная аутентификация:** риск ошибок безопасности; требуется углублённое ревью, тесты §10, не передавать во внешние чаты без проверки.
-6. **Next.js 14.1.0** с известными уязвимостями — обновление обязательно на Этапе 1; возможны несовместимости при апгрейде.
+6. Express middleware security pipeline проверяется API security suites и E2E на этапе 12.
 7. **Лицензия:** GPL-3.0 reference + отсутствие `LICENSE` у основы; подход «идеи, не код» снижает, но не исключает риск; нужна консультация юриста перед коммерческим запуском.
 8. **Доставляемость email** (SPF/DKIM/DMARC, репутация SMTP) и надёжность воркера (падение процесса, зависшие `processing`).
 9. **Публичная запись и спам:** защита — honeypot + rate limit; без CAPTCHA возможны массовые фиктивные записи (блокируют слоты).
@@ -278,7 +278,7 @@ Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/play
 | № | Решение | Рекомендация архитектора |
 |---|---|---|
 | 1 | Лицензия продукта (и подтверждение подхода ADR-012; юрист) | Закрытая/проприетарная для SaaS, `NOTICE` с упоминанием обоих проектов |
-| 2 | Версии: **решено** Node.js 24 LTS и MongoDB 8.0; Next.js/React — выбрать актуальные поддерживаемые на Этапе 1 (ADR-016) | Проверить совместимость с Node 24 при апгрейде |
+| 2 | Версии: Node.js 24, MongoDB 8.0, Vite/React/Express 5 согласно ADR-002 | Проверить совместимость lockfile с Node 24 |
 | 3 | Хостинг БД и приложения (Atlas vs свой replica set; VPS/PaaS) и способ запуска воркера | Docker на VPS + Atlas; воркер отдельным контейнером |
 | 4 | Валюта, часовой пояс, страна: **решено** — выбор при регистрации (страна: RU, KZ, KG, US, OTHER; по умолчанию из региона браузера, запасное — `APP_DEFAULT_COUNTRY_CODE`) | — |
 | 5 | Может ли master блокировать своё время (ADR-011) | Нет в MVP |
