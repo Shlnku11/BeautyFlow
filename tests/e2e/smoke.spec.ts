@@ -101,6 +101,20 @@ test('business owner can register and log back in using a server-side session', 
   const customerListResponse = await page.request.get('http://localhost:3000/api/customers?q=E2E');
   expect((await customerListResponse.json()).data).toEqual(expect.arrayContaining([expect.objectContaining({ id: customerData.id, firstName: 'E2E Client' })]));
 
+  const settingsResponse = await page.request.get('http://localhost:3000/api/settings');
+  expect(settingsResponse.status()).toBe(200);
+  expect((await settingsResponse.json()).data.business).toMatchObject({ countryCode: 'KG', currency: 'KGS' });
+  const bookingSettingsResponse = await page.request.patch('http://localhost:3000/api/settings/booking', {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { minNoticeMinutes: 45 },
+  });
+  expect((await bookingSettingsResponse.json()).data.booking.minNoticeMinutes).toBe(45);
+  const invalidTimezoneResponse = await page.request.patch('http://localhost:3000/api/settings/business', {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { timezone: 'Invalid/Zone' },
+  });
+  expect(invalidTimezoneResponse.status()).toBe(422);
+
   const rejectedTenantOverride = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: 'http://localhost:3000' },
     data: { displayName: 'Injected tenant', color: 'teal', acceptsOnlineBooking: true, businessId: '000000000000000000000000' },
