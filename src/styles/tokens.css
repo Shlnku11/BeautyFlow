@@ -1,0 +1,134 @@
+:root {
+  --color-primary-50: #f7f4ff;
+  --color-primary-100: #efe9ff;
+  --color-primary-200: #e0d5ff;
+  --color-primary-300: #c9b5fc;
+  --color-primary-400: #aa88f7;
+  --color-primary-500: #8b61ee;
+  --color-primary-600: #6d3fd9;
+  --color-primary-700: #5a30b8;
+  --color-primary-800: #47268f;
+  --color-primary-900: #301a63;
+  --color-primary-950: #1f1142;
+
+  --color-neutral-0: #ffffff;
+  --color-neutral-25: #fbfafd;
+  --color-neutral-50: #f6f5f9;
+  --color-neutral-100: #eeedf3;
+  --color-neutral-200: #e0dee8;
+  --color-neutral-300: #c9c6d6;
+  --color-neutral-400: #857fa0;
+  --color-neutral-500: #77738c;
+  --color-neutral-600: #5a566e;
+  --color-neutral-700: #433f55;
+  --color-neutral-800: #2b2839;
+  --color-neutral-900: #1a1826;
+
+  --color-success-fg: #14724a;
+  --color-success-bg: #e7f6ee;
+  --color-success-solid: #14724a;
+  --color-warning-fg: #8a4b00;
+  --color-warning-bg: #fff3dc;
+  --color-warning-solid: #b26a00;
+  --color-danger-fg: #b3203f;
+  --color-danger-bg: #fdecef;
+  --color-danger-solid: #b3203f;
+  --color-info-fg: #1d4fa8;
+  --color-info-bg: #e8f0fd;
+  --color-info-solid: #1d4fa8;
+
+  --color-staff-violet-bg: #efe9ff;
+  --color-staff-violet-fg: #47268f;
+  --color-staff-rose-bg: #fde7f0;
+  --color-staff-rose-fg: #8f1d4f;
+  --color-staff-teal-bg: #ddf4f1;
+  --color-staff-teal-fg: #0f5e57;
+  --color-staff-amber-bg: #fff0d1;
+  --color-staff-amber-fg: #7a4300;
+  --color-staff-blue-bg: #e3eeff;
+  --color-staff-blue-fg: #1a478f;
+  --color-staff-green-bg: #e2f5e8;
+  --color-staff-green-fg: #17623d;
+  --color-staff-orange-bg: #ffe9db;
+  --color-staff-orange-fg: #8a3a0a;
+  --color-staff-slate-bg: #e8eaf2;
+  --color-staff-slate-fg: #33384f;
+
+  --surface-app: #f6f5f9;
+  --surface-solid: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-strong: rgba(255, 255, 255, 0.86);
+  --border-glass: rgba(255, 255, 255, 0.65);
+  --border-subtle: var(--color-neutral-200);
+  --border-control: var(--color-neutral-400);
+  --text-primary: var(--color-neutral-900);
+  --text-secondary: var(--color-neutral-600);
+  --focus-ring: var(--color-primary-600);
+
+  --blur-glass: 16px;
+  --blur-glass-mobile: 10px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --shadow-sm: 0 1px 2px rgba(31, 17, 66, 0.06);
+  --shadow-md: 0 4px 12px rgba(31, 17, 66, 0.08);
+  --shadow-lg: 0 12px 32px rgba(31, 17, 66, 0.12);
+  --shadow-glass: 0 8px 32px rgba(48, 26, 99, 0.1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  color-scheme: light;
+}
+
+.glass-surface {
+  border: 1px solid var(--border-glass);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+}
+
+.glass-surface-strong {
+  border: 1px solid var(--border-glass);
+  background: var(--surface-glass-strong);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-surface,
+  .glass-surface-strong {
+    background: rgba(255, 255, 255, 0.96);
+  }
+}
+
+@media (max-width: 768px) {
+  .glass-surface,
+  .glass-surface-strong {
+    -webkit-backdrop-filter: blur(var(--blur-glass-mobile));
+    backdrop-filter: blur(var(--blur-glass-mobile));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface,
+  .glass-surface-strong {
+    background: rgba(255, 255, 255, 0.96);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
