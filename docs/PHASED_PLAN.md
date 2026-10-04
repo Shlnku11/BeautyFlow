@@ -1,12 +1,12 @@
 # PHASED_PLAN.md — Поэтапный план разработки (этапы 0–12)
 
 <!-- CHANGED: A2a (новый документ) -->
-Согласован с MASTER_ARCHITECTURE §19 (та же нумерация и зависимости) и MVP_SCOPE.md (эндпоинты по этапам). Исполнитель «Luna» = **Codex Luna 6** (DEEPSEEK_HANDOFF_RULES). Переход к следующему этапу — только по команде владельца.
+Согласован с MASTER_ARCHITECTURE §19 и MVP_SCOPE.md. Основной исполнитель реализует этапы последовательно на React + Vite + Express 5 monorepo. Переход после зелёных проверок фиксируется в `PROGRESS.md`.
 
 ## 0. Как читать
 
 - **Эндпоинты** — ID из API_CONTRACTS/MVP_SCOPE (64 в MVP). **Модели** — коллекции из DATA_MODEL. **Тесты** — по TESTING_STRATEGY. **Готово, когда** — проверяемые критерии; общая Definition of Done — PRODUCT_SPEC §7 действует на каждом этапе.
-- **Этапы 1–3** выполняет Claude (по команде владельца) до выдачи задач исполнителю; **на момент выпуска пакета документации код этапов 1–3 не написан**. Для этих этапов в плане указаны объём и критерии приёмки: запуск, прогон тестов, исправление найденного. Этапы 4–10 выполняются по task-пакетам `docs/tasks/` (пакеты и `ORDER.md` **ещё не созданы**; порядок — `docs/tasks/ORDER.md` после создания). <!-- CHANGED: ZIP -->
+- Этапы выполняются основным исполнителем, без task-пакетов; каждый этап закрывается typecheck, lint, релевантными тестами и build.
 - **Проверки после каждого этапа:** lint, typecheck, unit, integration, миграции, build, проверка затронутых API, роли, изоляция A/B, браузерный сценарий (если есть UI), обновление `PROGRESS.md`. Недоступная проверка фиксируется честно.
 - **Среда проверки Claude:** в среде подготовки нет доступа к npm-registry и MongoDB — команды `npm install`, интеграционные тесты и спайк этапа 0 выполняет **владелец** (или CI) и присылает вывод. Claude не заявляет «проверено», пока вывода нет.
 - **Усиленное ревью** (DEEPSEEK_HANDOFF_RULES §8 п.6) — для стопок с транзакциями и гонками: `STF-02`, `BLK-02`, `APT-02/05/06`, `PUB-06/09/10`, `PAY-02/06`, воркер.
@@ -15,19 +15,19 @@
 
 | Этап | Название | Исполнитель | Зависит от | Эндпоинтов |
 |---|---|---|---|---|
-| 0 | Спайк `occupiedKeys` | Claude (скрипт и отчёт), запуск — владелец | — | 0 |
-| 1 | Фундамент | Claude | 0 (параллельно) | 1 (`SYS-01`) |
-| 2 | Модели, Zod, интерфейсы, UI-компоненты | Claude | 1 | 0 |
-| 3 | Auth, AppShell, login/register | Claude | 2 | 8 |
-| 4 | Staff + Services + Schedule (+блокировки, команда) | Luna | 3 | 20 |
-| 5 | Customers + Settings | Luna | 3 | 8 |
-| 6 | Booking: 6a / 6b / 6c | 6a Claude; 6b, 6c Luna | 4, 5, 0 | 17 |
-| 7 | Calendar | Luna | 6 | 1 |
-| 8 | Notifications + email | Luna | 6 | 1 (`SYS-02`) |
-| 9 | Payments | Luna | 6 | 5 |
-| 10 | Dashboard (минимальный) | Luna | 6, 9 | 3 |
-| 11 | Очистка прототипа, финальный UI/a11y | Claude + Luna | 7, 8, 9, 10 | 0 |
-| 12 | E2E, безопасность, деплой | Claude | 11 | 0 |
+| 0 | Спайк `occupiedKeys` | Основной исполнитель | — | 0 |
+| 1 | Фундамент monorepo Vite + Express | Основной исполнитель | 0 (параллельно) | 1 (`SYS-01`) |
+| 2 | Модели, Zod, интерфейсы, UI-компоненты | Основной исполнитель | 1 | 0 |
+| 3 | Auth, AppShell, login/register | Основной исполнитель | 2 | 8 |
+| 4 | Staff + Services + Schedule (+блокировки, команда) | Основной исполнитель | 3 | 20 |
+| 5 | Customers + Settings | Основной исполнитель | 3 | 8 |
+| 6 | Booking: 6a / 6b / 6c | Основной исполнитель | 4, 5, 0 | 17 |
+| 7 | Calendar | Основной исполнитель | 6 | 1 |
+| 8 | Notifications + email | Основной исполнитель | 6 | 1 (`SYS-02`) |
+| 9 | Payments | Основной исполнитель | 6 | 5 |
+| 10 | Dashboard (минимальный) | Основной исполнитель | 6, 9 | 3 |
+| 11 | Финальный UI/a11y и cleanup | Основной исполнитель | 7, 8, 9, 10 | 0 |
+| 12 | E2E, безопасность, деплой | Основной исполнитель | 11 | 0 |
 Итого MVP: 1 + 8 + 20 + 8 + 17 + 1 + 1 + 5 + 3 = **64**.
 
 ---
@@ -53,10 +53,10 @@
 
 **Цель:** воспроизводимая сборка и каркас сервера.
 **Исполнитель:** Claude. **Зависит от:** — (спайк идёт параллельно).
-**Содержание:** `package.json` (Node 24, зависимости из MASTER §16), обновление Next.js до актуальной поддерживаемой версии (ADR-016, ADR-017), `tsconfig` (strict-набор), ESLint/Prettier, `.env.example`, Docker Compose (`mongo:8.0` rs0) и Dockerfile, `src/server/config/env.ts`, `http/{errors,responses,logger,define-route,csrf,rate-limit}`, `db/{connection,transactions,tenant-exempt,plugins/tenant}`, `shared/*`, `domain/{permissions,money,time}`, клиентская инфраструктура (`api-client`, `format`, `a11y`, `use-api`, `use-session`), токены дизайна, `migrations/000_init.ts` + раннер, скрипты.
+**Содержание:** workspace root config; `packages/client` Vite + React Router v7 + Tailwind; `packages/server` Express 5 + `defineExpressRoute`; `packages/shared`; Node 24 / MongoDB 8 rs0; перенос этапа 1 без переписывания (models, tenant plugin/exempt, transactions/connection, errors/responses/logger, permissions/money/time/env, migration runner, shared types, api-client/hooks). Настраиваются env, CSRF/rate-limit, health route, tokens, Docker, lint/typecheck/test/build.
 **Эндпоинты:** `SYS-01`. **Модели:** — (подключение и плагин).
 **Тесты:** unit для `money`, `time` (DST), `permissions` (полнота роль×ключ), `tenantPlugin` (запрос без `businessId` → ошибка), `defineRoute` (порядок pipeline, формат ошибок), `env`; integration: подключение, `withTransaction` (повтор при transient), миграция 000 (индексы через `listIndexes`).
-**Готово, когда:** `npm run lint`, `typecheck`, `test:unit`, `migrate`, `build` проходят у владельца; `GET /api/health` отвечает; Next.js обновлён; удалён неиспользуемый `axios`; дубли конфигов (`next.config.ts`, второй `postcss`, `eslint`) разрешены.
+**Готово, когда:** lint, typecheck, unit, migrate и build проходят; `GET /api/health` отвечает; Next.js artifacts удалены; UI и API стартуют отдельно.
 
 ## Этап 2. Модели, Zod-схемы, интерфейсы, UI-компоненты
 
@@ -73,7 +73,7 @@
 **Исполнитель:** Claude. **Зависит от:** 2.
 **Эндпоинты (8):** `AUTH-01`, `AUTH-02`, `AUTH-03`, `AUTH-04`, `AUTH-06`, `AUTH-07`, `AUTH-08`, `AUTH-09`.
 **Модели:** users, sessions, businesses, businessMembers, settings, rateLimits, auditLogs (запись).
-**Содержание:** пароли (argon2id), сессии (HMAC-хэш, TTL, скользящее/абсолютное окно), токены приглашения/сброса, `TenantContext`, RBAC, rate limiting, CSRF, **`AuthService.createInvitedUser`** и интерфейс «закрыть все сессии пользователя» (используются этапом 4), AppShell (sidebar/topbar/нижняя навигация), экраны `/login`, `/register`, `/forgot-password`, `/reset-password/[token]`, `/accept-invite/[token]`, `/app/account`, middleware-редирект.
+**Содержание:** пароли (argon2id), сессии (HMAC-хэш, TTL, скользящее/абсолютное окно), токены приглашения/сброса, `TenantContext`, RBAC, rate limiting, CSRF, `AuthService.createInvitedUser`, AppShell, auth screens and React Router v7 UX guards.
 **Тесты:** unit (хэш/верификация, токены, окно сессии); API (`AUTH-*`: ST-1…ST-6, одинаковый ответ на неверный email, флаги cookie, одноразовость токенов, `countryCode` обязателен); integration (атомарность регистрации, смена пароля удаляет другие сессии, отключённый пользователь/членство → 401); security (CSRF, rate limit, NoSQL-инъекции); E2E-1 (регистрация → вход → выход).
 **Готово, когда:** сквозной сценарий «регистрация → вход → `/app`» работает; все проверки §10 TESTING_STRATEGY для auth зелёные; `AUTH-04.permissions` совпадает с матрицей для каждой роли; письма сброса/приглашения ставятся в очередь (доставка — этап 8).
 

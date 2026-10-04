@@ -56,7 +56,7 @@
 
 ## 7. Гонки при записи (booking race)
 
-Реальные параллельные запросы к Route Handler/сервису (Promise.all), реплика-сет:
+Реальные параллельные HTTP-запросы к Express API/сервису (Promise.all), replica set:
 1. 20 одновременных `PUB-06` на один слот → ровно один `201`, 19 × `409 SLOT_UNAVAILABLE`; в БД ровно одна активная запись; `occupiedKeys` уникальны.
 2. Пересекающиеся (не совпадающие) интервалы: 10:00–11:00 и 10:30–11:30 одновременно → одна успешная.
 3. «Любой мастер»: 3 запроса, 2 свободных мастера → 2 успеха у разных мастеров, 1 `409`.
@@ -85,12 +85,12 @@
 - **Токены:** управления записью (энтропия 256 бит, одноразовость где применимо, срок), приглашения, сброса; неверные → единый `404`.
 - **Утечки:** DTO без чувствительных полей (§6д); ошибки без стека; сообщения аутентификации без перечисления аккаунтов; `X-Powered-By` отключён; заголовки безопасности (`X-Content-Type-Options`, `Referrer-Policy`, `Content-Security-Policy` базовая, `Permissions-Policy`).
 - **Публичные эндпоинты:** honeypot, лимиты, отсутствие данных клиентов в ответах.
-- **Зависимости:** `npm audit` в CI (блокирует critical/high без исключения с обоснованием); версия Next.js — актуальная поддерживаемая (в текущем `package.json` 14.1.0 с известными уязвимостями, обновление — Этап 1).
+- **Зависимости:** `npm audit` в CI (блокирует critical/high без исключения с обоснованием); Vite dev server и Express production server проверяются раздельно.
 - **Секреты:** сканер секретов в CI (например, gitleaks) по репозиторию и архиву.
 
 ## 11. Browser / E2E (Playwright)
 
-Сквозные сценарии (на тестовой БД, `ConsoleEmailProvider`):
+Сквозные сценарии запускаются на Vite dev server + Express API и тестовой БД (`ConsoleEmailProvider`):
 1. Регистрация бизнеса → онбординг → создание мастера, услуги, расписания.
 2. Публичная запись: 5 шагов → подтверждение → письмо с ссылкой → отмена по ссылке.
 3. Перенос по ссылке; конфликт слота при одновременной записи в двух вкладках.
@@ -112,7 +112,7 @@ axe (`@axe-core/playwright`) на всех ключевых экранах (0 н
 
 ## 14. Команды (будут добавлены на Этапе 1)
 
-`npm run lint` · `npm run typecheck` · `npm run test:unit` · `npm run test:integration` · `npm run test:api` · `npm run test:isolation` (набор §4) · `npm run test:race` (§7, циклы) · `npm run test:e2e` · `npm run test:a11y` · `npm run check:contrast` · `npm run migrate` · `npm run build` · `npm run check:docs` (проверка ID эндпоинтов/ключей прав между документами и реестром). CI-порядок: lint → typecheck → unit → миграции → integration/api/isolation → build → e2e (nightly: race ×50, DST-матрица).
+`npm run lint` · `npm run typecheck` · `npm run test:unit` · `npm run test:integration` · `npm run test:api` · `npm run test:isolation` · `npm run test:race` · `npm run test:e2e` · `npm run test:a11y` · `npm run check:contrast` · `npm run migrate` · `npm run build` · `npm run check:docs`. Playwright runs against Vite and Express; CI order remains lint → typecheck → unit → migrations → integration/API/isolation → build → E2E.
 
 ## 15. Definition of done для тестирования
 

@@ -6,7 +6,7 @@
 
 ## 1. Принципы
 
-1. Один репозиторий, один стек: Next.js (App Router) + React + TypeScript; backend — Route Handlers (Node.js runtime).
+1. Monorepo: React SPA на Vite и отдельный Express 5 API на Node.js.
 2. Данные — MongoDB + Mongoose (replica set для транзакций).
 3. Изоляция бизнесов обязательна на каждом слое (§9).
 4. Единые контракты (DATA_MODEL, API_CONTRACTS, PERMISSIONS) — первичны, код им следует.
@@ -18,25 +18,9 @@
 ## 2. Текстовая схема архитектуры
 
 ```
- Браузер (React, Tailwind, TanStack Query)
-   │  fetch /api/** (cookie na_sid)              публичные: /b/[slug] → /api/public/**
-   ▼
- ┌─────────────────────────── Next.js (Node.js runtime) ────────────────────────────┐
- │ middleware (только UX-редирект без cookie)                                        │
- │                                                                                   │
- │ Route Handler  ── defineRoute ──►  pipeline:                                      │
- │   src/app/api/**/route.ts          1 requestId/log  2 rate limit  3 CSRF/origin   │
- │                                    4 session → membership → TenantContext         │
- │                                    5 permission (RBAC)  6 Zod(strict) parse       │
- │                                          │                                        │
- │                                          ▼                                        │
- │   Service  (бизнес-правила, транзакции, аудит, enqueue уведомлений)               │
- │      │  использует ▶ Domain (чистые функции: booking-engine, money, transitions)  │
- │      ▼                                                                            │
- │   Repository (ctx: TenantContext обязателен) ──► Mongoose Model (+tenantPlugin)   │
- └───────────────────────────────────────────────┬───────────────────────────────────┘
-                                                 ▼
-                                   MongoDB replica set (rs0)
+packages/client (Vite SPA, React Router v7) → /api/** → packages/server (Express 5)
+  defineExpressRoute → requestId → rate limit → CSRF → session → TenantContext
+  → RBAC → Zod(strict) → handler → Service → Repository(ctx) → Mongoose → MongoDB rs0
                                    коллекции: users, sessions, businesses, businessMembers,
                                    staff, staffSchedules, staffExceptions, blockedPeriods,
                                    services, staffServices, customers, appointments,
@@ -50,43 +34,29 @@
 
 ```
 NextAppointments/
-├─ docs/                       документация (17 документов: 15 исходных + MVP_SCOPE.md, PHASED_PLAN.md), tasks/ (task-пакеты TASK-NNN.md и ORDER.md), spikes/ (отчёты спайков) <!-- CHANGED: A2a -->
+├─ docs/                       спецификации и план разработки
+├─ packages/
+│  ├─ client/                  Vite SPA, React Router v7, UI, экраны, хуки
+│  ├─ server/                  Express API, auth, db, repositories, services, domain
+│  └─ shared/                  Zod, DTO, error-codes, constants
 ├─ migrations/                 NNN_name.ts — индексы и преобразования данных (000_init.ts — все индексы DATA_MODEL; ADR-015)
 ├─ scripts/                    worker.ts, migrate.ts, seed.ts (dev, на фикстурах), check-contrast.ts, check-docs.ts
-├─ src/
-│  ├─ app/
-│  │  ├─ (public)/             login, register, forgot/reset-password, accept-invite, b/[slug]/…
-│  │  ├─ (app)/app/…           защищённые экраны (dashboard, calendar, customers, staff, …)
-│  │  └─ api/**/route.ts       Route Handlers
-│  ├─ components/ui/           дизайн-система (Button, Input, Table, Dialog, …)
-│  ├─ components/features/     компоненты функций
-│  ├─ hooks/                   use-api.ts (база TanStack Query), use-session.ts, use-<feature>.ts
-│  ├─ lib/                     api-client.ts, format.ts, a11y.ts
-│  ├─ shared/                  schemas (Zod), dto-типы, error-codes, i18n/ru.ts, constants
-│  ├─ styles/tokens.css        токены (DESIGN_SYSTEM §2)
-│  └─ server/                  (import 'server-only')
-│     ├─ config/env.ts         валидация окружения
-│     ├─ db/                   connection.ts, models/*, plugins/tenant.ts, tenant-exempt.ts, transactions.ts
-│     ├─ repositories/         *-repository.ts (ctx обязателен)
-│     ├─ services/             *-service.ts
-│     ├─ domain/               booking-engine/, money.ts, permissions.ts, transitions.ts, time.ts
-│     ├─ auth/                 session.ts, password.ts, tokens.ts, context.ts
-│     ├─ http/                 define-route.ts, errors.ts, responses.ts, rate-limit.ts, csrf.ts, logger.ts
-│     ├─ notifications/        providers/, templates/ru/, queue.ts, run-batch.ts
-│     └─ jobs/                 (вызываются воркером)
+├─ packages/client/src/        routes, components, hooks, lib, styles
+├─ packages/server/src/        config, db/models, repositories, services, domain, auth, http, jobs
+├─ packages/shared/src/        schemas, types, error-codes, constants, i18n
 ├─ tests/                      unit/, integration/, api/, e2e/, fixtures/ (builders.ts, world-ab.ts, clock.ts)
 ├─ docker-compose.yml  Dockerfile  .env.example  .nvmrc  PROGRESS.md  NOTICE  LICENSE(решение)
 <!-- CHANGED: A4 — перечислены scripts/, migrations/, tests/fixtures/, src/components/ui/, src/lib/api-client.ts, src/hooks/ -->
 ```
-Существующие `src/app/page.tsx`, `src/app/submissions`, `src/lib/storage.ts`, `components/forms/*` — прототип: используются как источник стилей/идей до Этапа 11, затем удаляются (UI_UX_SPEC §1).
+React Router defines client routes; the server exposes API endpoints under `/api/**` only.
 
 ## 4. Frontend
 
-Next.js App Router, клиентские экраны (`'use client'`) + TanStack Query, формы — react-hook-form + Zod (общие схемы из `src/shared`), стили — Tailwind на токенах (DESIGN_SYSTEM), иконки — heroicons (уже в проекте), headlessui для диалогов/листбоксов, графики — Recharts. Единый `api-client` (fetch): добавляет `Idempotency-Key` где нужно, разбирает конверт ошибок, переводит коды в тексты, обрабатывает 401 (редирект на логин). Состояние сервера — только Query-кэш; персональные данные в `localStorage` не хранятся. Навигация и видимость пунктов — по `AUTH-04.permissions` (подсказка UX; сервер — источник истины). i18n — словарь `ru.ts` (ADR-013).
+Vite + React SPA, React Router v7, TanStack Query, react-hook-form + Zod; Tailwind использует DESIGN_SYSTEM tokens. Общий api-client разбирает API envelopes, ошибки и idempotency. Серверное состояние — Query cache; персональные данные не хранятся в localStorage. Клиентские route guards служат только UX; сервер проверяет AUTH-04 permissions. i18n — словарь `ru.ts` (ADR-013).
 
-## 5. Backend: Route Handlers
+## 5. Backend: Express 5
 
-Каждый маршрут — `defineRoute({ id, method, path, auth, permission, contextSource, bodySchema, querySchema, rateLimit, handler })`. Pipeline (§2): requestId → rate limit → CSRF/origin (мутации) → сессия → членство → `TenantContext` → RBAC → Zod → handler → единый конверт ответа/ошибки. Все обработчики: `runtime='nodejs'`, `dynamic='force-dynamic'`. Реестр маршрутов экспортируется для contract-тестов. Публичные маршруты используют `PublicContext` (slug/токен). Маршруты `/api/internal/jobs/*` — `CRON`-аутентификация.
+Каждый маршрут — `defineExpressRoute({ id, method, path, auth, permission, contextSource, schemas, rateLimit, handler })`. Pipeline (§2): requestId → rate limit → CSRF/origin (мутации) → сессия → членство → `TenantContext` → RBAC → Zod → handler → единый конверт ответа/ошибки. Реестр используется contract-тестами. Публичные маршруты используют `PublicContext`; `/api/internal/jobs/*` — CRON-аутентификация.
 
 ## 6. Сервисный слой и репозитории
 
@@ -115,9 +85,9 @@ Zod на границах: тело/query/params/env. Схемы в `src/shared/
 
 Регистрация создаёт `users + businesses + settings + businessMembers(owner) + sessions` в транзакции. Вход — email+пароль (argon2id), сессия — cookie с токеном, в БД хэш. В MVP один пользователь — один бизнес (одно членство в `businessMembers`; модель допускает несколько, переключение `AUTH-05` — post-MVP). <!-- CHANGED: A4 --> Приглашения и сброс пароля — одноразовые токены (хэш в БД, TTL). Подробности — API_CONTRACTS §2, ADR-003. Rate limiting — `rateLimits` (политики `RL-*`).
 
-## 11. Middleware
+## 11. HTTP middleware
 
-`middleware.ts` (Edge): (а) для путей `/app/**` без cookie → редирект `/login?next=…` (UX); (б) заголовки безопасности (`Referrer-Policy`, `X-Content-Type-Options`, базовый CSP, `Permissions-Policy`). **Не выполняет авторизацию** и не обращается к БД. Вся проверка — внутри Route Handlers (`defineRoute`).
+Express middleware задаёт requestId и security headers. Session, tenant, RBAC и CSRF проверяются в pipeline `defineExpressRoute`. React Router guards выполняют только UX-переходы и не авторизуют API-запросы.
 
 ## 12. RBAC
 
@@ -154,19 +124,19 @@ Zod на границах: тело/query/params/env. Схемы в `src/shared/
 | `APP_DEFAULT_COUNTRY_CODE` | `RU|KZ|KG|US|OTHER` — запасное значение страны при регистрации, если регион браузера (Intl) не определён <!-- CHANGED: A4 --> | нет |
 | `SMS_PROVIDER`, `PUSH_PROVIDER` | зарезервировано, не используется в MVP | нет |
 | `TEST_MONGODB_URI` | необязательно: внешний replica set для тестов | нет |
-Правила: чтение только в `src/server/config/env.ts` (Zod), неверная конфигурация → отказ старта; клиенту доступны только `NEXT_PUBLIC_*` (секретов нет); секреты не попадают в код/логи/архивы; `.env*` в `.gitignore`.
+Правила: чтение только в `packages/server/src/config/env.ts` (Zod), неверная конфигурация → отказ старта; клиенту доступны только публичные `VITE_*` (секретов нет); секреты не попадают в код/логи/архивы; `.env*` в `.gitignore`.
 
 ## 16. Зависимости (к установке только с разрешением, Этап 1+)
 
-**Версии (решено владельцем):** Node.js **24 LTS** (`.nvmrc`, `engines.node`), MongoDB **8.0** (replica set `rs0`); Next.js — актуальная поддерживаемая, выбирается на Этапе 1 (ADR-016). Node.js 20 и MongoDB 6.0 в ТЗ первоначально указывались, но вышли из поддержки (30.04.2026 и 31.07.2025) — не используются. <!-- CHANGED: A4 -->
-Рантайм: `mongoose`, `zod` (+ `@hookform/resolvers` уже есть), `luxon`, `@node-rs/argon2` (или `bcryptjs`), `nodemailer`, `libphonenumber-js`, `server-only`, `@tanstack/react-query`, `recharts`, `react-hook-form` (есть), `headlessui`/`heroicons` (есть), логгер (`pino` или аналог — решение Этапа 1).
+**Версии (решено владельцем):** Node.js **24 LTS**, MongoDB **8.0** (replica set `rs0`), Vite + React + Express 5 + React Router v7 (ADR-002). <!-- CHANGED: A4 -->
+Рантайм: `express`, `mongoose`, `zod`, `luxon`, `@node-rs/argon2` (или `bcryptjs`), `nodemailer`, `libphonenumber-js`, `@tanstack/react-query`, `react-router`, `recharts`, `react-hook-form`, `tailwindcss`, `heroicons`, логгер (`pino` или аналог).
 Dev/test: `vitest`, `mongodb-memory-server`, `@playwright/test`, `@axe-core/playwright`, `prettier` + `prettier-plugin-tailwindcss`, ESLint-плагины (`jsx-a11y`, `import`, `@typescript-eslint`), `@types/*`.
-Удалить: неиспользуемый `axios`. Версия Next.js — обновить (ADR-016).
+Удалить: неиспользуемый `axios`; Next.js не входит в целевой стек.
 
 ## 17. Docker (локально)
 
 `docker-compose.yml`: сервис `mongo` (образ `mongo:8.0`, команда с `--replSet rs0 --bind_ip_all`, volume данных, healthcheck с автоматическим `rs.initiate` при первом старте); сервис `app` (dev — через `npm run dev` на хосте, либо контейнер для проверки production-сборки); сервис `worker` (тот же образ, команда `node dist/scripts/worker.js`). Секреты — через `env_file` (`.env`, не в репозитории). Строка подключения для разработки: `mongodb://localhost:27017/?replicaSet=rs0&directConnection=true`.
-`Dockerfile`: многоступенчатый (deps → build → runtime), non-root пользователь, `next start`.
+`Dockerfile`: многоступенчатый (deps → build → runtime), non-root пользователь; Express API и Vite static client запускаются отдельно.
 
 ## 18. Деплой
 

@@ -29,23 +29,19 @@
 ## 3. Структура и импорты
 
 ```
-src/app/            только маршруты/страницы/Route Handlers (тонкий слой)
-src/components/ui/  универсальные UI-компоненты без бизнес-логики
-src/components/features/<feature>/   компоненты функций
-src/hooks/          клиентские хуки (данные через api-client)
-src/lib/            api-client, format, a11y-утилиты (чисто клиент/общие)
-src/shared/         Zod-схемы, типы DTO, константы, i18n-ключи — БЕЗ серверных/клиентских зависимостей
-src/server/         ВСЁ серверное (db, repositories, services, domain, auth, http, notifications, jobs, config)
+packages/client/src/       Vite SPA: routes, components, hooks, lib
+packages/server/src/       Express API: db, repositories, services, domain, auth, http, jobs
+packages/shared/src/       Zod, DTO, constants, error codes; dependency-free
 ```
-- Алиасы: `@/*` → `src/*` (tsconfig `paths`). Относительные импорты — только внутри одной папки функции (`./x`), выше — алиас.
-- **Границы:** `src/server/**` начинается с `import 'server-only'`; клиентские компоненты не импортируют из `src/server`. `src/shared` не импортирует из `server`/`components`. Нарушение ловится ESLint (`no-restricted-imports`) и тестом `architecture.test.ts` (проверка импортов).
+- Алиасы задаются отдельно в tsconfig каждого workspace-пакета. Межпакетные зависимости идут через workspace exports.
+- **Границы:** client не импортирует server; shared не импортирует client/server; database access разрешён только в server db/repositories. ESLint и `architecture.test.ts` проверяют границы.
 - Порядок импортов: node/внешние → `@/` → относительные → типы; без циклических зависимостей (`import/no-cycle`).
-- Named exports; `default export` только там, где требует Next (`page.tsx`, `layout.tsx`, `route.ts` экспортирует HTTP-методы).
+- Использовать named exports; default export допускается только для конфигураций, где это требует инструментарий.
 
 ## 4. Слои сервера (service / repository)
 
 ```
-Route Handler → defineRoute (auth, tenant ctx, rate limit, zod) → Service → Repository → Mongoose model
+Express route → defineExpressRoute (auth, tenant ctx, rate limit, zod) → Service → Repository → Mongoose model
 ```
 - **Route Handler:** только разбор запроса, вызов сервиса, формирование ответа. Бизнес-логики и обращений к моделям нет.
 - **Service** (`src/server/services/*-service.ts`): бизнес-правила, проверка прав (`PermissionService`), транзакции, постановка уведомлений, аудит. Принимает `ctx: TenantContext` первым параметром.
@@ -86,16 +82,16 @@ Route Handler → defineRoute (auth, tenant ctx, rate limit, zod) → Service �
 - Логи: структурированные JSON (`pino`-совместимый интерфейс — решение на Этапе 1), без паролей/токенов/полных email-тел; PII минимизировать.
 - Пути, методы и коды — **строго по API_CONTRACTS.md**; отклонения требуют правки контракта с разрешения.
 
-## 9. React и Next.js
+## 9. React SPA (без Server Components)
 
-- Server/Client: по умолчанию компоненты серверные только для статических оболочек (layout, заголовки); любые экраны с данными — клиентские (`'use client'`) и получают данные через `api-client` + TanStack Query. **Прямой доступ к БД из UI, в том числе из Server Components и `generateMetadata`, запрещён.**
+- Весь UI — клиентское React-приложение на Vite, маршрутизируется через React Router v7. Данные загружаются через `api-client` + TanStack Query. **Прямой доступ к БД из UI запрещён.**
 - Компоненты: функциональные, props типизированы, без `React.FC`; один компонент — один файл; логика данных — в хуках (`useCustomers`), презентация — в компонентах; компонент ≤ ~200 строк, иначе разбивать.
 - Хуки: только `use*`, зависимости эффектов корректны (`react-hooks/exhaustive-deps: error`).
 - Состояния данных: `loading / empty / error / success` обязательны для каждого экрана (UI_UX_SPEC §4); текст — из i18n-словаря.
 - Формы: react-hook-form + zodResolver с общими схемами; ошибки сервера отображаются у полей.
 - Доступность — DESIGN_SYSTEM §9: семантические теги, `aria-*`, фокус; `div onClick` вместо кнопки запрещён.
 - Нет `localStorage` с персональными данными/токенами; сессия — только httpOnly cookie.
-- Next.js Route Handlers: `export const runtime = 'nodejs'; export const dynamic = 'force-dynamic'`.
+- API выполняется отдельным Express 5 процессом на Node.js; авторизация и права проверяются только сервером.
 
 ## 10. Tailwind
 
