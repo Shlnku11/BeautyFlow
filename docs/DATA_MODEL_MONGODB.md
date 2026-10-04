@@ -1,6 +1,6 @@
 # DATA_MODEL_MONGODB.md — Модель данных (MongoDB + Mongoose)
 
-Статус: спецификация. Кода и миграций нет. Источник истины для имён сущностей и полей: **этот файл**. Любое другое место, где имя поля отличается, — ошибка в том месте.
+Статус: спецификация. Модели и миграции — см. `src/server/db/models` и `migrations/`. <!-- CHANGED: after stage 1 --> Источник истины для имён сущностей и полей: **этот файл**. Любое другое место, где имя поля отличается, — ошибка в том месте.
 
 ---
 
@@ -16,7 +16,7 @@
 | `createdAt`/`updatedAt` | у всех коллекций, `timestamps: true` |
 | Мягкое удаление | поля `isDeleted: Boolean (default false)` + `deletedAt: Date|null`. Булево поле нужно потому, что `partialFilterExpression` надёжно поддерживает равенство по Boolean, но не равенство по `null` |
 | `businessId` | `ObjectId`, **required, indexed**, во всех бизнес-зависимых коллекциях. Источник значения — только сессия/публичный контекст (см. MASTER_ARCHITECTURE §9), никогда тело запроса |
-| Глобальные коллекции (без `businessId`) | `users`, `sessions`, `businesses`, `rateLimits`, `schemaMigrations` |
+| Глобальные коллекции (не tenant-scoped, `tenantPlugin` не подключается) | `users`, `sessions`, `businesses`, `rateLimits`, `schemaMigrations`. Коллекции могут содержать `businessId` как поле-ссылку (`sessions.businessId` — активный бизнес сессии, см. §2), но запросы к ним не фильтруются по бизнесу. <!-- CHANGED: after stage 1 --> |
 | Версионирование | `optimisticConcurrency: true` на `appointments`, `payments`, `settings`, `staffSchedules` (`__v`) |
 | Строки | `trim`, максимальные длины указаны; пустая строка → `undefined` |
 | Неизвестные поля | `strict: 'throw'` для моделей; на уровне API — Zod `.strict()` |

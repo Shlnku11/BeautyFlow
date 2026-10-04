@@ -1,6 +1,6 @@
 # TESTING_STRATEGY.md — Стратегия тестирования
 
-Тестовых инструментов в проекте пока нет (в `package.json` нет `test`-скрипта). Инструменты ниже — **предложение**, устанавливаются только с разрешения (Этап 1): `vitest`, `mongodb-memory-server` (режим replica set), `@playwright/test`, `@axe-core/playwright`, `supertest`-подобный вызов Route Handlers напрямую.
+Код этапа 1 создан, см. `src/`. <!-- CHANGED: after stage 1 -->
 
 ## 1. Принципы и пирамида
 

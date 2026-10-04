@@ -2,7 +2,7 @@
 
 Входные документы: PROJECT_AUDIT.md, MIGRATION_PLAN.md (технологические части заменены, см. ADR-000), ТЗ владельца. Связанные документы: PRODUCT_SPEC, DATA_MODEL_MONGODB, API_CONTRACTS, PERMISSIONS_MATRIX, BOOKING_ENGINE_SPEC, PAYMENTS_SPEC, NOTIFICATIONS_SPEC, DASHBOARD_SPEC, DESIGN_SYSTEM, UI_UX_SPEC, CODING_STANDARDS, TESTING_STRATEGY, DEEPSEEK_HANDOFF_RULES, ARCHITECTURE_DECISIONS.
 
-Статус: проект на момент документа — UI-прототип без backend (PROJECT_AUDIT). Всё ниже — целевая архитектура; ни одна строка кода/миграции не создана.
+Статус: проект на момент документа — UI-прототип без backend (PROJECT_AUDIT). Всё ниже — целевая архитектура; код этапа 1 создан, см. `src/`. <!-- CHANGED: after stage 1 -->
 
 ## 1. Принципы
 
