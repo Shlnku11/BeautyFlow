@@ -22,6 +22,6 @@ export class StaffRepository {
   }
 
   update(ctx: TenantContext, id: string, patch: Record<string, unknown>) {
-    return Staff.findOneAndUpdate({ _id: id, businessId: ctx.businessId, isDeleted: false }, { $set: patch }, { new: true, runValidators: true }).lean().exec();
+    return Staff.findOneAndUpdate({ _id: id, businessId: ctx.businessId, isDeleted: false }, { $set: patch }, { returnDocument: 'after', runValidators: true }).lean().exec();
   }
 }

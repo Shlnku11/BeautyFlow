@@ -66,6 +66,41 @@ test('business owner can register and log back in using a server-side session', 
   expect(serviceResponse.status()).toBe(201);
   expect((await serviceResponse.json()).data).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
 
+  const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { weekly: [{ isoWeekday: 1, intervals: [{ start: '09:00', end: '17:00' }], breaks: [{ start: '12:00', end: '12:30' }] }] },
+  });
+  expect(scheduleResponse.status()).toBe(200);
+  expect((await scheduleResponse.json()).data.schedule.weekly).toHaveLength(1);
+
+  const exceptionDate = '2030-06-10';
+  const exceptionResponse = await page.request.post(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions`, {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { date: exceptionDate, kind: 'day_off', intervals: [], breaks: [] },
+  });
+  expect(exceptionResponse.status()).toBe(200);
+  const exceptionsResponse = await page.request.get(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions?from=${exceptionDate}&to=${exceptionDate}`);
+  expect((await exceptionsResponse.json()).data).toHaveLength(1);
+  const deleteExceptionResponse = await page.request.delete(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions/${exceptionDate}`, { headers: { Origin: 'http://localhost:3000' } });
+  expect(deleteExceptionResponse.status()).toBe(204);
+
+  const phone = `+996555${(Number(run) % 1_000_000).toString().padStart(6, '0')}`;
+  const customerResponse = await page.request.post('http://localhost:3000/api/customers', {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { firstName: 'E2E Client', phone, contacts: [{ type: 'telegram', value: 'e2e-client' }] },
+  });
+  expect(customerResponse.status()).toBe(201);
+  // Only stable contract fields are needed for the following duplicate and list checks.
+  const customerData = (await customerResponse.json()).data as { id: string; phone: string };
+  expect(customerData.phone).toBe(phone);
+  const duplicateCustomerResponse = await page.request.post('http://localhost:3000/api/customers', {
+    headers: { Origin: 'http://localhost:3000' },
+    data: { firstName: 'Duplicate', phone },
+  });
+  expect(duplicateCustomerResponse.status()).toBe(409);
+  const customerListResponse = await page.request.get('http://localhost:3000/api/customers?q=E2E');
+  expect((await customerListResponse.json()).data).toEqual(expect.arrayContaining([expect.objectContaining({ id: customerData.id, firstName: 'E2E Client' })]));
+
   const rejectedTenantOverride = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: 'http://localhost:3000' },
     data: { displayName: 'Injected tenant', color: 'teal', acceptsOnlineBooking: true, businessId: '000000000000000000000000' },

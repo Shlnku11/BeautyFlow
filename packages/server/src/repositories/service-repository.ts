@@ -51,6 +51,6 @@ export class ServiceRepository {
   }
 
   update(ctx: TenantContext, id: string, patch: Record<string, unknown>, session: ClientSession) {
-    return Service.findOneAndUpdate({ _id: id, businessId: ctx.businessId, isDeleted: false }, { $set: patch }, { new: true, runValidators: true, session }).lean().exec();
+    return Service.findOneAndUpdate({ _id: id, businessId: ctx.businessId, isDeleted: false }, { $set: patch }, { returnDocument: 'after', runValidators: true, session }).lean().exec();
   }
 }
