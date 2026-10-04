@@ -30,7 +30,7 @@ const schema = createModelSchema<ServiceDocument>(
     nameNormalized: { type: String, required: true, trim: true, lowercase: true, maxlength: 120 },
     description: { type: String, trim: true, maxlength: 1000 },
     durationMinutes: { type: Number, required: true, min: 5, max: 720, validate: Number.isInteger },
-    bufferMinutes: { type: Number, required: true, min: 0, max: 120, default: 0, validate: Number.isInteger },
+    bufferMinutes: { type: Number, required: true, min: 0, max: 120, default: 0, validate: (value: number) => Number.isInteger(value) && value % 5 === 0 },
     priceMinor: { type: Number, required: true, min: 0, validate: Number.isInteger },
     currency: { type: String, enum: BUSINESS_CURRENCIES, required: true },
     onlineBookingEnabled: { type: Boolean, required: true, default: true },

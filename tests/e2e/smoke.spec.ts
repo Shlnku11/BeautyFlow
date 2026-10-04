@@ -64,7 +64,8 @@ test('business owner can register and log back in using a server-side session', 
     data: { name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] },
   });
   expect(serviceResponse.status()).toBe(201);
-  expect((await serviceResponse.json()).data).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
+  const createdService = (await serviceResponse.json()).data as { id: string };
+  expect(createdService).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
 
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
     headers: { Origin: 'http://localhost:3000' },
@@ -83,6 +84,9 @@ test('business owner can register and log back in using a server-side session', 
   expect((await exceptionsResponse.json()).data).toHaveLength(1);
   const deleteExceptionResponse = await page.request.delete(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions/${exceptionDate}`, { headers: { Origin: 'http://localhost:3000' } });
   expect(deleteExceptionResponse.status()).toBe(204);
+  const availabilityResponse = await page.request.get(`http://localhost:3000/api/availability?serviceId=${createdService.id}&staffId=${createdStaff.id}&date=${exceptionDate}`);
+  expect(availabilityResponse.status()).toBe(200);
+  expect((await availabilityResponse.json()).data.slots[0]).toMatchObject({ startAt: '2030-06-10T03:00:00.000Z', staffId: createdStaff.id });
 
   const phone = `+996555${(Number(run) % 1_000_000).toString().padStart(6, '0')}`;
   const customerResponse = await page.request.post('http://localhost:3000/api/customers', {
@@ -100,6 +104,27 @@ test('business owner can register and log back in using a server-side session', 
   expect(duplicateCustomerResponse.status()).toBe(409);
   const customerListResponse = await page.request.get('http://localhost:3000/api/customers?q=E2E');
   expect((await customerListResponse.json()).data).toEqual(expect.arrayContaining([expect.objectContaining({ id: customerData.id, firstName: 'E2E Client' })]));
+
+  const appointmentRequest = { customerId: customerData.id, serviceId: createdService.id, staffId: createdStaff.id, startAt: '2030-06-10T03:00:00.000Z' };
+  const firstAppointmentResponse = await page.request.post('http://localhost:3000/api/appointments', {
+    headers: { Origin: 'http://localhost:3000', 'Idempotency-Key': `e2e-${run}` },
+    data: appointmentRequest,
+  });
+  expect(firstAppointmentResponse.status()).toBe(201);
+  const firstAppointment = (await firstAppointmentResponse.json()).data;
+  expect(firstAppointment).toMatchObject({ startAt: appointmentRequest.startAt, staff: { id: createdStaff.id }, service: { id: createdService.id }, customer: { id: customerData.id } });
+  const idempotentReplay = await page.request.post('http://localhost:3000/api/appointments', {
+    headers: { Origin: 'http://localhost:3000', 'Idempotency-Key': `e2e-${run}` },
+    data: appointmentRequest,
+  });
+  expect(idempotentReplay.status()).toBe(200);
+  expect((await idempotentReplay.json()).data.id).toBe(firstAppointment.id);
+
+  const raceRequests = await Promise.all(Array.from({ length: 20 }, (_, competitor) => page.request.post('http://localhost:3000/api/appointments', {
+    headers: { Origin: 'http://localhost:3000', 'Idempotency-Key': `e2e-race-${run}-${competitor}` },
+    data: { ...appointmentRequest, startAt: '2030-06-10T03:30:00.000Z' },
+  })));
+  expect(raceRequests.map((response) => response.status()).sort((a, b) => a - b)).toEqual([201, ...Array.from({ length: 19 }, () => 409)]);
 
   const settingsResponse = await page.request.get('http://localhost:3000/api/settings');
   expect(settingsResponse.status()).toBe(200);

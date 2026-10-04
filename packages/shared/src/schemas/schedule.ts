@@ -1,5 +1,5 @@
 import { z } from 'zod';
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).refine((value) => Number(value.slice(-2)) % 5 === 0, 'time must be on a five-minute boundary');
 export const IntervalSchema = z.object({ start: time, end: time }).strict().refine((range) => range.start < range.end, 'end must follow start');
 const ScheduleDaySchema = z.object({ isoWeekday: z.number().int().min(1).max(7), intervals: z.array(IntervalSchema).max(3), breaks: z.array(IntervalSchema).max(5) }).strict().superRefine((day, context) => {
   if (new Set(day.intervals.map(({ start }) => start)).size !== day.intervals.length) context.addIssue({ code: 'custom', message: 'interval start times must be unique' });

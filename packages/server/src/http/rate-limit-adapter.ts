@@ -22,14 +22,17 @@ function keyHash(value: string): string {
 async function increment(key: string, window: PolicyWindow, now: Date): Promise<{ count: number; expiresAt: Date }> {
   const expiresAt = new Date(now.getTime() + window.durationMs);
   const activeWindow = { $gt: [{ $ifNull: ['$expiresAt', new Date(0)] }, now] };
-  await RateLimit.collection.updateOne(
-    { key },
-    [{ $set: {
-      count: { $cond: [activeWindow, { $add: [{ $ifNull: ['$count', 0] }, 1] }, 1] },
-      expiresAt: { $cond: [activeWindow, '$expiresAt', expiresAt] },
-    } }],
-    { upsert: true },
-  );
+  const update = [{ $set: {
+    count: { $cond: [activeWindow, { $add: [{ $ifNull: ['$count', 0] }, 1] }, 1] },
+    expiresAt: { $cond: [activeWindow, '$expiresAt', expiresAt] },
+  } }];
+  try {
+    await RateLimit.collection.updateOne({ key }, update, { upsert: true });
+  } catch (error: unknown) {
+    if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 11000) throw error;
+    // A concurrent first request may win the unique-key upsert; retry against its inserted counter.
+    await RateLimit.collection.updateOne({ key }, update, { upsert: false });
+  }
   const record = await RateLimit.collection.findOne({ key });
   if (!record) throw new Error('Rate limit counter was not returned');
   return { count: record.count, expiresAt: record.expiresAt };

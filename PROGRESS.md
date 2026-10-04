@@ -8,7 +8,7 @@
 | 3 — Auth, AppShell, login/register | Частично: AUTH-01…04, регистрация/вход и базовый AppShell работают; AUTH-06…09 и role tests отсутствуют | 2026-10-04 |
 | 4 — Staff + Services + Schedule | Частично: STF-01…04, SVC-01/02/04, STF-06…10 реализованы; STF-04 деактивация, привязки STF-11/12, BLK-01…03 и MEM-* ещё отсутствуют | 2026-10-04 |
 | 5 — Customers + Settings | Частично: CUS-01/02/04 и SET-01…03 реализованы; CUS-03/06 ещё отсутствуют | 2026-10-04 |
-| 6 — Booking | Не начат; требуется завершить booking spike и этапы 4–5 | 2026-10-04 |
+| 6 — Booking | Частично: occupancy/DST working intervals/slots, AVL-01 и APT-02 работают; 20-way API race проходит; APT-01/03–06 и публичные PUB-* ещё отсутствуют | 2026-10-04 |
 | 7 — Calendar | Не начат | 2026-10-04 |
 | 8 — Notifications + email | Не начат | 2026-10-04 |
 | 9 — Payments | Не начат | 2026-10-04 |
