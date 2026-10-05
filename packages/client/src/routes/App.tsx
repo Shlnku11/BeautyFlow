@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { useEffect, useState, type FormEvent } from 'react';
+import { DateTime } from 'luxon';
 import { ru } from '@/shared/i18n/ru';
 import { LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants';
@@ -8,12 +9,14 @@ import { UiSandbox } from './UiSandbox';
 import { PublicBooking, PublicManage } from './PublicBooking';
 import { PaymentsPage } from './Payments';
 import { DashboardPage, MyDayPage } from './Dashboard';
+import { CustomerDetailPage, CustomersPage, ServicesPage, SettingsPage, StaffDetailPage, StaffPage } from './Operations';
+import { AppointmentCreateDialog, AppointmentDetailDialog } from './CalendarActions';
 import { useSession } from '@/hooks/use-session';
 
 interface CalendarPayload {
   range: { from: string; to: string; timezone: string };
   staff: { id: string; displayName: string; color: string }[];
-  appointments: { id: string; staff: { id: string; displayName: string }; customer: { firstName: string; lastName?: string }; service: { name: string }; startAt: string; endAt: string; status: string }[];
+  appointments: { id: string; staff: { id: string; displayName: string }; customer: { firstName: string; lastName?: string }; service: { name: string }; startAt: string; endAt: string; blockedUntilAt: string; status: string }[];
   blockedPeriods: { id: string; staffId: string; startAt: string; endAt: string; reason?: string }[];
   workingIntervals: { staffId: string; date: string; intervals: { start: string; end: string }[] }[];
   load: { staffId: string; bookedMinutes: number; availableMinutes: number; loadPercent: number | null }[];
@@ -21,41 +24,50 @@ interface CalendarPayload {
 
 function CalendarPage() {
   const session = useSession();
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState('');
   const [view, setView] = useState<'day' | 'week'>('day');
   const [staffId, setStaffId] = useState('');
   const [data, setData] = useState<CalendarPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
+  const [createSlot, setCreateSlot] = useState<{ date: string; startAt: string; staffId: string } | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
+  const activeDate = date || (data ? DateTime.fromISO(data.range.from).setZone(data.range.timezone).toISODate() ?? '' : '');
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ date, view });
+    const params = new URLSearchParams({ view });
+    if (date) params.set('date', date);
     if (staffId) params.set('staffId', staffId);
     setLoading(true);
     setError(null);
-    void apiRequest<{ data: CalendarPayload }>(`/api/calendar?${params}`, { signal: controller.signal }).then((response) => setData(response.data)).catch((reason: unknown) => {
+    void apiRequest<CalendarPayload>(`/api/calendar?${params}`, { signal: controller.signal }).then(setData).catch((reason: unknown) => {
       if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [date, view, staffId]);
+  }, [date, view, staffId, refresh]);
   function shiftDate(amount: number) {
-    const shifted = new Date(`${date}T12:00:00Z`);
-    shifted.setUTCDate(shifted.getUTCDate() + amount * (view === 'week' ? 7 : 1));
-    setDate(shifted.toISOString().slice(0, 10));
+    const current = DateTime.fromISO(activeDate || DateTime.now().toISODate() || '', { zone: data?.range.timezone });
+    setDate(current.plus({ days: amount * (view === 'week' ? 7 : 1) }).toISODate() ?? '');
   }
+  const canBook = session.data?.permissions.includes('appointments:create') ?? false;
+  const isMaster = session.data?.active.role === 'master';
   return <main className="mx-auto w-full max-w-7xl p-4 md:p-6">
     <h1 className="text-2xl font-semibold">Календарь</h1>
     <div className="mt-4 flex flex-wrap items-end gap-3">
       <button className="rounded border px-3 py-2" onClick={() => setView('day')} aria-pressed={view === 'day'}>День</button><button className="rounded border px-3 py-2" onClick={() => setView('week')} aria-pressed={view === 'week'}>Неделя</button>
-      <button className="rounded border px-3 py-2" onClick={() => shiftDate(-1)} aria-label="Предыдущий период">←</button><label className="grid gap-1 text-sm">Дата<input className="rounded border px-3 py-2" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button className="rounded border px-3 py-2" onClick={() => setDate(new Date().toISOString().slice(0, 10))}>Сегодня</button><button className="rounded border px-3 py-2" onClick={() => shiftDate(1)} aria-label="Следующий период">→</button>
-      <label className="grid gap-1 text-sm">Сотрудник<select className="rounded border px-3 py-2" value={staffId} onChange={(event) => setStaffId(event.target.value)}><option value="">Все сотрудники</option>{data?.staff.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
+      <button className="rounded border px-3 py-2" onClick={() => shiftDate(-1)} aria-label="Предыдущий период">←</button><label className="grid gap-1 text-sm">Дата<input className="rounded border px-3 py-2" type="date" value={activeDate} onChange={(event) => setDate(event.target.value)} /></label><button className="rounded border px-3 py-2" onClick={() => setDate(DateTime.now().setZone(data?.range.timezone).toISODate() ?? '')}>Сегодня</button><button className="rounded border px-3 py-2" onClick={() => shiftDate(1)} aria-label="Следующий период">→</button>
+      {!isMaster ? <label className="grid gap-1 text-sm">Сотрудник<select className="rounded border px-3 py-2" value={staffId} onChange={(event) => setStaffId(event.target.value)}><option value="">Все сотрудники</option>{data?.staff.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label> : null}
     </div>
     {loading ? <p className="mt-6" role="status">Загрузка календаря…</p> : null}{error ? <p className="mt-6 text-danger-fg" role="alert">{error}</p> : null}
     {data ? <>
       <section className="mt-6" aria-label="Загрузка сотрудников"><h2 className="font-semibold">Загрузка</h2><ul className="mt-2 flex flex-wrap gap-3">{data.load.map((item) => <li className="rounded-lg border px-3 py-2" key={item.staffId}>{data.staff.find((member) => member.id === item.staffId)?.displayName ?? 'Сотрудник'}: {item.loadPercent === null ? '—' : `${item.loadPercent}%`} ({item.bookedMinutes} / {item.availableMinutes} мин)</li>)}</ul></section>
+      <section className="mt-6" aria-label="Сетка времени"><h2 className="font-semibold">Сетка времени · шаг 15 минут</h2><div className="mt-3 grid gap-4">{data.workingIntervals.filter((day) => !staffId || day.staffId === staffId).map((day) => { const member = data.staff.find((item) => item.id === day.staffId); return <section className="rounded-xl border bg-white p-3" key={`${day.staffId}-${day.date}`}><h3 className="mb-3 font-medium">{member?.displayName ?? 'Мастер'} · {day.date}</h3>{day.intervals.length ? day.intervals.map((interval) => { const start = new Date(interval.start).getTime(); const end = new Date(interval.end).getTime(); const slots: number[] = []; for (let cursor = start; cursor + 15 * 60_000 <= end; cursor += 15 * 60_000) slots.push(cursor); return <ol className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4" key={interval.start}>{slots.map((cursor) => { const until = cursor + 15 * 60_000; const appointment = data.appointments.find((item) => item.staff.id === day.staffId && new Date(item.startAt).getTime() >= cursor && new Date(item.startAt).getTime() < until); const occupied = data.appointments.some((item) => ['pending','confirmed','completed'].includes(item.status) && item.staff.id === day.staffId && new Date(item.startAt).getTime() < until && new Date(item.blockedUntilAt).getTime() > cursor); const blocked = data.blockedPeriods.some((item) => item.staffId === day.staffId && new Date(item.startAt).getTime() < until && new Date(item.endAt).getTime() > cursor); const label = new Intl.DateTimeFormat('ru-RU', { timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(cursor)); return <li key={cursor}>{appointment ? <button className="w-full rounded-lg border border-primary-300 bg-primary-50 p-2 text-left text-sm" onClick={() => setSelectedAppointment(appointment.id)}><time dateTime={appointment.startAt}>{label}</time> · {appointment.customer.firstName} · {appointment.service.name}</button> : occupied || blocked ? <div className="rounded-lg border bg-neutral-100 p-2 text-sm text-neutral-500"><time>{label}</time> · {blocked ? 'Заблокировано' : 'Занято'}</div> : canBook ? <button className="w-full rounded-lg border border-dashed p-2 text-left text-sm text-neutral-600 hover:border-primary-500" onClick={() => setCreateSlot({ date: day.date, startAt: new Date(cursor).toISOString(), staffId: day.staffId })}><time>{label}</time> · Свободно</button> : <div className="rounded-lg border p-2 text-sm text-neutral-500"><time>{label}</time> · Свободно</div>}</li>; })}</ol>; }) : <p className="text-sm text-neutral-600">Нет рабочих интервалов.</p>}</section>; })}</div></section>
       <section className="mt-6" aria-label="Список записей календаря"><h2 className="font-semibold">Список записей</h2><ul className="mt-2 divide-y rounded-lg border">{data.appointments.map((item) => <li className="grid gap-1 p-3 sm:grid-cols-[10rem_1fr_12rem_auto]" key={item.id}><time dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(item.startAt))}</time><span>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</span><span>{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <Link className="text-primary-700 underline" to={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</Link> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-neutral-600">На этот период записей нет.</p> : null}</section>
       <section className="mt-6"><h2 className="font-semibold">Рабочее время</h2><ul className="mt-2 grid gap-2 sm:grid-cols-2">{data.workingIntervals.map((day) => <li className="rounded-lg border p-3" key={`${day.staffId}-${day.date}`}><strong>{data.staff.find((item) => item.id === day.staffId)?.displayName} · {day.date}</strong><p>{day.intervals.length ? day.intervals.map((range) => `${new Intl.DateTimeFormat('ru-RU', { timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(range.start))}–${new Intl.DateTimeFormat('ru-RU', { timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(range.end))}`).join(', ') : 'Нерабочее время'}</p></li>)}</ul>{data.blockedPeriods.map((block) => <p className="mt-2 rounded border border-amber-400 p-2" key={block.id}>Блокировка · {block.reason ?? 'без причины'} · {new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(block.startAt))}</p>)}</section>
     </> : null}
+    {createSlot && data ? <AppointmentCreateDialog date={createSlot.date} startAt={createSlot.startAt} timezone={data.range.timezone} staff={data.staff} preselectedStaffId={createSlot.staffId} onClose={() => setCreateSlot(null)} onCreated={() => setRefresh((value) => value + 1)}/> : null}
+    {selectedAppointment && data ? <AppointmentDetailDialog id={selectedAppointment} timezone={data.range.timezone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelectedAppointment(null)} onChanged={() => setRefresh((value) => value + 1)}/> : null}
   </main>;
 }
 
@@ -74,8 +86,9 @@ function AppShell() {
   const session = useSession();
   const active = links.find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`));
   const permissions = session.data?.permissions ?? [];
-  const visibleLinks = links.filter(([path]) => path === '/app/payments' ? permissions.includes('payments:read') : path === '/app/dashboard' ? permissions.includes('dashboard:read') : path === '/app/my-day' ? permissions.includes('dashboard:read_own') : true);
-  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="calendar" replace/> : path === '/app/dashboard' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read') ? <DashboardPage/> : <Navigate to="my-day" replace/> : path === '/app/my-day' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read_own') ? <MyDayPage/> : <Navigate to="dashboard" replace/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<PageFrame title="Карточка клиента"/>}/><Route path="staff/:id" element={<PageFrame title="Сотрудник"/>}/><Route path="*" element={<Navigate to={permissions.includes('dashboard:read_own') ? 'my-day' : 'dashboard'} replace/>}/></Routes></section></div>;
+  const requiredPermission: Record<string, string> = { '/app/dashboard': 'dashboard:read', '/app/calendar': 'calendar:read', '/app/customers': 'customers:read', '/app/staff': 'staff:read', '/app/services': 'services:read', '/app/payments': 'payments:read', '/app/settings': 'settings:business_read', '/app/my-day': 'dashboard:read_own' };
+  const visibleLinks = links.filter(([path]) => permissions.includes(requiredPermission[path] ?? ''));
+  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="calendar" replace/> : path === '/app/dashboard' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read') ? <DashboardPage/> : <Navigate to="my-day" replace/> : path === '/app/my-day' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read_own') ? <MyDayPage/> : <Navigate to="dashboard" replace/> : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : path === '/app/settings' ? <SettingsPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="*" element={<Navigate to={permissions.includes('dashboard:read_own') ? 'my-day' : 'dashboard'} replace/>}/></Routes></section></div>;
 }
 
 function AuthPage({ register = false }: { register?: boolean }) {

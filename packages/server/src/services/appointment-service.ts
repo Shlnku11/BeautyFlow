@@ -6,6 +6,7 @@ import type { CreateAppointmentSchema } from '@/shared/schemas/appointments';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { normalizePhone } from '../domain/phone';
 import { occupiedKeysFor } from '../domain/booking-engine/occupancy';
+import { compareStaffLoad } from '../domain/booking-engine/candidates';
 import { localDayBounds } from '../domain/time';
 import { withTransaction } from '../db/transactions';
 import { AppError, ConflictError, NotFoundError } from '../http/errors';
@@ -271,7 +272,7 @@ export class AppointmentService {
       const values = await repository.listCandidates(ctx, input.serviceId);
       const bounds = localDayBounds(localDate, business.timezone);
       const counts = await Promise.all(values.map(async (staff) => ({ staff, count: await repository.countStaffAppointmentsForDay(ctx, staff._id.toString(), bounds.from, bounds.to) })));
-      counts.sort((a, b) => a.count - b.count || a.staff.displayOrder - b.staff.displayOrder || a.staff._id.toString().localeCompare(b.staff._id.toString()));
+      counts.sort((a, b) => compareStaffLoad({ load: a.count, staff: a.staff }, { load: b.count, staff: b.staff }));
       candidates = counts.map(({ staff }) => staff);
     } else {
       if (!(await repository.staffProvidesService(ctx, input.staffId, input.serviceId))) throw new AppError(ERROR_CODES.STAFF_DOES_NOT_PROVIDE_SERVICE, 422, 'Сотрудник не оказывает эту услугу');

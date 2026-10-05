@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import type { TenantContext } from '@/shared/types/tenant-context';
 import { Appointment, BlockedPeriod, Business, Service, Settings, Staff, StaffException, StaffSchedule, StaffService } from '../db/models';
+import { OCCUPYING_APPOINTMENT_STATUSES } from '../domain/booking-engine/occupancy';
 
 export class AvailabilityRepository {
   findBusiness(ctx: TenantContext) { return Business.findById(ctx.businessId).lean().exec(); }
@@ -18,7 +19,7 @@ export class AvailabilityRepository {
   }
 
   async occupancies(ctx: TenantContext, staffId: string, startAt: Date, endAt: Date, excludeAppointmentId?: string) {
-    const appointmentFilter: Record<string, unknown> = { businessId: ctx.businessId, staffId, status: { $in: ['pending', 'confirmed', 'completed'] }, startAt: { $lt: endAt }, blockedUntilAt: { $gt: startAt } };
+    const appointmentFilter: Record<string, unknown> = { businessId: ctx.businessId, staffId, status: { $in: OCCUPYING_APPOINTMENT_STATUSES }, startAt: { $lt: endAt }, blockedUntilAt: { $gt: startAt } };
     if (excludeAppointmentId) appointmentFilter._id = { $ne: new Types.ObjectId(excludeAppointmentId) };
     const [appointments, blocks] = await Promise.all([
       Appointment.find(appointmentFilter).select({ startAt: 1, blockedUntilAt: 1 }).lean().exec(),
@@ -28,6 +29,6 @@ export class AvailabilityRepository {
   }
 
   countStaffAppointmentsForDay(ctx: TenantContext, staffId: string, startAt: Date, endAt: Date) {
-    return Appointment.countDocuments({ businessId: ctx.businessId, staffId, status: { $in: ['pending', 'confirmed', 'completed'] }, startAt: { $gte: startAt, $lt: endAt } }).exec();
+    return Appointment.countDocuments({ businessId: ctx.businessId, staffId, status: { $in: OCCUPYING_APPOINTMENT_STATUSES }, startAt: { $gte: startAt, $lt: endAt } }).exec();
   }
 }

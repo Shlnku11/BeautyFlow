@@ -4,30 +4,30 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 11: Финальный UI/a11y. Статус: этап 10 (Dashboard) завершён; необходимо закрыть хвосты 4/5/6a/7 и продолжить этапы 11–12.
+Этап 11: Cleanup + UI/a11y. Статус: блок 11.1 завершён; блоки 11.2 и 11.3 впереди.
 
 ## Последний коммит этапа
-`dfc32fb feat(dashboard): implement owner and master dashboards`
+`e431229 feat(stage-11): close functional UI and booking tails`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
 - Этап 2 (модели, Zod, интерфейсы, UI-kit): ✅ модели, миграция, схемы и UI-kit; полнота репозиториев/сервисов и A/B fixtures требует дальнейшей проверки.
 - Этап 3 (auth): ✅ основные AUTH-01…04 и регистрация/вход/сессия; AUTH-06…09 и полное ролевое покрытие остаются частичными.
-- Этап 4 (staff, services, schedule): 🟡 backend ✅ для реализованных STF/SVC/BLK/MEM маршрутов; UI частично.
-- Этап 5 (customers, settings): 🟡 backend ✅ для CUS/SET функций, перечисленных в PROGRESS.md; UI частично.
-- Этап 6a (booking engine): 🟡 частично; не все 15 сценариев и DST из BOOKING_ENGINE_SPEC §13 покрыты.
+- Этап 4 (staff, services, schedule): 🟡 backend и UI экранов сотрудников/услуг/команды готовы; полный route×role/A/B gate впереди.
+- Этап 5 (customers, settings): 🟡 backend и UI клиентов/настроек готовы; полный route×role/A/B gate впереди.
+- Этап 6a (booking engine): ✅ 15 unit-сценариев §13, шестизонная DST-матрица, проверка TZ процесса UTC/America/Los_Angeles.
 - Этап 6b (внутренние записи): ✅ AVL-01, APT-01…06 и основные внутренние потоки; см. PROGRESS.md для race-проверок.
 - Этап 6c (публичная запись): ✅ PUB-01…10, управление записью и базовые E2E потоки.
-- Этап 7 (calendar): 🟡 backend ✅, UI частично.
+- Этап 7 (calendar): 🟡 CAL-01 и UI сетки/действий готовы; общий role×endpoint/A-B gate впереди.
 - Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
 - Этапы 11–12: не завершены.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- UI экранов Staff/Services/Customers/Settings (этапы 4/5).
-- Временная сетка календаря и полноценные действия с записью в панели (этап 7); сейчас принятие оплаты доступно через действие записи в календаре.
-- Полные 15 сценариев booking-engine и DST (этап 6a).
+- Блок 11.2: очистка прототипа Next.js и неиспользуемых файлов.
+- Блок 11.3: контраст, адаптивность, axe на ключевых экранах, клавиатурный public booking, E2E §11.
+- Контрастная команда указывает на отсутствующий `scripts/check-contrast.ts`; `test:a11y` сейчас не находит файлов в `tests/e2e/a11y`.
 - Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
 - Этап 11 (очистка прототипа, финальный UI/a11y).
 - Этап 12 (полный E2E, security, deploy).
@@ -43,10 +43,10 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 ## Зелёные тесты на момент остановки
 - `npm run typecheck` ✅
 - `npm run lint` ✅
-- `npm test` — 26 файлов, 77 тестов ✅
+- `npm test` — 26 файлов, 90 тестов ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- `npm run test:e2e` — 5 тестов ✅ (включая отрисовку 4 KPI и upcoming)
+- `npm run test:e2e` — 5 тестов ✅ (staff/services/customers/settings UI, календарная панель, dashboard и auth)
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
@@ -66,4 +66,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить с этапа 11 (финальный UI/a11y и дозакрытие хвостов 4/5/6a/7) по PHASED_PLAN. На этапе 12 выполнить полную матрицу роль × эндпоинт и A/B isolation gate.
+Продолжить блоком 11.2 по запросу этапа 11; затем 11.3. После этого этап 12: полная матрица роль × эндпоинт и A/B isolation gate.

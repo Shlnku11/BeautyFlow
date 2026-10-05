@@ -6,19 +6,25 @@
 | 1 — Фундамент Vite + Express | Каркас перенесён, typecheck/lint/unit/integration/build и health проходят; повторная финальная проверка после перепланировки ожидается | 2026-10-04 |
 | 2 — Модели, Zod, интерфейсы, UI-компоненты | Частично: модели, миграция, Zod и UI-kit перенесены; репозитории, сервисы и A/B фикстуры не завершены | 2026-10-04 |
 | 3 — Auth, AppShell, login/register | Частично: AUTH-01…04, регистрация/вход и базовый AppShell работают; AUTH-06…09 и role tests отсутствуют | 2026-10-04 |
-| 4 — Staff + Services + Schedule | Частично: добавлены STF-02 email-приглашение/AUTH-06, STF-04 деактивация, STF-11/12, BLK-01…03 и MEM-01/03/04 с транзакционными интеграционными тестами; экранные UI и полная route×role/A/B матрица ещё не завершены | 2026-10-05 |
-| 5 — Customers + Settings | Частично: CUS-01 теперь возвращает activity/pagination и сохраняет master A/B-scope; добавлены CUS-03 summary и CUS-06 history с transaction totals/master DTO; UI и полная route×role матрица ещё не завершены | 2026-10-05 |
-| 6 — Booking | 6b завершён: AVL-01, APT-01…06, role transition rules, атомарный reschedule/status и Mongo notifications queue; internal 20-way race: 1 success + 19×409. 6c завершён: PUB-01…10, manage token, privacy/honeypot, публичная форма и manage UI; public race 1 success + 19×409, E2E booking→manage→cancel проходит. 6a остаётся частичным: полный набор BOOKING_ENGINE_SPEC §13 (15 случаев/DST) ещё не покрыт | 2026-10-05 |
-| 7 — Calendar | Закрыт: CAL-01, локальные day/week границы, A/B tenant scope, master own-only, расписания/исключения/блокировки, load по DASHBOARD_SPEC §3.5; доступный список календаря и интеграционные проверки роли/A-B/DST/load. Общая route×role и A/B матрица остаётся обязательной для финального gate | 2026-10-05 |
+| 4 — Staff + Services + Schedule | Backend STF/SVC/BLK/MEM и UI `/app/staff`, карточки сотрудника (профиль/расписание/исключения/услуги/доступ), `/app/services` и настройки команды реализованы; E2E проверяет переходы UI. Общий route×role/A/B gate остаётся на этапе 12 | 2026-10-05 |
+| 5 — Customers + Settings | Backend CUS/SET и UI `/app/customers`, карточка с историей/заметками/оплатами, настройки Бизнес/Запись/Команда реализованы; E2E проверяет UI. Общий route×role/A/B gate остаётся на этапе 12 | 2026-10-05 |
+| 6 — Booking | 6a unit-покрытие всех 15 сценариев BOOKING_ENGINE_SPEC §13 добавлено; DST покрывает spring gap/fall fold в New York/Berlin и стабильность в шести бизнес-поясах, а также TZ процесса UTC и America/Los_Angeles. 6b завершён: AVL-01, APT-01…06, role transitions, атомарные reschedule/status; internal 20-way race 1 success + 19×409. 6c завершён: PUB-01…10 и E2E booking→manage→cancel | 2026-10-05 |
+| 7 — Calendar | CAL-01 и UI закрыты: рабочая сетка 15 минут, выбор даты/дня-недели, создание по свободному слоту и панель записи со статусами/переносом/заметками/оплатой; master own-only без фильтра мастеров. Исправлено распаковывание API envelope в клиентском календаре. Полный route×role/A/B gate остаётся на этапе 12 | 2026-10-05 |
 | 8 — Notifications + email | Закрыт: dedupe/backoff, SMTP + Console providers, SMS/Push skipped adapters, 8 RU-шаблонов, атомарный claim с арендой/recovery, retry/status/TTL, циклический worker, SYS-02 с CRON_SECRET. Проверены retry, duplicate enqueue, crash recovery, parallel workers, password-reset templateData cleanup и A/B изоляция. Reminders рендерятся по актуальной записи и содержат телефон бизнеса + инструкцию позвонить; manageUrl хранится только в confirmed/changed/cancelled уведомлениях | 2026-10-05 |
 | 9 — Payments | Закрыт: PAY-01/02/04/05/06, tenant-scoped payment/transaction repositories, целочисленные суммы, идемпотентное создание, append-only журнал charge/refund в транзакциях; экран /app/payments и действие принятия оплаты из календаря. Unit/integration/race проверки и typecheck/lint/build зелёные | 2026-10-05 |
 | 10 — Dashboard | Закрыт: DSH-01 (KPI/previous), DSH-05 (ближайшие записи, limit≤20), MST-01 («Мой день», только свои данные без денег); локальные бизнес-периоды с Luxon/DST, `$match businessId` первым этапом агрегаций, загрузка мастера через общий CAL-01/booking-engine. UI /app/dashboard и /app/my-day. Unit/integration/E2E, полный test suite, race, typecheck/lint/build зелёные | 2026-10-05 |
-| 11 — Финальный UI/a11y | Частично: UI kit и компонентный axe smoke-тест; финальная визуальная/a11y проверка ключевых экранов и 4/5/6a остаются обязательными | 2026-10-05 |
+| 11 — Финальный UI/a11y | Блок 11.1 закрыт: UI хвосты 4/5/7 и 15 booking-engine сценариев с DST/TZ. Блоки 11.2 (prototype cleanup) и 11.3 (contrast/responsive/axe/keyboard/E2E расширение) впереди | 2026-10-05 |
 | 12 — E2E, безопасность, деплой | Частично: Playwright smoke/auth, health, race DB-index проходят; полный security/E2E и сквозные ролевые сценарии остаются обязательными | 2026-10-05 |
 
 ## Обязательные работы перед финалом (этапы 11–12)
 
-- **Этап 4:** завершить UI staff/services/schedule/team и полное покрытие заявленных STF/SVC/BLK/MEM операций; закрыть A/B и route×role.
-- **Этап 5:** завершить UI customers/settings и route×role/A/B для CUS/SET.
-- **Этап 6a:** покрыть оставшиеся 15 сценариев `BOOKING_ENGINE_SPEC §13`, включая полную DST/границы матрицу из `TESTING_STRATEGY §8`.
+- **Этап 11.2:** проверить и удалить оставшийся Next.js-прототип/мёртвые файлы, затем повторить typecheck/lint/build.
+- **Этап 11.3:** пройти contrast, responsive 320–1440px, axe ключевых экранов, клавиатурный сценарий публичной записи и E2E из `TESTING_STRATEGY §11`.
 - **Все реализованные эндпоинты (обязательный финальный gate):** построить и прогнать полную матрицу **роль × эндпоинт** по `PERMISSIONS_MATRIX.md`, включая owner/admin/master, анонимный/просроченный доступ, ожидаемые 200/201/204/403/404/422, область `own`, проверки чужих ID во всех path/query/body полях и подтверждение, что при A→B обращениях данные B не читаются и не меняются. Источник ожидаемых прав — контракт, не ручное допущение.
+
+## Этап 11.1 — результат и проверки (2026-10-05)
+
+- Сделаны экраны Staff/Services/Customers/Settings и вкладки профиля сотрудника; календарь получил сетку слотов 15 минут, создание записи и панель действий. Исправлено получение CAL-01 payload (клиент API уже снимает внешний envelope).
+- Booking-engine: добавлены unit проверки всех 15 кейсов §13, шестизонная матрица поясов, DST gap/fold и сравнение process TZ UTC/America/Los_Angeles.
+- `npm run typecheck`, `npm run lint`, `npm test` (26 файлов / 90 тестов), `npm run test:race` (2/2), `npm run build`, `npm run test:e2e` (5/5) — ✅.
+- `npm run check:contrast` — пока не работает: отсутствует `scripts/check-contrast.ts`. `npm run test:a11y` — пока не находит тестов в `tests/e2e/a11y`; закрыть в блоке 11.3.

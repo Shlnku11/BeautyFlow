@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from '../http/errors';
 import { localDayBounds } from '../domain/time';
 import { computeWorkingIntervals } from '../domain/booking-engine/working-intervals';
 import { generateSlots } from '../domain/booking-engine/slots';
+import { compareStaffLoad } from '../domain/booking-engine/candidates';
 
 const repository = new AvailabilityRepository();
 
@@ -20,7 +21,7 @@ export class AvailabilityService {
 
     const candidates = await repository.listBookableStaff(ctx, input.serviceId);
     const withLoad = await Promise.all(candidates.map(async (staff) => ({ staff, load: await repository.countStaffAppointmentsForDay(ctx, staff._id.toString(), dayBounds.from, dayBounds.to) })));
-    withLoad.sort((a, b) => a.load - b.load || a.staff.displayOrder - b.staff.displayOrder || a.staff._id.toString().localeCompare(b.staff._id.toString()));
+    withLoad.sort(compareStaffLoad);
     const unique = new Map<string, string>();
     for (const { staff } of withLoad) {
       const starts = await this.staffSlots(ctx, input, business.timezone, settings, service, staff._id.toString(), dayBounds);

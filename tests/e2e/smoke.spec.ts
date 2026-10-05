@@ -62,6 +62,11 @@ test('business owner can register and log back in using a server-side session', 
   // Playwright returns parsed JSON as untyped data; this test uses only the contract's id field.
   const createdStaff = (await staffResponse.json()).data as { id: string };
   expect(createdStaff).toMatchObject({ displayName: 'E2E Staff', color: 'teal', isActive: true });
+  await page.goto('/app/staff');
+  await expect(page.getByRole('heading', { name: 'Сотрудники' })).toBeVisible();
+  await page.getByRole('link', { name: 'E2E Staff' }).click();
+  await expect(page.getByRole('tab', { name: 'Профиль' })).toBeVisible();
+  for (const tab of ['Расписание', 'Исключения', 'Услуги', 'Доступ']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
 
   const serviceResponse = await page.request.post('http://localhost:3000/api/services', {
     headers: { Origin: 'http://localhost:3000' },
@@ -70,6 +75,9 @@ test('business owner can register and log back in using a server-side session', 
   expect(serviceResponse.status()).toBe(201);
   const createdService = (await serviceResponse.json()).data as { id: string };
   expect(createdService).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
+  await page.goto('/app/services');
+  await expect(page.getByRole('heading', { name: 'Услуги' })).toBeVisible();
+  await expect(page.getByText('E2E haircut')).toBeVisible();
 
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
     headers: { Origin: 'http://localhost:3000' },
@@ -101,6 +109,11 @@ test('business owner can register and log back in using a server-side session', 
   // Only stable contract fields are needed for the following duplicate and list checks.
   const customerData = (await customerResponse.json()).data as { id: string; phone: string };
   expect(customerData.phone).toBe(phone);
+  await page.goto('/app/customers');
+  await page.getByLabel('Поиск').fill('E2E');
+  await expect(page.getByRole('link', { name: 'E2E Client' })).toBeVisible();
+  await page.getByRole('link', { name: 'E2E Client' }).click();
+  await expect(page.getByRole('heading', { name: 'E2E Client' })).toBeVisible();
   const duplicateCustomerResponse = await page.request.post('http://localhost:3000/api/customers', {
     headers: { Origin: 'http://localhost:3000' },
     data: { firstName: 'Duplicate', phone },
@@ -123,6 +136,11 @@ test('business owner can register and log back in using a server-side session', 
   });
   expect(idempotentReplay.status()).toBe(200);
   expect((await idempotentReplay.json()).data.id).toBe(firstAppointment.id);
+  await page.goto('/app/calendar');
+  await expect(page.getByRole('heading', { name: 'Календарь' })).toBeVisible();
+  await page.getByLabel('Дата').fill('2030-06-10');
+  await page.getByRole('button', { name: /E2E Client/ }).click();
+  await expect(page.getByRole('heading', { name: 'Запись' })).toBeVisible();
 
   const raceRequests = await Promise.all(Array.from({ length: 20 }, (_, competitor) => page.request.post('http://localhost:3000/api/appointments', {
     headers: { Origin: 'http://localhost:3000', 'Idempotency-Key': `e2e-race-${run}-${competitor}` },
@@ -133,6 +151,8 @@ test('business owner can register and log back in using a server-side session', 
   const settingsResponse = await page.request.get('http://localhost:3000/api/settings');
   expect(settingsResponse.status()).toBe(200);
   expect((await settingsResponse.json()).data.business).toMatchObject({ countryCode: 'KG', currency: 'KGS' });
+  await page.goto('/app/settings');
+  for (const tab of ['Бизнес', 'Запись', 'Команда']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
   const bookingSettingsResponse = await page.request.patch('http://localhost:3000/api/settings/booking', {
     headers: { Origin: 'http://localhost:3000' },
     data: { minNoticeMinutes: 45 },

@@ -1,4 +1,10 @@
 /** BOOKING_ENGINE_SPEC §7; keys represent half-open five-minute cells occupied by the appointment. */
+export const OCCUPYING_APPOINTMENT_STATUSES = ['pending', 'confirmed', 'completed'] as const;
+
+export function occupiesSlot(status: string): boolean {
+  return OCCUPYING_APPOINTMENT_STATUSES.some((occupyingStatus) => occupyingStatus === status);
+}
+
 export function occupiedKeysFor(staffId: string, startAt: Date, blockedUntilAt: Date): string[] {
   const start = startAt.getTime();
   const end = blockedUntilAt.getTime();
