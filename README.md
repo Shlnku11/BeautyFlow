@@ -12,7 +12,7 @@ CRM для салонов красоты: онлайн-запись, распи�
 
 1. Установите Node.js 24 и выполните `npm install`.
 2. Скопируйте `.env.example` в `.env`; замените тестовые `TOKEN_PEPPER` и `CRON_SECRET` собственными случайными секретами длиной не менее 32 символов.
-3. Запустите локальный replica set MongoDB: `docker compose up -d mongo`.
+3. Убедитесь, что локальный replica set доступен на `localhost:27018`. В текущей рабочей среде используйте существующий контейнер `docs-master-architecture-md-1-3-mongo-1`; не запускайте второй Mongo, если порт 27018 уже занят. В новой среде, где порт свободен, можно создать локальную БД командой `docker compose up -d mongo`.
 4. Примените индексы: `npm run migrate`.
 5. Запустите приложение: `npm run dev`.
 
@@ -27,7 +27,13 @@ CRM для салонов красоты: онлайн-запись, распи�
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Проверка TypeScript без генерации файлов |
 | `npm test` | Unit/integration/API-тесты Vitest |
+| `npm run test:unit` | Unit-тесты |
+| `npm run test:integration` | Integration-тесты; требует MongoDB replica set |
+| `npm run test:api` | API/security/route matrix-тесты |
+| `npm run test:race` | Параллельные race-тесты |
 | `npm run test:e2e` | Браузерные тесты Playwright |
+| `npm run test:a11y` | axe, адаптивность и keyboard-only проверки |
+| `npm run check:contrast` | Проверка контраста токенов и glass whitelist |
 | `npm run migrate` | Идемпотентное создание коллекционных индексов |
 | `npm run build` | Production-сборки Vite SPA и Express API |
 
@@ -54,3 +60,5 @@ CRM для салонов красоты: онлайн-запись, распи�
 - `docs/` — спецификации; контракты находятся в `DATA_MODEL_MONGODB.md`, `API_CONTRACTS.md` и `PERMISSIONS_MATRIX.md`.
 
 См. архитектуру в `docs/MASTER_ARCHITECTURE.md`; проектные решения и объём MVP — в остальных документах `docs/`.
+
+Production deployment runbook находится в [docs/DEPLOY.md](docs/DEPLOY.md). Он описывает целевое VPS-развёртывание; фактический production deploy должен быть проверен отдельно.

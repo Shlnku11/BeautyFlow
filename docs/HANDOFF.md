@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 12: E2E, безопасность, деплой. Статус: 12.2 реализован и проверен, но security gate частичный из-за 5 high dev-only advisories; 12.3 runbook готовится, реальный deployment не выполнен.
+Этап 12: E2E, безопасность, деплой. Статус: 12.2 реализован; deploy runbook и README готовы в 12.3. Реальный production deployment не выполнен, а 5 high dev-only advisories остаются открытым security risk.
 
 ## Последний коммит этапа
-`7880117 WIP: AUTH-07/08/09 (unfinished partial implementation)`
+`9d3e274 feat(stage-12): AUTH-07/08/09 and security checklist`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -23,7 +23,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
 - Этап 11: 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`; 11.3 добавил contrast/responsive/a11y/keyboard; 11.4 закрыл E2E §11 сценарии #3/#5/#7. Полный E2E 9/9.
-- Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; реальный production/staging deployment не выполнен. Deploy runbook/README обновляются в 12.3.
+- Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; deploy runbook и README подготовлены. Реальный production/staging deployment не выполнен.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
@@ -36,8 +36,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
-- Сверить оставшиеся частичные контракты этапов 4/5/6a с PHASED_PLAN и спецификациями.
-- До финала построить полную матрицу ролей × эндпоинтов по PERMISSIONS_MATRIX.md, включая собственный/чужой tenant и чужие ID в path/query/body.
+- При последующих изменениях поддерживать route×role/A/B gate в соответствии с PERMISSIONS_MATRIX.md; staging security exercise ещё не проводился.
 - SMTP требует домен/настройки; ConsoleEmailProvider использовался для тестовой доставки.
 - Реальный production deployment не проверялся.
 - Build выводит предупреждения о директивах `"use client"` в зависимости React; сборка успешна.
@@ -72,4 +71,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить этап 12.3: проверить/завершить `docs/DEPLOY.md`, локальный README и отметить production deployment как unverified до появления VPS/domain/TLS/SMTP/backup target. Не менять зависимости: Tailwind 3 dev chain имеет 5 high advisories, Tailwind 4 post-MVP. Все 64 route IDs и session role matrix проходят; AUTH flows реализованы. Финальный релиз всё ещё ограничен unresolved npm audit findings и отсутствием настоящего staging/production environment.
+Этапы реализации завершены. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.
