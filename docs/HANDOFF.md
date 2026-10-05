@@ -6,8 +6,8 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 ## Текущий этап
 Этап 11: Финальный UI/a11y. Статус: этап 10 (Dashboard) завершён; необходимо закрыть хвосты 4/5/6a/7 и продолжить этапы 11–12.
 
-## Последний коммит
-Обновить после коммита этапа 10.
+## Последний коммит этапа
+`dfc32fb feat(dashboard): implement owner and master dashboards`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
