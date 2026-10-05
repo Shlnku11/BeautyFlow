@@ -7,7 +7,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 Этап 10: Dashboard. Статус: следующий этап; этап 9 (Payments) завершён.
 
 ## Последний коммит
-Обновить после коммита этапа 9.
+`c8ea674 feat(payments): implement payment workflows and append-only transactions`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
