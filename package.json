@@ -25,6 +25,7 @@
     "test:a11y": "playwright test tests/e2e/a11y",
     "migrate": "node --env-file-if-exists=.env --import tsx packages/server/scripts/migrate.ts",
     "worker": "node --env-file-if-exists=.env --import tsx packages/server/scripts/worker.ts",
+    "seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts",
     "check:contrast": "tsx scripts/check-contrast.ts"
   },
   "dependencies": {
