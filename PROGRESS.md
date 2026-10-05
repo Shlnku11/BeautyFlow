@@ -7,7 +7,7 @@
 | 2 — Модели, Zod, интерфейсы, UI-компоненты | Частично: модели, миграция, Zod и UI-kit перенесены; репозитории, сервисы и A/B фикстуры не завершены | 2026-10-04 |
 | 3 — Auth, AppShell, login/register | Частично: AUTH-01…04, регистрация/вход и базовый AppShell работают; AUTH-06…09 и role tests отсутствуют | 2026-10-04 |
 | 4 — Staff + Services + Schedule | Частично: добавлены STF-02 email-приглашение/AUTH-06, STF-04 деактивация, STF-11/12, BLK-01…03 и MEM-01/03/04 с транзакционными интеграционными тестами; экранные UI и полная route×role/A/B матрица ещё не завершены | 2026-10-05 |
-| 5 — Customers + Settings | Частично: CUS-01/02/04 и SET-01…03 реализованы; CUS-03/06 ещё отсутствуют | 2026-10-04 |
+| 5 — Customers + Settings | Частично: CUS-01 теперь возвращает activity/pagination и сохраняет master A/B-scope; добавлены CUS-03 summary и CUS-06 history с transaction totals/master DTO; UI и полная route×role матрица ещё не завершены | 2026-10-05 |
 | 6 — Booking | Частично: occupancy/DST working intervals/slots, AVL-01 и APT-02 работают; 20-way API race проходит; APT-01/03–06 и публичные PUB-* ещё отсутствуют | 2026-10-04 |
 | 7 — Calendar | Не начат | 2026-10-04 |
 | 8 — Notifications + email | Не начат | 2026-10-04 |

@@ -1,13 +1,15 @@
 import type { z } from 'zod';
 import type { TenantContext } from '@/shared/types/tenant-context';
-import { CreateCustomerSchema } from '@/shared/schemas/customers';
+import { CreateCustomerSchema, CustomerAppointmentsQuerySchema } from '@/shared/schemas/customers';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { AppError, NotFoundError } from '../http/errors';
 import { normalizePhone } from '../domain/phone';
 import { CustomerRepository } from '../repositories/customer-repository';
+import { assertPermission } from '../domain/permissions';
 
 const repository = new CustomerRepository();
 type CustomerInput = z.infer<typeof CreateCustomerSchema>;
+type CustomerAppointmentsQuery = z.infer<typeof CustomerAppointmentsQuerySchema>;
 type CustomerPatch = { [Key in keyof CustomerInput]?: CustomerInput[Key] | undefined };
 
 function searchTokens(firstName: string, lastName: string | undefined, phoneNormalized: string): string[] {
@@ -26,6 +28,28 @@ function toDto(value: Record<string, unknown>) {
 export class CustomerService {
   list(ctx: TenantContext, query: Parameters<CustomerRepository['list']>[1]) {
     return repository.list(ctx, query);
+  }
+
+  async get(ctx: TenantContext, id: string) {
+    const customer = await repository.findById(ctx, id);
+    if (!customer) throw new NotFoundError();
+    if (ctx.role === 'master') {
+      if (!ctx.staffId || !(await repository.hasCustomerAppointmentsForStaff(ctx, id, ctx.staffId))) throw new NotFoundError();
+      const seesPhone = await repository.masterPhoneVisibility(ctx);
+      return { customer: { id: customer._id.toString(), firstName: customer.firstName, ...(customer.lastName ? { lastName: customer.lastName } : {}), ...(seesPhone ? { phone: customer.phone } : {}) } };
+    }
+    const summary = await repository.customerSummary(ctx, id);
+    if (!summary.currency) throw new NotFoundError();
+    return { customer: toDto(customer as unknown as Record<string, unknown>), summary };
+  }
+
+  async appointments(ctx: TenantContext, id: string, query: CustomerAppointmentsQuery) {
+    assertPermission(ctx.role, 'appointments:read');
+    const customer = await repository.findById(ctx, id);
+    if (!customer) throw new NotFoundError();
+    if (ctx.role === 'master' && (!ctx.staffId || !(await repository.hasCustomerAppointmentsForStaff(ctx, id, ctx.staffId)))) throw new NotFoundError();
+    const result = await repository.appointments(ctx, customer, query);
+    return { data: result.data, meta: { page: query.page, limit: query.limit, total: result.total } };
   }
 
   async create(ctx: TenantContext, input: CustomerInput) {
