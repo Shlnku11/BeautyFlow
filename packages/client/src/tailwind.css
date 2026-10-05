@@ -7,3 +7,22 @@
   body { @apply m-0 min-h-screen bg-neutral-50 font-sans text-neutral-900 antialiased; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-primary-700; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible { outline-width: 3px; }
+  input,
+  select,
+  textarea,
+  button { border-color: theme('colors.neutral.600'); }
+}

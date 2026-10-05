@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 11: Cleanup + UI/a11y. Статус: блоки 11.1 и 11.2 завершены; блок 11.3 впереди.
+Этап 11: Cleanup + UI/a11y. Статус: частично завершён; UI/a11y и проверки реализованы, E2E §11 #3/#5/#7 ещё не покрыты.
 
 ## Последний коммит этапа
-`314c09a chore(cleanup): remove unused legacy stylesheet`
+`10843e8 feat(a11y): finalize responsive and accessible UI`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -22,12 +22,11 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
-- Этап 11: блок 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`. Остаётся 11.3: responsive, contrast, axe по ключевым экранам, keyboard public booking, E2E §11.
+- Этап 11: 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`; 11.3 добавил contrast check, responsive/mobile layouts, axe ключевых экранов, keyboard public booking, skip-link и Escape для диалогов. E2E 6/6, но TESTING_STRATEGY §11 #3/#5/#7 остаются.
 - Этап 12: полный E2E/security/deploy и общая матрица роль × эндпоинт/A/B не завершены.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- Блок 11.3: контраст, адаптивность, axe на ключевых экранах, клавиатурный public booking, E2E §11.
-- `scripts/check-contrast.ts` отсутствует; `npm run test:a11y` пока не находит файлов в `tests/e2e/a11y`.
+- Осталось добавить E2E §11 #3 (перенос/гонка публичных вкладок), #5 (master invitation/own-day/access denial), #7 (A/B прямой URL). Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах.
 - Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
 - Этап 11 (очистка прототипа, финальный UI/a11y).
 - Этап 12 (полный E2E, security, deploy).
@@ -46,7 +45,9 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm test` — 26 файлов, 90 тестов ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- `npm run test:e2e` — 5 тестов ✅ (staff/services/customers/settings UI, календарная панель, dashboard и auth)
+- `npm run test:e2e` — 6 тестов ✅, включая axe/responsive/keyboard suite и auth/UI smoke.
+- `npm run check:contrast` ✅
+- `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
@@ -66,4 +67,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить блоком 11.3, затем этап 12: полная матрица роль × эндпоинт и A/B isolation gate.
+Продолжить с оставшихся E2E §11 #3/#5/#7, затем этап 12: полный E2E/security/deploy, полная матрица роль × эндпоинт + A/B (gate).

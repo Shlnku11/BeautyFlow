@@ -77,7 +77,7 @@ test('business owner can register and log back in using a server-side session', 
   expect(createdService).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
   await page.goto('/app/services');
   await expect(page.getByRole('heading', { name: 'Услуги' })).toBeVisible();
-  await expect(page.getByText('E2E haircut')).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'E2E haircut' })).toBeVisible();
 
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
     headers: { Origin: 'http://localhost:3000' },
@@ -141,6 +141,8 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByLabel('Дата').fill('2030-06-10');
   await page.getByRole('button', { name: /E2E Client/ }).click();
   await expect(page.getByRole('heading', { name: 'Запись' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Запись' })).toBeHidden();
 
   const raceRequests = await Promise.all(Array.from({ length: 20 }, (_, competitor) => page.request.post('http://localhost:3000/api/appointments', {
     headers: { Origin: 'http://localhost:3000', 'Idempotency-Key': `e2e-race-${run}-${competitor}` },

@@ -13,13 +13,12 @@
 | 8 — Notifications + email | Закрыт: dedupe/backoff, SMTP + Console providers, SMS/Push skipped adapters, 8 RU-шаблонов, атомарный claim с арендой/recovery, retry/status/TTL, циклический worker, SYS-02 с CRON_SECRET. Проверены retry, duplicate enqueue, crash recovery, parallel workers, password-reset templateData cleanup и A/B изоляция. Reminders рендерятся по актуальной записи и содержат телефон бизнеса + инструкцию позвонить; manageUrl хранится только в confirmed/changed/cancelled уведомлениях | 2026-10-05 |
 | 9 — Payments | Закрыт: PAY-01/02/04/05/06, tenant-scoped payment/transaction repositories, целочисленные суммы, идемпотентное создание, append-only журнал charge/refund в транзакциях; экран /app/payments и действие принятия оплаты из календаря. Unit/integration/race проверки и typecheck/lint/build зелёные | 2026-10-05 |
 | 10 — Dashboard | Закрыт: DSH-01 (KPI/previous), DSH-05 (ближайшие записи, limit≤20), MST-01 («Мой день», только свои данные без денег); локальные бизнес-периоды с Luxon/DST, `$match businessId` первым этапом агрегаций, загрузка мастера через общий CAL-01/booking-engine. UI /app/dashboard и /app/my-day. Unit/integration/E2E, полный test suite, race, typecheck/lint/build зелёные | 2026-10-05 |
-| 11 — Финальный UI/a11y | Блоки 11.1 и 11.2 закрыты. В 11.2 удалён неиспользуемый `packages/client/src/styles.css`; прежние Next.js пути, mock-хранилища и `components/forms` отсутствуют. Блок 11.3 (contrast/responsive/axe/keyboard/E2E расширение) впереди | 2026-10-05 |
+| 11 — Финальный UI/a11y | Основные UI/a11y работы блоков 11.1–11.3 сделаны. E2E §11 покрывает регистрацию/основные UI, dashboard, публичную запись/отмену, mobile widths и keyboard; сценарии §11 #3 (перенос/гонка публичных вкладок), #5 (master invitation/own-day/denied routes) и #7 (A/B прямой URL) не закрыты — этап остаётся частичным до их добавления | 2026-10-05 |
 | 12 — E2E, безопасность, деплой | Частично: Playwright smoke/auth, health, race DB-index проходят; полный security/E2E и сквозные ролевые сценарии остаются обязательными | 2026-10-05 |
 
 ## Обязательные работы перед финалом (этапы 11–12)
 
-- **Этап 11.2:** проверить и удалить оставшийся Next.js-прототип/мёртвые файлы, затем повторить typecheck/lint/build.
-- **Этап 11.3:** пройти contrast, responsive 320–1440px, axe ключевых экранов, клавиатурный сценарий публичной записи и E2E из `TESTING_STRATEGY §11`.
+- **Этап 11:** основные UI/a11y работы 11.1–11.3 сделаны; E2E сценарии TESTING_STRATEGY §11 #3/#5/#7 остаются перед закрытием этапа.
 - **Все реализованные эндпоинты (обязательный финальный gate):** построить и прогнать полную матрицу **роль × эндпоинт** по `PERMISSIONS_MATRIX.md`, включая owner/admin/master, анонимный/просроченный доступ, ожидаемые 200/201/204/403/404/422, область `own`, проверки чужих ID во всех path/query/body полях и подтверждение, что при A→B обращениях данные B не читаются и не меняются. Источник ожидаемых прав — контракт, не ручное допущение.
 
 ## Этап 11.1 — результат и проверки (2026-10-05)
@@ -35,3 +34,11 @@
 - Удалён единственный лишний stylesheet `packages/client/src/styles.css`; он не импортировался и ссылался на отсутствующий токен-файл. Работающий `tokens.css` и Tailwind entrypoint оставлены.
 - Typecheck/lint/unit (26 файлов / 90 тестов)/race (2/2)/build/E2E (5/5) — ✅.
 - Contrast и выделенный a11y suite пока не запускаются по причинам, указанным выше; починить в 11.3.
+
+## Этап 11.3 — результат и проверки (2026-10-05)
+
+- Добавлен scripts/check-contrast.ts: проверяет документированные пары токенов по WCAG (текст ≥4.5:1, границы/фокус ≥3:1) и запрещает glass-классы вне whitelist; npm run check:contrast ✅.
+- App получил skip-link и нижнюю навигацию для мобильного экрана; широкие таблицы имеют мобильные карточки. Диалог переведён на Headless UI Dialog с управлением фокусом и Escape; динамические статусы используют семантику status/alert.
+- Добавлен axe/responsive/keyboard E2E набор: 12 ключевых маршрутов — 0 serious/critical axe нарушений; размеры 320, 375, 768, 1024 и 1440 px без горизонтального overflow; проверены skip-link, Escape и keyboard-only public booking. npm run test:a11y ✅ (1 сценарий).
+- Полный набор: typecheck ✅, lint ✅, npm test (26 файлов / 90 тестов) ✅, race (2/2) ✅, build ✅, E2E (6/6) ✅, contrast ✅, a11y ✅. Build сообщает только известные upstream use-client/размер чанка предупреждения. Первый E2E прогон имел единичный ERR_ABORTED при повторной навигации /login; немедленный полный повтор прошёл 6/6.
+- Проверка ширин выполнена автоматизированно в Playwright на указанном списке размеров; ручная проверка реальных устройств не выполнялась. Из TESTING_STRATEGY §11 остаются E2E сценарии #3 (публичный перенос и конкурентная попытка из двух вкладок), #5 (вход master через приглашение, own-only, ограничения доступа), #7 (два tenant контекста и прямой URL чужого объекта). Поэтому этап 11 остаётся частичным, пока эти сценарии не закрыты. Полная role×endpoint/A/B матрица также остаётся gate этапа 12.
