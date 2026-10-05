@@ -86,7 +86,7 @@ function filesUnder(directory: string): string[] {
   });
 }
 
-const glassWhitelist = /packages[\\/]client[\\/]src[\\/]routes[\\/](App|Dashboard|PublicBooking)\.tsx$/;
+const glassWhitelist = /packages[\\/]client[\\/]src[\\/]routes[\\/](App|Dashboard|PublicBooking|Landing)\.tsx$/;
 for (const file of filesUnder(resolve(root, 'packages/client/src'))) {
   const source = readFileSync(file, 'utf8');
   if (/\bglass-surface(?:-strong)?\b/.test(source) && !glassWhitelist.test(file)) {

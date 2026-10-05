@@ -13,6 +13,7 @@ import { DashboardPage, MyDayPage } from './Dashboard';
 import { CustomerDetailPage, CustomersPage, ServicesPage, SettingsPage, StaffDetailPage, StaffPage } from './Operations';
 import { AppointmentCreateDialog, AppointmentDetailDialog } from './CalendarActions';
 import { useSession } from '@/hooks/use-session';
+import { LandingPage } from './Landing';
 
 interface CalendarPayload {
   range: { from: string; to: string; timezone: string };
@@ -95,11 +96,7 @@ function AccessDenied() {
 }
 
 function RootRedirect() {
-  const session = useSession();
-  if (session.isLoading) return <SessionLoading/>;
-  if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
-  if (session.data) return <Navigate to={session.data.active.role === 'master' ? '/app/my-day' : '/app/dashboard'} replace/>;
-  return <SessionFailure retry={() => { void session.refetch(); }}/>;
+  return <LandingPage/>;
 }
 
 function AppointmentDirectPage() {
