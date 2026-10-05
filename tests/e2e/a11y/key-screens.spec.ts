@@ -46,6 +46,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
   const settings = (await (await page.request.get('http://localhost:3000/api/settings')).json()).data as { business: { slug: string } };
 
   const screens = [
+    ['/', 'Ваш салон. Ваш ритм. Всё под контролем.'],
     ['/login', 'Войти'],
     ['/register', 'Создать бизнес'],
     ['/app/dashboard', 'Обзор'],

@@ -8,7 +8,7 @@ const tokens = new Map<string, string>();
 for (const match of css.matchAll(/(--[\w-]+):\s*(#[\da-fA-F]{6})\s*;/g)) {
   const name = match[1];
   const value = match[2];
-  if (name && value) tokens.set(name, value);
+  if (name && value && !tokens.has(name)) tokens.set(name, value);
 }
 
 function linear(channel: number): number {
@@ -34,6 +34,12 @@ const textPairs: [string, string][] = [
   ['--color-neutral-900', '--color-neutral-0'],
   ['--color-neutral-900', '--color-neutral-50'],
   ['--color-neutral-900', '--color-primary-100'],
+  ['--color-neutral-600', '--surface-clay'],
+  ['--color-neutral-600', '--surface-clay-raised'],
+  ['--color-neutral-600', '--surface-clay-inset'],
+  ['--color-neutral-900', '--surface-clay'],
+  ['--color-neutral-900', '--surface-clay-raised'],
+  ['--color-neutral-900', '--surface-clay-inset'],
   ['--color-neutral-700', '--color-neutral-100'],
   ['--color-success-fg', '--color-success-bg'],
   ['--color-warning-fg', '--color-warning-bg'],
@@ -53,6 +59,9 @@ const textPairs: [string, string][] = [
 const boundaryPairs: [string, string][] = [
   ['--color-neutral-400', '--color-neutral-0'],
   ['--color-neutral-400', '--color-neutral-50'],
+  ['--color-neutral-400', '--surface-clay'],
+  ['--color-neutral-400', '--surface-clay-raised'],
+  ['--color-neutral-400', '--surface-clay-inset'],
   ['--color-primary-600', '--color-neutral-0'],
   ['--color-primary-600', '--color-neutral-50'],
 ];
