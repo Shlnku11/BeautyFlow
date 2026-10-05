@@ -54,3 +54,10 @@
 - Добавлен axe/responsive/keyboard E2E набор: 12 ключевых маршрутов — 0 serious/critical axe нарушений; размеры 320, 375, 768, 1024 и 1440 px без горизонтального overflow; проверены skip-link, Escape и keyboard-only public booking. npm run test:a11y ✅ (1 сценарий).
 - Полный набор: typecheck ✅, lint ✅, npm test (26 файлов / 90 тестов) ✅; отдельно unit 40/40, integration 46/46, API 2/2, race 2/2 ✅; build ✅, E2E 9/9 ✅, contrast ✅, a11y 1/1 ✅. Build сообщает upstream use-client/размер чанка warnings.
 - Все сценарии TESTING_STRATEGY §11 1–10 закрыты автоматизированно в E2E. Проверка responsive widths выполнена в Playwright; ручной просмотр реальных устройств и скринридером не выполнялся. Полная матрица всех API role×endpoint и A/B полей остаётся gate этапа 12.
+
+## Финальная полировка — блок 1 (2026-10-05)
+
+- Проверка `git ls-files` не обнаружила закоммиченных `dist/`, `coverage/`, `.next/`, `outputs/`, `work/`, `tmp/`, `.gitkeep` или файлов логов/сборки. Удалять отслеживаемые артефакты не потребовалось.
+- `.gitignore` дополнен правилами для `node_modules/`, `dist/`, `coverage/`, `.next/`, `outputs/`, `tmp/`, `work/`, `*.log`, `.env*` и `.DS_Store`; `.env.example` остаётся разрешённым.
+- Поиск импортов не нашёл ссылок из `packages/client` в `packages/server` и из `packages/server` в `packages/client`. README уже содержит раздел «Структура» с описанием трёх пакетов.
+- В git нет `.gitkeep`; пустые tracked directories невозможны. Локальные игнорируемые `dist/` и `test-results/` будут удалены после финальных проверок, которые могут их пересоздать.
