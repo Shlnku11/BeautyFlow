@@ -68,7 +68,7 @@ function check(pairs: [string, string][], minimum: number, label: string): void 
       continue;
     }
     const value = ratio(foreground, background);
-    console.log(`${label} ${foregroundName} on ${backgroundName}: ${value.toFixed(2)}:1`);
+    process.stdout.write(`${label} ${foregroundName} on ${backgroundName}: ${value.toFixed(2)}:1\n`);
     if (value < minimum) {
       console.error(`FAIL: minimum ${minimum}:1 required`);
       failed = true;
@@ -96,4 +96,4 @@ for (const file of filesUnder(resolve(root, 'packages/client/src'))) {
 }
 
 if (failed) process.exitCode = 1;
-else console.log('Contrast token pairs and glass surface whitelist passed.');
+else process.stdout.write('Contrast token pairs and glass surface whitelist passed.\n');

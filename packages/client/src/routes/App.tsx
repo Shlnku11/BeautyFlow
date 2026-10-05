@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { ru } from '@/shared/i18n/ru';
 import { LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
@@ -81,6 +82,26 @@ function PageFrame({ title }: { title: string }) {
   return <main className="mx-auto w-full max-w-7xl p-6"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-3 text-neutral-600">Подключение данных выполняется через защищённый API.</p></main>;
 }
 
+function SessionLoading() {
+  return <main className="grid min-h-screen place-items-center p-6"><p role="status" aria-live="polite">Проверяем сессию…</p></main>;
+}
+
+function SessionFailure({ retry }: { retry: () => void }) {
+  return <main className="grid min-h-screen place-items-center p-6"><section role="alert" className="grid gap-3"><p>Не удалось проверить сессию.</p><button className="rounded-lg border px-4 py-2" onClick={retry}>Повторить</button></section></main>;
+}
+
+function AccessDenied() {
+  return <main className="mx-auto max-w-5xl p-6"><h1 className="text-2xl font-semibold">Недостаточно прав</h1></main>;
+}
+
+function RootRedirect() {
+  const session = useSession();
+  if (session.isLoading) return <SessionLoading/>;
+  if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
+  if (session.data) return <Navigate to={session.data.active.role === 'master' ? '/app/my-day' : '/app/dashboard'} replace/>;
+  return <SessionFailure retry={() => { void session.refetch(); }}/>;
+}
+
 function AppointmentDirectPage() {
   const { id = '' } = useParams();
   const [error, setError] = useState('');
@@ -100,15 +121,21 @@ function AppointmentDirectPage() {
 function AppShell() {
   const location = useLocation();
   const session = useSession();
+  if (session.isLoading) return <SessionLoading/>;
+  if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
+  if (!session.data) return <SessionFailure retry={() => { void session.refetch(); }}/>;
   const active = links.find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`));
-  const permissions = session.data?.permissions ?? [];
+  const permissions = session.data.permissions;
   const requiredPermission: Record<string, string> = { '/app/dashboard': 'dashboard:read', '/app/calendar': 'calendar:read', '/app/customers': 'customers:read', '/app/staff': 'staff:read', '/app/services': 'services:read', '/app/payments': 'payments:read', '/app/settings': 'settings:business_read', '/app/my-day': 'dashboard:read_own' };
   const visibleLinks = links.filter(([path]) => permissions.includes(requiredPermission[path] ?? ''));
-  return <div className="min-h-screen md:grid md:grid-cols-[16rem_minmax(0,1fr)]"><a className="fixed left-3 top-3 z-50 -translate-y-20 rounded bg-neutral-0 px-4 py-3 text-primary-800 shadow focus:translate-y-0" href="#main-content">Перейти к основному содержимому</a><aside className="hidden border-r border-neutral-200 bg-neutral-0 p-5 md:block"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section id="main-content" tabIndex={-1} className="min-w-0 pb-20 md:pb-0"><header className="border-b border-neutral-200 bg-neutral-0 px-4 py-4 md:px-6" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="/app/calendar" replace/> : path === '/app/dashboard' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read') ? <DashboardPage/> : <Navigate to="/app/my-day" replace/> : path === '/app/my-day' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read_own') ? <MyDayPage/> : <Navigate to="/app/dashboard" replace/> : path === '/app/settings' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('settings:business_read') ? <SettingsPage/> : <Navigate to="/app/my-day" replace/> : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={<Navigate to={permissions.includes('dashboard:read_own') ? '/app/my-day' : '/app/dashboard'} replace/>}/></Routes></section><nav aria-label="Мобильная навигация" className="fixed inset-x-0 bottom-0 z-40 flex gap-1 overflow-x-auto border-t border-neutral-200 bg-neutral-0 px-2 py-2 shadow-lg md:hidden">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="min-w-fit rounded-lg px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></div>;
+  const home = permissions.includes('dashboard:read') ? '/app/dashboard' : permissions.includes('dashboard:read_own') ? '/app/my-day' : undefined;
+  const permissionFallback = home ? <Navigate to={home} replace/> : <AccessDenied/>;
+  return <div className="min-h-screen md:grid md:grid-cols-[16rem_minmax(0,1fr)]"><a className="fixed left-3 top-3 z-50 -translate-y-20 rounded bg-neutral-0 px-4 py-3 text-primary-800 shadow focus:translate-y-0" href="#main-content">Перейти к основному содержимому</a><aside className="hidden border-r border-neutral-200 bg-neutral-0 p-5 md:block"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section id="main-content" tabIndex={-1} className="min-w-0 pb-20 md:pb-0"><header className="border-b border-neutral-200 bg-neutral-0 px-4 py-4 md:px-6" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? permissions.includes('payments:read') ? <PaymentsPage/> : permissionFallback : path === '/app/dashboard' ? permissions.includes('dashboard:read') ? <DashboardPage/> : permissions.includes('dashboard:read_own') ? <Navigate to="/app/my-day" replace/> : <AccessDenied/> : path === '/app/my-day' ? permissions.includes('dashboard:read_own') ? <MyDayPage/> : permissions.includes('dashboard:read') ? <Navigate to="/app/dashboard" replace/> : <AccessDenied/> : path === '/app/settings' ? permissions.includes('settings:business_read') ? <SettingsPage/> : permissionFallback : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={home ? <Navigate to={home} replace/> : <AccessDenied/>}/></Routes></section><nav aria-label="Мобильная навигация" className="fixed inset-x-0 bottom-0 z-40 flex gap-1 overflow-x-auto border-t border-neutral-200 bg-neutral-0 px-2 py-2 shadow-lg md:hidden">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="min-w-fit rounded-lg px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></div>;
 }
 
 function AuthPage({ register = false }: { register?: boolean }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const title = register ? ru.auth.registerTitle : ru.auth.loginTitle;
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -120,6 +147,7 @@ function AuthPage({ register = false }: { register?: boolean }) {
     if (!parsed.success) { setError(ru.errors.VALIDATION_ERROR); return; }
     try {
       await apiRequest(register ? '/api/auth/register-business' : '/api/auth/login', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      await queryClient.resetQueries({ queryKey: ['session'] });
       navigate('/app', { replace: true });
     } catch (reason: unknown) {
       setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
@@ -143,5 +171,5 @@ function AuthPage({ register = false }: { register?: boolean }) {
 }
 
 export function App() {
-  return <Routes><Route path="/login" element={<AuthPage/>}/><Route path="/register" element={<AuthPage register/>}/><Route path="/b/:slug/manage/:token" element={<PublicManage/>}/><Route path="/b/:slug/*" element={<PublicBooking/>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<Navigate to="/app/dashboard" replace/>}/></Routes>;
+  return <Routes><Route path="/login" element={<AuthPage/>}/><Route path="/register" element={<AuthPage register/>}/><Route path="/b/:slug/manage/:token" element={<PublicManage/>}/><Route path="/b/:slug/*" element={<PublicBooking/>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<RootRedirect/>}/></Routes>;
 }

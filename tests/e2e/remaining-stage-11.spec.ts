@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import mongoose from 'mongoose';
 
-const origin = 'http://localhost:3000';
+const origin = 'http://localhost:5173';
 const ownerPassword = 'Strong-password-123';
 
 function futureMonday(weeksAhead = 1): string {

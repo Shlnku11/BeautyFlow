@@ -84,7 +84,7 @@ describe('Stage 12.1 route role × endpoint gate', () => {
     if (server) await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await disconnectFromDatabase();
     await replSet?.stop();
-  });
+  }, 30_000);
 
   function pathFor(route: (typeof sessionContracts)[number]): string {
     return route.path.replace(/:([A-Za-z][A-Za-z0-9]*)/g, (_match, key: string) => {
