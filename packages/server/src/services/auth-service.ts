@@ -1,4 +1,5 @@
 import { hash, verify } from '@node-rs/argon2';
+import { performance } from 'node:perf_hooks';
 import { Types } from 'mongoose';
 import { withTransaction } from '../db/transactions';
 import { AuthRepository } from '../repositories/auth-repository';
@@ -13,6 +14,12 @@ import { buildDedupeKey } from '../notifications/dedupe-key';
 
 const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
+const FORGOT_PASSWORD_MIN_DURATION_MS = 150;
+
+async function keepMinimumDuration(startedAt: number): Promise<void> {
+  const remaining = FORGOT_PASSWORD_MIN_DURATION_MS - (performance.now() - startedAt);
+  if (remaining > 0) await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+}
 
 export interface AuthResult {
   data: { user: { id: string; name: string; email: string; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master'; staffId?: string } };
@@ -45,33 +52,41 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 
 export class AuthService {
   async requestPasswordReset(email: string): Promise<void> {
-    const user = await repository.findUserByEmail(email.toLowerCase());
-    if (!user || user.status !== 'active') return;
-    const membership = await repository.findActiveMembershipByUserId(user._id);
-    if (!membership) return;
-    const business = await repository.findBusinessById(membership.businessId);
-    if (!business || business.status !== 'active') return;
-    const token = createSessionToken();
-    const tokenHash = hashSessionToken(token);
-    const now = new Date();
-    const dedupeKey = buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: user._id.toString(), tokenHash });
-    // API_CONTRACTS §2 AUTH-07 and NOTIFICATIONS_SPEC §5: only the keyed token is stored; the raw token is delivered through the email queue.
-    await withTransaction(async (session) => {
-      await repository.setPasswordReset(user._id, tokenHash, new Date(now.getTime() + 60 * 60_000), session);
-      await repository.enqueuePasswordReset({
-        businessId: membership.businessId,
-        channel: 'email',
-        kind: 'password_reset',
-        recipient: { email: user.email, name: user.name },
-        status: 'scheduled',
-        scheduledFor: now,
-        nextAttemptAt: now,
-        attempts: 0,
-        maxAttempts: 5,
-        dedupeKey,
-        templateData: { businessName: business.name, resetUrl: `${getEnv().APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}` },
-      }, session);
-    });
+    const startedAt = performance.now();
+    try {
+      const user = await repository.findUserByEmail(email.toLowerCase());
+      if (!user || user.status !== 'active') return;
+      const membership = await repository.findActiveMembershipByUserId(user._id);
+      if (!membership) return;
+      const business = await repository.findBusinessById(membership.businessId);
+      if (!business || business.status !== 'active') return;
+      const token = createSessionToken();
+      const tokenHash = hashSessionToken(token);
+      const now = new Date();
+      const dedupeKey = buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: user._id.toString(), tokenHash });
+      // API_CONTRACTS §2 AUTH-07 and NOTIFICATIONS_SPEC §5: only the keyed token is stored; the raw token is delivered through the email queue.
+      await withTransaction(async (session) => {
+        const activeMembership = await repository.findActiveMembershipByUserId(user._id, session);
+        if (!activeMembership || !activeMembership.businessId.equals(membership.businessId)) return;
+        const resetUpdate = await repository.setPasswordReset(user._id, tokenHash, new Date(now.getTime() + 60 * 60_000), session);
+        if (resetUpdate.matchedCount !== 1) return;
+        await repository.enqueuePasswordReset({
+          businessId: membership.businessId,
+          channel: 'email',
+          kind: 'password_reset',
+          recipient: { email: user.email, name: user.name },
+          status: 'scheduled',
+          scheduledFor: now,
+          nextAttemptAt: now,
+          attempts: 0,
+          maxAttempts: 5,
+          dedupeKey,
+          templateData: { businessName: business.name, resetUrl: `${getEnv().APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}` },
+        }, session);
+      });
+    } finally {
+      await keepMinimumDuration(startedAt);
+    }
   }
 
   async resetPassword(token: string, password: string): Promise<void> {
@@ -83,7 +98,8 @@ export class AuthService {
       if (!user) throw new AppError(ERROR_CODES.RESET_INVALID, 404, 'Ссылка сброса не найдена');
       const membership = await repository.findActiveMembershipByUserId(user._id);
       if (!membership) throw new AppError(ERROR_CODES.RESET_INVALID, 404, 'Ссылка сброса не найдена');
-      await repository.updatePassword(user._id, passwordHash, now, session);
+      const consumed = await repository.consumeResetToken(user._id, tokenHash, now, passwordHash, session);
+      if (consumed.modifiedCount !== 1) throw new AppError(ERROR_CODES.RESET_INVALID, 404, 'Ссылка сброса не найдена');
       await repository.deleteUserSessions(user._id, session);
       await repository.writePasswordAudit(membership.businessId, user._id, session);
     });
@@ -100,8 +116,10 @@ export class AuthService {
     const currentSessionHash = token ? hashSessionToken(token) : undefined;
     const now = new Date();
     await withTransaction(async (session) => {
-      await repository.updatePassword(id, passwordHash, now, session);
-      const currentSession = currentSessionHash ? await repository.findSessionByTokenHash(currentSessionHash) : null;
+      const passwordUpdate = await repository.updatePassword(id, passwordHash, now, session);
+      if (passwordUpdate.matchedCount !== 1) throw new AppError(ERROR_CODES.UNAUTHENTICATED, 401, 'Требуется вход в систему');
+      const currentSession = currentSessionHash ? await repository.findSessionByTokenHash(currentSessionHash, session) : null;
+      if (!currentSession || !currentSession.userId.equals(id)) throw new AppError(ERROR_CODES.UNAUTHENTICATED, 401, 'Требуется вход в систему');
       await repository.deleteUserSessions(id, session, currentSession?._id);
       await repository.writePasswordAudit(new Types.ObjectId(businessId), id, session);
     });

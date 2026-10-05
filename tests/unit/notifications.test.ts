@@ -10,8 +10,8 @@ describe('notification primitives', () => {
     expect(buildDedupeKey({ channel: 'email', kind: 'appointment_confirmed', appointmentId: 'apt-1', version: 3 })).toBe('email:appointment_confirmed:apt-1:3');
     expect(buildDedupeKey({ channel: 'email', kind: 'reminder_24h', appointmentId: 'apt-1', startAt: new Date(1000) })).toBe('email:reminder_24h:apt-1:1000');
     expect(buildDedupeKey({ channel: 'email', kind: 'followup_after_visit', appointmentId: 'apt-1' })).toBe('email:followup_after_visit:apt-1');
-    expect(buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: 'member-1', tokenHash: 'abcdef012345' })).toBe('email:staff_invite:member-1:abcdef01');
-    expect(buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: 'user-1', tokenHash: '12345678abcd' })).toBe('email:password_reset:user-1:12345678');
+    expect(buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: 'member-1', tokenHash: 'test-hash-123456' })).toBe('email:staff_invite:member-1:test-has');
+    expect(buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: 'user-1', tokenHash: 'hash-value-123456' })).toBe('email:password_reset:user-1:hash-val');
   });
 
   it('uses the specified bounded retry schedule', () => {

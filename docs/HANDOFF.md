@@ -4,15 +4,15 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 12: E2E, безопасность, деплой. Статус: частично завершён; 12.1 матрица добавлена, но auth и audit gate имеют блокеры.
+Этап 12: E2E, безопасность, деплой. Статус: 12.2 реализован и проверен, но security gate частичный из-за 5 high dev-only advisories; 12.3 runbook готовится, реальный deployment не выполнен.
 
 ## Последний коммит этапа
-`4828c8c docs(handoff): mark stage 11 complete`
+`7880117 WIP: AUTH-07/08/09 (unfinished partial implementation)`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
 - Этап 2 (модели, Zod, интерфейсы, UI-kit): ✅ модели, миграция, схемы и UI-kit; полнота репозиториев/сервисов и A/B fixtures требует дальнейшей проверки.
-- Этап 3 (auth): ✅ основные AUTH-01…04 и регистрация/вход/сессия; AUTH-06…09 и полное ролевое покрытие остаются частичными.
+- Этап 3 (auth): ✅ AUTH-01…04, AUTH-06…09 и регистрация/вход/сессия; AUTH-05 post-MVP.
 - Этап 4 (staff, services, schedule): 🟡 backend и UI экранов сотрудников/услуг/команды готовы; полный route×role/A/B gate впереди.
 - Этап 5 (customers, settings): 🟡 backend и UI клиентов/настроек готовы; полный route×role/A/B gate впереди.
 - Этап 6a (booking engine): ✅ 15 unit-сценариев §13, шестизонная DST-матрица, проверка TZ процесса UTC/America/Los_Angeles.
@@ -23,16 +23,16 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
 - Этап 11: 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`; 11.3 добавил contrast/responsive/a11y/keyboard; 11.4 закрыл E2E §11 сценарии #3/#5/#7. Полный E2E 9/9.
-- Этап 12: общая матрица добавлена; полное закрытие security и deploy не выполнено.
+- Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; реальный production/staging deployment не выполнен. Deploy runbook/README обновляются в 12.3.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
-- AUTH-07/08/09 — начаты, но не завершены; runtime маршруты остаются 501. Не переписывать с нуля: продолжить `packages/server/src/services/auth-service.ts` (`requestPasswordReset`, `resetPassword`, `changePassword`) и `packages/server/src/repositories/auth-repository.ts` (reset-token lookup/set/clear, password update, session delete, notification enqueue, audit). Подключить handlers в `packages/server/src/http/auth-routes.ts`, затем закрыть тесты/безопасность.
+- Full `npm audit --audit-level=high` сообщает 5 high в dev-only Tailwind 3.4.19 dependency chain (chokidar/micromatch/braces); `npm audit --omit=dev` чист. По указанию не менять зависимости; Tailwind 4 post-MVP. Это остаётся открытым security release risk.
 - Content-Security-Policy — заголовок установлен и проверен API-тестом.
 - `npm audit --audit-level=high` находит 5 high в Tailwind 3 dev dependency цепочке (chokidar/micromatch/braces); исправление npm предлагает breaking upgrade на Tailwind 4, который не применялся.
-- Secret scan не выполнен (gitleaks недоступен в среде).
-- Реальный production/staging deploy не проверен; TLS, миграции в production, backup restore и мониторинг также не проверялись. Это блок 12.3. README содержит целевую инструкцию, не свидетельство deploy.
-- Полная матрица роль × эндпоинт частично завершена; дозакрыть после реализации AUTH-07/08/09.
+- Gitleaks 8.30.1 clean по текущим source/docs/tests directories. Git history retains 4 generic-api-key false positives in prior test fixture versions (`tests/unit/env.test.ts`, `tests/unit/notifications.test.ts`); they were dummy test-only values and current fixtures are replaced with low-entropy values. No actual credential was identified.
+- Production container boot/HTTP 404/security-header smoke прошли; Mongo был намеренно недоступен, health readiness не подтверждалась. Нет production/staging target, DNS/TLS, SMTP и backup destination; реальный deploy/restore/monitoring не проверялись.
+- Общая матрица проверяет handler ID всех 64 endpoint contracts, все session routes для owner/admin/master/anonymous и representative A/B path/body/cross-entity isolation probes; staging role/security exercise остаётся непроверенным.
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
@@ -45,14 +45,14 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 ## Зелёные тесты на момент остановки
 - `npm run typecheck` ✅
 - `npm run lint` ✅
-- `npm test` — 27 файлов, 94 теста ✅ (включая новую матрицу)
+- `npm test` — 28 файлов, 101 тест ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
 - `npm run test:e2e` — 9 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite и auth/UI smoke.
-- `npm run test:unit` — 11 файлов / 40 тестов ✅; `npm run test:integration` — 11 файлов / 46 тестов ✅; `npm run test:api` — 3 файла / 7 тестов ✅.
+- `npm run test:unit`, `npm run test:integration` — включены в полный прогон; `npm run test:api` — 4 файла / 13 тестов ✅.
 - `npm run check:contrast` ✅
 - `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
-- Stage 12 текущий прогон: `npm test` — 27 файлов / 94 теста ✅, `npm run test:api` — 3 файла / 7 ✅, `npm run test:race` — 2/2 ✅, `npm run test:e2e` — 9/9 ✅, `npm run test:a11y` — 1/1 ✅; typecheck/lint/build/contrast ✅. `npm audit --audit-level=high` ❌ (5 high в dev tree); gitleaks не установлен.
+- Stage 12 current: `npm test` — 28/101 ✅; race 2/2 ✅; E2E 9/9 ✅; a11y 1/1 ✅; typecheck/lint/build/contrast ✅. Docker image build and production-mode HTTP/header smoke ✅. Gitleaks clean. Full npm audit remains ❌ for 5 dev-only high advisories; production-only audit ✅.
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
@@ -72,4 +72,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить этап 12.2 с начатой реализации AUTH: функции `requestPasswordReset`, `resetPassword`, `changePassword` в `auth-service.ts` и supporting methods в `auth-repository.ts` уже есть — продолжить, не начинать заново. Подключить эндпоинты в `auth-routes.ts`; добавить integration/race/security tests и проверить transaction boundaries, one-time token/expiry, identical forgot response/timing, audit, session invalidation/current-session behavior. Затем дозакрыть role×endpoint/A/B matrix. Не менять зависимости: 5 high в dev-цепочке Tailwind 3; Tailwind 4 — post-MVP. Secret scan не выполнен. После этого 12.3 production deployment/backup restore.
+Продолжить этап 12.3: проверить/завершить `docs/DEPLOY.md`, локальный README и отметить production deployment как unverified до появления VPS/domain/TLS/SMTP/backup target. Не менять зависимости: Tailwind 3 dev chain имеет 5 high advisories, Tailwind 4 post-MVP. Все 64 route IDs и session role matrix проходят; AUTH flows реализованы. Финальный релиз всё ещё ограничен unresolved npm audit findings и отсутствием настоящего staging/production environment.

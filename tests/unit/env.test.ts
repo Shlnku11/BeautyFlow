@@ -9,8 +9,8 @@ describe('environment validation', () => {
       APP_BASE_URL: 'http://localhost:3000',
       MONGODB_URI: 'mongodb://localhost:27017/db?replicaSet=rs0',
       MONGODB_DB_NAME: 'db',
-      TOKEN_PEPPER: 'valid-test-token-pepper-long-enough-32-characters',
-      CRON_SECRET: 'valid-test-cron-secret-long-enough-32-characters',
+      TOKEN_PEPPER: 'p'.repeat(40),
+      CRON_SECRET: 'c'.repeat(40),
       EMAIL_FROM_ADDRESS: 'test@example.test',
       EMAIL_FROM_NAME: 'Tests',
     });
@@ -25,8 +25,8 @@ describe('environment validation', () => {
       APP_BASE_URL: 'https://example.test',
       MONGODB_URI: 'mongodb://localhost:27017/db?replicaSet=rs0',
       MONGODB_DB_NAME: 'db',
-      TOKEN_PEPPER: 'valid-test-token-pepper-long-enough-32-characters',
-      CRON_SECRET: 'valid-test-cron-secret-long-enough-32-characters',
+      TOKEN_PEPPER: 'p'.repeat(40),
+      CRON_SECRET: 'c'.repeat(40),
       EMAIL_FROM_ADDRESS: 'test@example.test',
       EMAIL_FROM_NAME: 'Tests',
     };

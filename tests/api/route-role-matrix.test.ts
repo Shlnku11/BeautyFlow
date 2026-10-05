@@ -129,6 +129,7 @@ describe('Stage 12.1 route role × endpoint gate', () => {
         // APT-04 deliberately accepts only visitNote for masters in its service-level field allowlist.
         const allowed = (permission !== undefined && PERMISSION_SCOPES[permission][role] !== null) || (route.id === 'APT-04' && role === 'master');
         expect(result.response.status === 403, `${route.id} / ${role}: ${result.response.status} ${result.text}`).toBe(!allowed);
+        expect(result.response.status, `${route.id} / ${role} must not fall through to an unimplemented 501`).not.toBe(501);
         expect(result.text).not.toContain('TENANT_B_SECRET');
       }
     }
