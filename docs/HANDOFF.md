@@ -7,7 +7,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 Этап 11: Cleanup + UI/a11y. Статус: завершён (11.1–11.4; E2E §11 сценарии 1–10 закрыты).
 
 ## Последний коммит этапа
-будет записан после коммита блока 11.4.
+`70713e6 feat(stage-11): close remaining E2E scenarios`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
