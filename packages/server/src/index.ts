@@ -20,6 +20,7 @@ import { IMPLEMENTED_APPOINTMENT_ROUTE_IDS, registerAppointmentRoutes } from './
 import { IMPLEMENTED_PUBLIC_BOOKING_ROUTE_IDS, registerPublicBookingRoutes } from './http/public-booking-routes';
 import { IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS, registerBlockedPeriodRoutes } from './http/blocked-period-routes';
 import { IMPLEMENTED_MEMBER_ROUTE_IDS, registerMemberRoutes } from './http/member-routes';
+import { IMPLEMENTED_CALENDAR_ROUTE_IDS, registerCalendarRoutes } from './http/calendar-routes';
 
 export const app: Express = express();
 configureAuthRouteRuntime();
@@ -61,6 +62,7 @@ registerAppointmentRoutes(app);
 registerPublicBookingRoutes(app);
 registerBlockedPeriodRoutes(app);
 registerMemberRoutes(app);
+registerCalendarRoutes(app);
 
 function isPermissionKey(value: string): value is PermissionKey {
   return Object.hasOwn(PERMISSION_SCOPES, value);
@@ -84,7 +86,7 @@ function defaultRateLimit(contract: (typeof MVP_ROUTE_CONTRACTS)[number]): RateL
 }
 
 for (const contract of MVP_ROUTE_CONTRACTS) {
-  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SCHEDULE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CUSTOMER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SETTINGS_ROUTE_IDS.has(contract.id) || IMPLEMENTED_AVAILABILITY_ROUTE_IDS.has(contract.id) || IMPLEMENTED_APPOINTMENT_ROUTE_IDS.has(contract.id) || IMPLEMENTED_PUBLIC_BOOKING_ROUTE_IDS.has(contract.id) || IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS.has(contract.id) || IMPLEMENTED_MEMBER_ROUTE_IDS.has(contract.id)) continue;
+  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SCHEDULE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CUSTOMER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SETTINGS_ROUTE_IDS.has(contract.id) || IMPLEMENTED_AVAILABILITY_ROUTE_IDS.has(contract.id) || IMPLEMENTED_APPOINTMENT_ROUTE_IDS.has(contract.id) || IMPLEMENTED_PUBLIC_BOOKING_ROUTE_IDS.has(contract.id) || IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS.has(contract.id) || IMPLEMENTED_MEMBER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CALENDAR_ROUTE_IDS.has(contract.id)) continue;
   const limit = contract.rateLimit && isRateLimitPolicy(contract.rateLimit)
     ? contract.rateLimit
     : defaultRateLimit(contract);
