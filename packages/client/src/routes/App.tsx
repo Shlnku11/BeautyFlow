@@ -6,6 +6,8 @@ import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants'
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from './UiSandbox';
 import { PublicBooking, PublicManage } from './PublicBooking';
+import { PaymentsPage } from './Payments';
+import { useSession } from '@/hooks/use-session';
 
 interface CalendarPayload {
   range: { from: string; to: string; timezone: string };
@@ -17,6 +19,7 @@ interface CalendarPayload {
 }
 
 function CalendarPage() {
+  const session = useSession();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [view, setView] = useState<'day' | 'week'>('day');
   const [staffId, setStaffId] = useState('');
@@ -49,7 +52,7 @@ function CalendarPage() {
     {loading ? <p className="mt-6" role="status">Загрузка календаря…</p> : null}{error ? <p className="mt-6 text-danger-fg" role="alert">{error}</p> : null}
     {data ? <>
       <section className="mt-6" aria-label="Загрузка сотрудников"><h2 className="font-semibold">Загрузка</h2><ul className="mt-2 flex flex-wrap gap-3">{data.load.map((item) => <li className="rounded-lg border px-3 py-2" key={item.staffId}>{data.staff.find((member) => member.id === item.staffId)?.displayName ?? 'Сотрудник'}: {item.loadPercent === null ? '—' : `${item.loadPercent}%`} ({item.bookedMinutes} / {item.availableMinutes} мин)</li>)}</ul></section>
-      <section className="mt-6" aria-label="Список записей календаря"><h2 className="font-semibold">Список записей</h2><ul className="mt-2 divide-y rounded-lg border">{data.appointments.map((item) => <li className="grid gap-1 p-3 sm:grid-cols-[10rem_1fr_12rem]" key={item.id}><time dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(item.startAt))}</time><span>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</span><span>{item.staff.displayName} · {item.status}</span></li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-neutral-600">На этот период записей нет.</p> : null}</section>
+      <section className="mt-6" aria-label="Список записей календаря"><h2 className="font-semibold">Список записей</h2><ul className="mt-2 divide-y rounded-lg border">{data.appointments.map((item) => <li className="grid gap-1 p-3 sm:grid-cols-[10rem_1fr_12rem_auto]" key={item.id}><time dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(item.startAt))}</time><span>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</span><span>{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <Link className="text-primary-700 underline" to={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</Link> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-neutral-600">На этот период записей нет.</p> : null}</section>
       <section className="mt-6"><h2 className="font-semibold">Рабочее время</h2><ul className="mt-2 grid gap-2 sm:grid-cols-2">{data.workingIntervals.map((day) => <li className="rounded-lg border p-3" key={`${day.staffId}-${day.date}`}><strong>{data.staff.find((item) => item.id === day.staffId)?.displayName} · {day.date}</strong><p>{day.intervals.length ? day.intervals.map((range) => `${new Intl.DateTimeFormat('ru-RU', { timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(range.start))}–${new Intl.DateTimeFormat('ru-RU', { timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(range.end))}`).join(', ') : 'Нерабочее время'}</p></li>)}</ul>{data.blockedPeriods.map((block) => <p className="mt-2 rounded border border-amber-400 p-2" key={block.id}>Блокировка · {block.reason ?? 'без причины'} · {new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: data.range.timezone }).format(new Date(block.startAt))}</p>)}</section>
     </> : null}
   </main>;
@@ -67,8 +70,10 @@ function PageFrame({ title }: { title: string }) {
 
 function AppShell() {
   const location = useLocation();
+  const session = useSession();
   const active = links.find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`));
-  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{links.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path} element={path === '/app/calendar' ? <CalendarPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<PageFrame title="Карточка клиента"/>}/><Route path="staff/:id" element={<PageFrame title="Сотрудник"/>}/><Route path="*" element={<Navigate to="/app/dashboard" replace/>}/></Routes></section></div>;
+  const visibleLinks = links.filter(([path]) => path !== '/app/payments' || session.data?.permissions.includes('payments:read'));
+  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : session.data?.permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="/app/calendar" replace/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<PageFrame title="Карточка клиента"/>}/><Route path="staff/:id" element={<PageFrame title="Сотрудник"/>}/><Route path="*" element={<Navigate to="/app/dashboard" replace/>}/></Routes></section></div>;
 }
 
 function AuthPage({ register = false }: { register?: boolean }) {

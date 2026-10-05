@@ -1,60 +1,69 @@
-# HANDOFF.md — Передача проекта
+# HANDOFF.md
 
 ## Стек
-Vite + React + Express 5 + MongoDB 8.0 + Node 24 (monorepo: packages/client, packages/server, packages/shared).
+Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
-## Текущее состояние
-- Этап по PHASED_PLAN: 6 — Booking (частично).
-- Подэтап: 6a/6b, рабочие интервалы/слоты, AVL-01, APT-02, идемпотентность и race-защита создания записи.
-- Последний коммит: 14c7aa630a58c3228c71cbcb075edd3b64f0b16b Fix: race в rate-limit upsert + сериализация Playwright race-тестов.
-- Рабочее дерево: чистое после коммита.
+## Текущий этап
+Этап 10: Dashboard. Статус: следующий этап; этап 9 (Payments) завершён.
+
+## Последний коммит
+Обновить после коммита этапа 9.
 
 ## Что сделано (по этапам)
-- Этап 1 (фундамент): ✅ базовый каркас; текущие проверки проходят.
-- Этап 2 (модели, Zod, интерфейсы, UI-kit): частично — модели, миграция, схемы и UI-kit есть; полнота слоя репозиториев/сервисов и A/B fixtures не достигнута.
-- Этап 3 (auth): частично — AUTH-01…04 и основные регистрация/вход/сессия реализованы; AUTH-06…09 и полный набор ролей не реализованы.
-- Этап 4 (staff, services, schedule): частично — STF-01…04, SVC-01/02/04, STF-06…10; деактивация STF-04, STF-11/12, BLK-01…03 и MEM-* остаются.
-- Этап 5 (customers, settings): частично — CUS-01/02/04 и SET-01…03; CUS-03/06 остаются.
-- Этап 6 (booking): частично — occupancy, DST-aware working intervals, slots, AVL-01, APT-02, идемпотентный повтор и 20-конкурентный race-сценарий. Остальные appointment и public-booking контракты не готовы.
-- Этапы 7–12: не завершены. Этапы 7–10 не начаты; в 11 есть UI-kit/axe smoke; в 12 есть ограниченный smoke/E2E и race набор, полной security/E2E проверки нет.
+- Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
+- Этап 2 (модели, Zod, интерфейсы, UI-kit): ✅ модели, миграция, схемы и UI-kit; полнота репозиториев/сервисов и A/B fixtures требует дальнейшей проверки.
+- Этап 3 (auth): ✅ основные AUTH-01…04 и регистрация/вход/сессия; AUTH-06…09 и полное ролевое покрытие остаются частичными.
+- Этап 4 (staff, services, schedule): 🟡 backend ✅ для реализованных STF/SVC/BLK/MEM маршрутов; UI частично.
+- Этап 5 (customers, settings): 🟡 backend ✅ для CUS/SET функций, перечисленных в PROGRESS.md; UI частично.
+- Этап 6a (booking engine): 🟡 частично; не все 15 сценариев и DST из BOOKING_ENGINE_SPEC §13 покрыты.
+- Этап 6b (внутренние записи): ✅ AVL-01, APT-01…06 и основные внутренние потоки; см. PROGRESS.md для race-проверок.
+- Этап 6c (публичная запись): ✅ PUB-01…10, управление записью и базовые E2E потоки.
+- Этап 7 (calendar): 🟡 backend ✅, UI частично.
+- Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
+- Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
+- Этапы 10–12: не начаты/не завершены.
 
-## Что НЕ сделано в текущем подэтапе
-- APT-01, APT-03…06 и остальные переходы/изменения записи.
-- Публичные PUB-* маршруты и полный 6c.
-- Полный набор booking-engine сценариев из спецификации (включая всю матрицу DST/границ).
-- Расширенная матрица конкурентных сценариев; текущий race API проверяет 20 одновременных запросов на один слот.
+## Что НЕ сделано (важно для следующего исполнителя)
+- UI экранов Staff/Services/Customers/Settings (этапы 4/5).
+- Временная сетка календаря и полноценные действия с записью в панели (этап 7); сейчас принятие оплаты доступно через действие записи в календаре.
+- Полные 15 сценариев booking-engine и DST (этап 6a).
+- Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
+- Этап 10 (dashboard): DSH-01, DSH-05, MST-01.
+- Этап 11 (очистка прототипа, финальный UI/a11y).
+- Этап 12 (полный E2E, security, deploy).
+- Для этапа 9 не запускался E2E; реализованы и прогнаны unit/integration/race тесты.
 
-## Известные проблемы и TODO
-- Значительная часть 64 MVP route contracts пока остаётся заглушками (501); зарегистрированный контрактный путь не означает готовую бизнес-логику.
-- Не завершены A/B tenant isolation fixtures и полный isolation/security набор; текущий E2E проверяет отдельные tenant-sensitive сценарии.
-- Rate-limit persistence имеет исправленный duplicate-key upsert race; соответствие всех контрактных rate-limit политик ещё нужно проверить.
-- Email/SMTP не интегрирован и не проверен.
-- Vite build успешен, но сообщает предупреждения про модульные директивы `"use client"` в зависимостях React Router/TanStack Query.
-- Docker MongoDB и health проверены в текущем окружении; реальные SMTP и production deployment не проверялись.
+## Известные проблемы / TODO
+- Сверить оставшиеся частичные контракты этапов 4/5/6a с PHASED_PLAN и спецификациями.
+- До финала построить полную матрицу ролей × эндпоинтов по PERMISSIONS_MATRIX.md, включая собственный/чужой tenant и чужие ID в path/query/body.
+- SMTP требует домен/настройки; ConsoleEmailProvider использовался для тестовой доставки.
+- Реальный production deployment не проверялся.
+- Build выводит предупреждения о директивах `"use client"` в зависимости React; сборка успешна.
 
 ## Зелёные тесты на момент остановки
-- typecheck ✅
-- lint ✅
-- unit (17) ✅
-- integration (5) ✅
-- api (2) ✅
-- race (1 suite; includes DB unique-index contention) ✅
-- build ✅
-- E2E (5; feature E2E includes 20 competing booking requests, expecting one success) ✅
+- `npm run typecheck` ✅
+- `npm run lint` ✅
+- `npm test` — 24 файла, 73 теста ✅
+- `npm run test:race` — 2 файла, 2 теста ✅
+- `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
+- E2E этапа 9 не запускался; последний известный предыдущий smoke: 5 тестов ✅
 
 ## Команды запуска
-- `docker-compose up -d mongo`
+- Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
 - `npm run migrate`
-- `npm run dev:server`
-- `npm run dev:client`
 - `npm run typecheck && npm run lint && npm test`
+- `npm run test:race`
+- `npm run build`
+- `npm run test:e2e`
+- `cd packages/server && npm run dev`
+- `cd packages/client && npm run dev`
 
-## Правила работы (жёсткие)
-- Контракты (DATA_MODEL, API_CONTRACTS, PERMISSIONS_MATRIX, BOOKING_ENGINE_SPEC, PAYMENTS_SPEC, NOTIFICATIONS_SPEC, DASHBOARD_SPEC, PRODUCT_SPEC, MVP_SCOPE) — НЕ меняются.
-- Стек менять нельзя (Vite + Express, monorepo).
+## Правила для следующего исполнителя
+- Контракты (DATA_MODEL, API_CONTRACTS, PERMISSIONS_MATRIX, BOOKING_ENGINE_SPEC, PAYMENTS_SPEC, NOTIFICATIONS_SPEC, DASHBOARD_SPEC, PRODUCT_SPEC, MVP_SCOPE) — НЕ менять.
+- Архитектура (tenantPlugin, occupiedKeys, withTransaction, cookie-сессии) — НЕ менять.
 - Комментарии — по CODING_STANDARDS §15 (инварианты, ссылки на документы).
-- Не трогать: reference-проект, beautyflow-контейнеры (27017, 6379), .env.
-- Каждый подэтап — коммит + короткий отчёт.
+- Не трогать reference-проект, beautyflow-контейнеры (27017, 6379), `.env`.
+- Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Сначала завершить незакрытые контракты этапов 4 и 5 согласно PHASED_PLAN, затем закончить этап 6b (APT-01, APT-03…06 и тесты переходов), после чего реализовать 6c public booking. Перед дальнейшим продвижением свериться с PHASED_PLAN и не считать частично реализованные этапы закрытыми.
+Продолжить с этапа 10 (Dashboard) по PHASED_PLAN. Сохранить частичные этапы 4/5/6a и полную матрицу роль × эндпоинт/A-B как обязательные для этапов 11–12.

@@ -53,6 +53,7 @@ const rejectMutation = (): never => {
   throw new ImmutableDocumentError();
 };
 
+// DATA_MODEL_MONGODB §15 / PAYMENTS_SPEC §4: ledger entries are append-only; corrections require compensating rows.
 for (const operation of [
   'updateOne',
   'updateMany',

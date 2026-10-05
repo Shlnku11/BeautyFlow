@@ -211,6 +211,7 @@ describe('Mongoose models and initial indexes', () => {
     await expect(
       Transaction.updateOne({ businessId }, { $set: { note: 'edited' } }).exec(),
     ).rejects.toBeInstanceOf(ImmutableDocumentError);
+    await expect(Transaction.deleteOne({ businessId }).exec()).rejects.toBeInstanceOf(ImmutableDocumentError);
     await expect(transaction.save()).rejects.toBeInstanceOf(ImmutableDocumentError);
   });
 });
