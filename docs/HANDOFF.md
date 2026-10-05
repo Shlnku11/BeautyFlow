@@ -7,7 +7,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 Этап 11: Cleanup + UI/a11y. Статус: частично завершён; UI/a11y и проверки реализованы, E2E §11 #3/#5/#7 ещё не покрыты.
 
 ## Последний коммит этапа
-`10843e8 feat(a11y): finalize responsive and accessible UI`
+`f6fe2de feat(a11y): finalize responsive and accessible UI`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
