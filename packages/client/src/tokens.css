@@ -56,6 +56,9 @@
 
   --surface-app: #f6f5f9;
   --surface-solid: #ffffff;
+  --surface-clay: #f2eff9;
+  --surface-clay-raised: #f8f6fc;
+  --surface-clay-inset: #eeebf5;
   --surface-glass: rgba(255, 255, 255, 0.72);
   --surface-glass-strong: rgba(255, 255, 255, 0.86);
   --border-glass: rgba(255, 255, 255, 0.65);
@@ -86,6 +89,10 @@
   --shadow-md: 0 4px 12px rgba(31, 17, 66, 0.08);
   --shadow-lg: 0 12px 32px rgba(31, 17, 66, 0.12);
   --shadow-glass: 0 8px 32px rgba(48, 26, 99, 0.1);
+  --shadow-clay-raised: 8px 8px 18px rgba(48, 26, 99, 0.12), -6px -6px 16px rgba(255, 255, 255, 0.9);
+  --shadow-clay-pressed: inset 4px 4px 9px rgba(48, 26, 99, 0.1), inset -4px -4px 9px rgba(255, 255, 255, 0.9);
+  --radius-clay-card: 24px;
+  --radius-clay-control: 16px;
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
@@ -130,5 +137,24 @@
     background: rgba(255, 255, 255, 0.96);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+
+  :root {
+    --surface-clay: #f6f5f9;
+    --surface-clay-raised: #ffffff;
+    --surface-clay-inset: #f6f5f9;
+    --shadow-clay-raised: 0 1px 2px rgba(31, 17, 66, 0.06);
+    --shadow-clay-pressed: inset 0 1px 2px rgba(31, 17, 66, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
