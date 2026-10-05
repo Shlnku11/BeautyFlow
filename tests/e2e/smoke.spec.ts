@@ -29,7 +29,7 @@ test('health API reports a ready database', async ({ request }) => {
 test('business owner can register and log back in using a server-side session', async ({ page, context }) => {
   const run = `${Date.now()}`;
   const ipOffset = Number(run) % 16_777_214;
-  const testIp = `198.51.${Math.floor(ipOffset / 256)}.${(ipOffset % 256) + 1}`;
+  const testIp = `198.51.${Math.floor(ipOffset / 256) % 256}.${ipOffset % 256 || 1}`;
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': testIp });
   const email = `e2e.${run}@example.test`;
   await page.goto('/register');
@@ -44,11 +44,15 @@ test('business owner can register and log back in using a server-side session', 
   await expect(page).toHaveURL(/\/app/);
 
   await context.clearCookies();
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Пароль').fill('Strong-password-123');
-  await page.getByRole('button', { name: 'Войти' }).click();
-  await expect(page).toHaveURL(/\/app/);
+  // A separate Page starts with a fresh React Query auth cache. Reusing the registration
+  // page can race its stale authenticated state against /login and abort that navigation.
+  const loginPage = await context.newPage();
+  await loginPage.goto('/login');
+  await loginPage.getByLabel('Email').fill(email);
+  await loginPage.getByLabel('Пароль').fill('Strong-password-123');
+  await loginPage.getByRole('button', { name: 'Войти' }).click();
+  await expect(loginPage).toHaveURL(/\/app/);
+  await loginPage.close();
   await page.goto('/app/dashboard');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
   await expect(page.getByTestId('dashboard-kpis').locator('article')).toHaveCount(4);

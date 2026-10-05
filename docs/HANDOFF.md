@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 11: Cleanup + UI/a11y. Статус: частично завершён; UI/a11y и проверки реализованы, E2E §11 #3/#5/#7 ещё не покрыты.
+Этап 11: Cleanup + UI/a11y. Статус: завершён (11.1–11.4; E2E §11 сценарии 1–10 закрыты).
 
 ## Последний коммит этапа
-`f6fe2de feat(a11y): finalize responsive and accessible UI`
+будет записан после коммита блока 11.4.
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -22,13 +22,12 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
-- Этап 11: 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`; 11.3 добавил contrast check, responsive/mobile layouts, axe ключевых экранов, keyboard public booking, skip-link и Escape для диалогов. E2E 6/6, но TESTING_STRATEGY §11 #3/#5/#7 остаются.
+- Этап 11: 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`; 11.3 добавил contrast/responsive/a11y/keyboard; 11.4 закрыл E2E §11 сценарии #3/#5/#7. Полный E2E 9/9.
 - Этап 12: полный E2E/security/deploy и общая матрица роль × эндпоинт/A/B не завершены.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- Осталось добавить E2E §11 #3 (перенос/гонка публичных вкладок), #5 (master invitation/own-day/access denial), #7 (A/B прямой URL). Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах.
+- Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
 - Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
-- Этап 11 (очистка прототипа, финальный UI/a11y).
 - Этап 12 (полный E2E, security, deploy).
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
@@ -45,7 +44,8 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm test` — 26 файлов, 90 тестов ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- `npm run test:e2e` — 6 тестов ✅, включая axe/responsive/keyboard suite и auth/UI smoke.
+- `npm run test:e2e` — 9 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite и auth/UI smoke.
+- `npm run test:unit` — 11 файлов / 40 тестов ✅; `npm run test:integration` — 11 файлов / 46 тестов ✅; `npm run test:api` — 2/2 ✅.
 - `npm run check:contrast` ✅
 - `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
 
@@ -67,4 +67,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить с оставшихся E2E §11 #3/#5/#7, затем этап 12: полный E2E/security/deploy, полная матрица роль × эндпоинт + A/B (gate).
+Продолжить с этапа 12.1: полная матрица роль × эндпоинт + A/B gate, затем security checklist §10 и deploy/README.

@@ -2,8 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 async function registerOwner(page: Page, run: string): Promise<void> {
-  const ipOffset = Number(run) % 16_777_214;
-  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.18.${Math.floor(ipOffset / 256)}.${(ipOffset % 256) + 1}` });
+  const ipOffset = Number(run.slice(-8)) % 65_536;
+  await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.18.${Math.floor(ipOffset / 256)}.${ipOffset % 256 || 1}` });
   await page.goto('/register');
   await page.getByLabel('Название бизнеса').fill(`A11y Studio ${run}`);
   await page.getByLabel('Часовой пояс').fill('Asia/Bishkek');
