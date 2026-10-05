@@ -13,7 +13,7 @@
 | 8 — Notifications + email | Закрыт: dedupe/backoff, SMTP + Console providers, SMS/Push skipped adapters, 8 RU-шаблонов, атомарный claim с арендой/recovery, retry/status/TTL, циклический worker, SYS-02 с CRON_SECRET. Проверены retry, duplicate enqueue, crash recovery, parallel workers, password-reset templateData cleanup и A/B изоляция. Reminders рендерятся по актуальной записи и содержат телефон бизнеса + инструкцию позвонить; manageUrl хранится только в confirmed/changed/cancelled уведомлениях | 2026-10-05 |
 | 9 — Payments | Закрыт: PAY-01/02/04/05/06, tenant-scoped payment/transaction repositories, целочисленные суммы, идемпотентное создание, append-only журнал charge/refund в транзакциях; экран /app/payments и действие принятия оплаты из календаря. Unit/integration/race проверки и typecheck/lint/build зелёные | 2026-10-05 |
 | 10 — Dashboard | Закрыт: DSH-01 (KPI/previous), DSH-05 (ближайшие записи, limit≤20), MST-01 («Мой день», только свои данные без денег); локальные бизнес-периоды с Luxon/DST, `$match businessId` первым этапом агрегаций, загрузка мастера через общий CAL-01/booking-engine. UI /app/dashboard и /app/my-day. Unit/integration/E2E, полный test suite, race, typecheck/lint/build зелёные | 2026-10-05 |
-| 11 — Финальный UI/a11y | Блок 11.1 закрыт: UI хвосты 4/5/7 и 15 booking-engine сценариев с DST/TZ. Блоки 11.2 (prototype cleanup) и 11.3 (contrast/responsive/axe/keyboard/E2E расширение) впереди | 2026-10-05 |
+| 11 — Финальный UI/a11y | Блоки 11.1 и 11.2 закрыты. В 11.2 удалён неиспользуемый `packages/client/src/styles.css`; прежние Next.js пути, mock-хранилища и `components/forms` отсутствуют. Блок 11.3 (contrast/responsive/axe/keyboard/E2E расширение) впереди | 2026-10-05 |
 | 12 — E2E, безопасность, деплой | Частично: Playwright smoke/auth, health, race DB-index проходят; полный security/E2E и сквозные ролевые сценарии остаются обязательными | 2026-10-05 |
 
 ## Обязательные работы перед финалом (этапы 11–12)
@@ -28,3 +28,10 @@
 - Booking-engine: добавлены unit проверки всех 15 кейсов §13, шестизонная матрица поясов, DST gap/fold и сравнение process TZ UTC/America/Los_Angeles.
 - `npm run typecheck`, `npm run lint`, `npm test` (26 файлов / 90 тестов), `npm run test:race` (2/2), `npm run build`, `npm run test:e2e` (5/5) — ✅.
 - `npm run check:contrast` — пока не работает: отсутствует `scripts/check-contrast.ts`. `npm run test:a11y` — пока не находит тестов в `tests/e2e/a11y`; закрыть в блоке 11.3.
+
+## Этап 11.2 — результат и проверки (2026-10-05)
+
+- Проверены legacy пути `src/app/page.tsx`, `src/app/submissions`, `src/lib/storage.ts`, `components/forms/*`: их нет в рабочем дереве. Старые mock-хранилища/locations не используются.
+- Удалён единственный лишний stylesheet `packages/client/src/styles.css`; он не импортировался и ссылался на отсутствующий токен-файл. Работающий `tokens.css` и Tailwind entrypoint оставлены.
+- Typecheck/lint/unit (26 файлов / 90 тестов)/race (2/2)/build/E2E (5/5) — ✅.
+- Contrast и выделенный a11y suite пока не запускаются по причинам, указанным выше; починить в 11.3.

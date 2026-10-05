@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 11: Cleanup + UI/a11y. Статус: блок 11.1 завершён; блоки 11.2 и 11.3 впереди.
+Этап 11: Cleanup + UI/a11y. Статус: блоки 11.1 и 11.2 завершены; блок 11.3 впереди.
 
 ## Последний коммит этапа
-`e431229 feat(stage-11): close functional UI and booking tails`
+`314c09a chore(cleanup): remove unused legacy stylesheet`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -22,12 +22,12 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
 - Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
-- Этапы 11–12: не завершены.
+- Этап 11: блок 11.1 закрыл UI хвосты 4/5/7 и booking-engine §13/DST; 11.2 удалил неиспользуемый `packages/client/src/styles.css`. Остаётся 11.3: responsive, contrast, axe по ключевым экранам, keyboard public booking, E2E §11.
+- Этап 12: полный E2E/security/deploy и общая матрица роль × эндпоинт/A/B не завершены.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- Блок 11.2: очистка прототипа Next.js и неиспользуемых файлов.
 - Блок 11.3: контраст, адаптивность, axe на ключевых экранах, клавиатурный public booking, E2E §11.
-- Контрастная команда указывает на отсутствующий `scripts/check-contrast.ts`; `test:a11y` сейчас не находит файлов в `tests/e2e/a11y`.
+- `scripts/check-contrast.ts` отсутствует; `npm run test:a11y` пока не находит файлов в `tests/e2e/a11y`.
 - Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
 - Этап 11 (очистка прототипа, финальный UI/a11y).
 - Этап 12 (полный E2E, security, deploy).
@@ -66,4 +66,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить блоком 11.2 по запросу этапа 11; затем 11.3. После этого этап 12: полная матрица роль × эндпоинт и A/B isolation gate.
+Продолжить блоком 11.3, затем этап 12: полная матрица роль × эндпоинт и A/B isolation gate.
