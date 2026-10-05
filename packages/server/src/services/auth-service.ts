@@ -14,7 +14,7 @@ const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
 
 export interface AuthResult {
-  data: { user: { id: string; name: string; email: string; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master' } };
+  data: { user: { id: string; name: string; email: string; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master'; staffId?: string } };
   cookie: string;
 }
 
@@ -43,6 +43,29 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 }
 
 export class AuthService {
+  async acceptInvite(input: { token: string; name: string; password: string }, request: Request): Promise<AuthResult> {
+    const passwordHash = await hash(input.password, argonOptions);
+    return withTransaction(async (session) => {
+      const invited = await repository.findInvitationByTokenHash(hashSessionToken(input.token), new Date(), session);
+      if (!invited) throw new AppError(ERROR_CODES.INVITE_INVALID, 404, 'Приглашение не найдено');
+      const member = await repository.acceptInvitation(invited.userId, invited.businessId, invited._id, input.name, passwordHash, session);
+      if (!member) throw new AppError(ERROR_CODES.INVITE_INVALID, 404, 'Приглашение не найдено');
+      const [user, business] = await Promise.all([
+        repository.findUserById(invited.userId, session),
+        repository.findBusinessById(invited.businessId, session),
+      ]);
+      if (!user || !business || business.status !== 'active') throw new AppError(ERROR_CODES.INVITE_INVALID, 404, 'Приглашение не найдено');
+      const { cookie } = await issueSession(user._id, business._id, request, session);
+      return {
+        data: {
+          user: userDto({ _id: user._id, name: user.name, email: user.email }),
+          membership: { ...membershipDto(business._id, business.name, business.slug, member.role), ...(member.staffId ? { staffId: member.staffId.toString() } : {}) },
+        },
+        cookie,
+      };
+    });
+  }
+
   async registerBusiness(input: RegisterBusinessRequestDto, request: Request): Promise<AuthResult> {
     const slug = (input.slug ?? input.businessName).normalize('NFKC').trim().toLocaleLowerCase('ru').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40);
     const emailNormalized = input.email.toLowerCase();

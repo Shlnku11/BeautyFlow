@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { AuthService } from '../services/auth-service';
-import { EmptyBodySchema, LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, EmptyBodySchema, LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
 import { getEnv } from '../config/env';
 import { defineExpressRoute } from './define-express-route';
 import { AppError } from './errors';
@@ -9,9 +9,16 @@ import { noContent } from './responses';
 import { removeCurrentSession } from '../auth/route-runtime';
 
 const authService = new AuthService();
-export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04']);
+export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06']);
 
 export function registerAuthRoutes(app: Express): void {
+  app.post('/api/auth/accept-invite', defineExpressRoute({
+    id: 'AUTH-06', method: 'POST', path: '/api/auth/accept-invite', auth: 'none', contextSource: 'NONE', bodySchema: AcceptInviteSchema, rateLimit: 'RL-RESET',
+    handler: async ({ body, request }) => {
+      const result = await authService.acceptInvite(body, request);
+      return Response.json({ data: result.data }, { headers: { 'Set-Cookie': result.cookie } });
+    },
+  }));
   app.post('/api/auth/register-business', defineExpressRoute({
     id: 'AUTH-01', method: 'POST', path: '/api/auth/register-business', auth: 'none', contextSource: 'NONE', bodySchema: RegisterBusinessSchema, rateLimit: 'RL-REGISTER',
     handler: async ({ body, request }) => {

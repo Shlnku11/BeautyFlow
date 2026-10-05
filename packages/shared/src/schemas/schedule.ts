@@ -21,3 +21,30 @@ export const StaffExceptionSchema = z.object({ date: z.iso.date(), kind: z.enum(
   if (exception.kind === 'day_off' && (exception.intervals.length > 0 || exception.breaks.length > 0)) context.addIssue({ code: 'custom', message: 'day off cannot include intervals or breaks' });
 });
 export const BlockPeriodSchema = z.object({ staffId: z.string().regex(/^[a-f\d]{24}$/i), startAt: z.iso.datetime(), endAt: z.iso.datetime(), reason: z.string().trim().max(300).optional() }).strict();
+const BlockedPeriodFields = {
+  startAt: z.iso.datetime(),
+  endAt: z.iso.datetime(),
+  reason: z.string().trim().max(200).optional(),
+};
+export const CreateBlockedPeriodSchema = z.object({
+  ...BlockedPeriodFields,
+  staffId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  staffIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).min(1).max(100).optional(),
+  allStaff: z.literal(true).optional(),
+}).strict().superRefine((value, context) => {
+  const selectorCount = Number(value.staffId !== undefined) + Number(value.staffIds !== undefined) + Number(value.allStaff === true);
+  if (selectorCount !== 1) context.addIssue({ code: 'custom', message: 'exactly one staff selector is required' });
+  const startAt = new Date(value.startAt).getTime();
+  const endAt = new Date(value.endAt).getTime();
+  if (endAt <= startAt) context.addIssue({ code: 'custom', path: ['endAt'], message: 'endAt must follow startAt' });
+  if (startAt % 300_000 !== 0) context.addIssue({ code: 'custom', path: ['startAt'], message: 'startAt must be on a five-minute boundary' });
+  if (endAt % 300_000 !== 0) context.addIssue({ code: 'custom', path: ['endAt'], message: 'endAt must be on a five-minute boundary' });
+  if (endAt - startAt > 31 * 86_400_000) context.addIssue({ code: 'custom', path: ['endAt'], message: 'blocked duration cannot exceed 31 days' });
+  if (value.staffIds && new Set(value.staffIds).size !== value.staffIds.length) context.addIssue({ code: 'custom', path: ['staffIds'], message: 'staffIds must be unique' });
+});
+export const BlockedPeriodListQuerySchema = z.object({
+  from: z.iso.datetime(),
+  to: z.iso.datetime(),
+  staffId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+}).strict().refine((value) => value.from < value.to, 'to must follow from');
+export const DeleteBlockedPeriodQuerySchema = z.object({ group: z.coerce.boolean().default(false) }).strict();

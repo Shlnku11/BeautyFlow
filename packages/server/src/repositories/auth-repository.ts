@@ -3,15 +3,25 @@ import { Business, BusinessMember, Session, Settings, User } from '../db/models'
 
 export class AuthRepository {
   findUserByEmail(emailNormalized: string) { return User.findOne({ emailNormalized }).lean().exec(); }
-  findUserById(userId: Types.ObjectId) { return User.findById(userId).lean().exec(); }
+  findUserById(userId: Types.ObjectId, session?: ClientSession) { const query = User.findOne({ _id: userId }); return (session ? query.session(session) : query).lean().exec(); }
   findSessionByTokenHash(tokenHash: string) { return Session.findOne({ tokenHash }).lean().exec(); }
+  findInvitationByTokenHash(tokenHash: string, now: Date, session: ClientSession) {
+    // API_CONTRACTS §2 resolves AUTH-06 from the one-time token; DATA_MODEL §5's global unique token index makes this exact lookup safe before TenantContext exists.
+    return BusinessMember.collection.findOne({ inviteTokenHash: tokenHash, status: 'invited', inviteExpiresAt: { $gt: now } }, { session });
+  }
+  acceptInvitation(userId: Types.ObjectId, businessId: Types.ObjectId, memberId: Types.ObjectId, name: string, passwordHash: string, session: ClientSession) {
+    return Promise.all([
+      BusinessMember.findOneAndUpdate({ _id: memberId, userId, businessId, status: 'invited' }, { $set: { status: 'active', joinedAt: new Date() }, $unset: { inviteTokenHash: 1, inviteExpiresAt: 1 } }, { session, returnDocument: 'after' }).lean().exec(),
+      User.updateOne({ _id: userId, status: 'invited' }, { $set: { name, passwordHash, status: 'active' } }, { session }).exec(),
+    ]).then(([member]) => member);
+  }
   findMembership(userId: Types.ObjectId, businessId: Types.ObjectId) {
     return BusinessMember.findOne({ userId, businessId, status: 'active' }).lean().exec();
   }
   findActiveMembershipByUserId(userId: Types.ObjectId) {
     return BusinessMember.collection.findOne({ userId, status: 'active' });
   }
-  findBusinessById(businessId: Types.ObjectId) { return Business.findById(businessId).lean().exec(); }
+  findBusinessById(businessId: Types.ObjectId, session?: ClientSession) { const query = Business.findOne({ _id: businessId }); return (session ? query.session(session) : query).lean().exec(); }
   async createUser(user: Record<string, unknown>, session: ClientSession) { const [created] = await User.create([user], { session }); if (!created) throw new Error('User creation returned no document'); return created; }
   async createBusiness(business: Record<string, unknown>, session: ClientSession) { const [created] = await Business.create([business], { session }); if (!created) throw new Error('Business creation returned no document'); return created; }
   async createSettings(settings: Record<string, unknown>, session: ClientSession) { const [created] = await Settings.create([settings], { session }); if (!created) throw new Error('Settings creation returned no document'); return created; }

@@ -17,6 +17,8 @@ import { IMPLEMENTED_CUSTOMER_ROUTE_IDS, registerCustomerRoutes } from './http/c
 import { IMPLEMENTED_SETTINGS_ROUTE_IDS, registerSettingsRoutes } from './http/settings-routes';
 import { IMPLEMENTED_AVAILABILITY_ROUTE_IDS, registerAvailabilityRoutes } from './http/availability-routes';
 import { IMPLEMENTED_APPOINTMENT_ROUTE_IDS, registerAppointmentRoutes } from './http/appointment-routes';
+import { IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS, registerBlockedPeriodRoutes } from './http/blocked-period-routes';
+import { IMPLEMENTED_MEMBER_ROUTE_IDS, registerMemberRoutes } from './http/member-routes';
 
 export const app: Express = express();
 configureAuthRouteRuntime();
@@ -55,6 +57,8 @@ registerCustomerRoutes(app);
 registerSettingsRoutes(app);
 registerAvailabilityRoutes(app);
 registerAppointmentRoutes(app);
+registerBlockedPeriodRoutes(app);
+registerMemberRoutes(app);
 
 function isPermissionKey(value: string): value is PermissionKey {
   return Object.hasOwn(PERMISSION_SCOPES, value);
@@ -78,7 +82,7 @@ function defaultRateLimit(contract: (typeof MVP_ROUTE_CONTRACTS)[number]): RateL
 }
 
 for (const contract of MVP_ROUTE_CONTRACTS) {
-  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SCHEDULE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CUSTOMER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SETTINGS_ROUTE_IDS.has(contract.id) || IMPLEMENTED_AVAILABILITY_ROUTE_IDS.has(contract.id) || IMPLEMENTED_APPOINTMENT_ROUTE_IDS.has(contract.id)) continue;
+  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SCHEDULE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CUSTOMER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SETTINGS_ROUTE_IDS.has(contract.id) || IMPLEMENTED_AVAILABILITY_ROUTE_IDS.has(contract.id) || IMPLEMENTED_APPOINTMENT_ROUTE_IDS.has(contract.id) || IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS.has(contract.id) || IMPLEMENTED_MEMBER_ROUTE_IDS.has(contract.id)) continue;
   const limit = contract.rateLimit && isRateLimitPolicy(contract.rateLimit)
     ? contract.rateLimit
     : defaultRateLimit(contract);
