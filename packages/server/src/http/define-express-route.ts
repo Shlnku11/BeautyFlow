@@ -3,7 +3,6 @@ import type { ZodType } from 'zod';
 
 import { defineRoute, type DefineRouteOptions, type RouteParams } from './define-route';
 
-/** Express transport adapter around the shared auth/tenant/validation pipeline. */
 export function defineExpressRoute<
   TBodySchema extends ZodType = ZodType<undefined>,
   TQuerySchema extends ZodType = ZodType<Record<string, never>>,

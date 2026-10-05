@@ -80,7 +80,6 @@ export function parseEnv(source: NodeJS.ProcessEnv): AppEnv {
   return result.data;
 }
 
-/** Validate runtime configuration on first server-side access. */
 export function getEnv(): AppEnv {
   if (cachedEnv) return cachedEnv;
   cachedEnv = parseEnv(process.env);

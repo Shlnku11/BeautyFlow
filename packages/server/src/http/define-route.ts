@@ -67,7 +67,6 @@ export interface RouteRuntime {
 
 let routeRuntime: RouteRuntime | undefined;
 
-/** Auth resolvers are installed by the auth foundation before protected routes are enabled. */
 export function configureRouteRuntime(runtime: RouteRuntime): void {
   routeRuntime = runtime;
 }

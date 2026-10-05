@@ -95,6 +95,5 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       response.headers.get('X-Request-Id') ?? undefined,
     );
   }
-  // The API envelope is validated here; the caller supplies the expected DTO type for its route.
   return payload.data as T;
 }

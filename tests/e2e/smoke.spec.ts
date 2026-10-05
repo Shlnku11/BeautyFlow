@@ -63,7 +63,6 @@ test('business owner can register and log back in using a server-side session', 
     data: { displayName: 'E2E Staff', color: 'teal', acceptsOnlineBooking: true },
   });
   expect(staffResponse.status()).toBe(201);
-  // Playwright returns parsed JSON as untyped data; this test uses only the contract's id field.
   const createdStaff = (await staffResponse.json()).data as { id: string };
   expect(createdStaff).toMatchObject({ displayName: 'E2E Staff', color: 'teal', isActive: true });
   await page.goto('/app/staff');
@@ -110,7 +109,6 @@ test('business owner can register and log back in using a server-side session', 
     data: { firstName: 'E2E Client', phone, contacts: [{ type: 'telegram', value: 'e2e-client' }] },
   });
   expect(customerResponse.status()).toBe(201);
-  // Only stable contract fields are needed for the following duplicate and list checks.
   const customerData = (await customerResponse.json()).data as { id: string; phone: string };
   expect(customerData.phone).toBe(phone);
   await page.goto('/app/customers');
