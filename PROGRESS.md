@@ -8,7 +8,7 @@
 | 3 — Auth, AppShell, login/register | Частично: AUTH-01…04, регистрация/вход и базовый AppShell работают; AUTH-06…09 и role tests отсутствуют | 2026-10-04 |
 | 4 — Staff + Services + Schedule | Частично: добавлены STF-02 email-приглашение/AUTH-06, STF-04 деактивация, STF-11/12, BLK-01…03 и MEM-01/03/04 с транзакционными интеграционными тестами; экранные UI и полная route×role/A/B матрица ещё не завершены | 2026-10-05 |
 | 5 — Customers + Settings | Частично: CUS-01 теперь возвращает activity/pagination и сохраняет master A/B-scope; добавлены CUS-03 summary и CUS-06 history с transaction totals/master DTO; UI и полная route×role матрица ещё не завершены | 2026-10-05 |
-| 6 — Booking | Частично: occupancy/DST working intervals/slots, AVL-01 и APT-02 работают; 20-way API race проходит; APT-01/03–06 и публичные PUB-* ещё отсутствуют | 2026-10-04 |
+| 6 — Booking | 6a/6b: AVL-01 и APT-01…06 реализованы, включая транзакционные переносы, role transition rules и постановку подтверждений/напоминаний/отмены/follow-up в MongoDB notifications; test:race прошёл 20×20. 6c (PUB-01…10 и UI записи/управления) ещё не начат | 2026-10-05 |
 | 7 — Calendar | Не начат | 2026-10-04 |
 | 8 — Notifications + email | Не начат | 2026-10-04 |
 | 9 — Payments | Не начат | 2026-10-04 |
