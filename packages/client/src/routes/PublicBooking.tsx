@@ -62,16 +62,16 @@ export function PublicBooking() {
 
   if (result) return <main className="mx-auto max-w-2xl p-6"><h1 className="text-2xl font-semibold">Запись оформлена</h1><p className="mt-3">{profile?.name}: {result.appointment.service.name}, {new Date(result.appointment.startAt).toLocaleString('ru-RU', { timeZone: profile?.timezone ?? 'UTC' })}</p><Link className="mt-5 inline-block text-primary-700 underline" to={result.manageUrl}>Управлять записью</Link></main>;
 
-  return <main className="mx-auto grid w-full max-w-3xl gap-6 p-6"><header><p className="text-sm font-semibold text-primary-700">Онлайн-запись</p><h1 className="mt-2 text-3xl font-semibold">{profile?.name ?? 'Загрузка…'}</h1>{profile?.address ? <p className="mt-2 text-neutral-600">{profile.address}</p> : null}</header>
-    <form className="grid gap-5 rounded-2xl border border-neutral-200 bg-neutral-0 p-6" onSubmit={(event) => { void submit(event); }}>
-      <h2 className="text-xl font-semibold">1. Услуга и мастер</h2>
+  return <main className="mx-auto grid w-full max-w-3xl gap-6 p-6"><header className="glass-surface rounded-clay-card p-6"><p className="text-sm font-semibold text-primary-700">Онлайн-запись</p><h1 className="mt-2 text-3xl font-semibold">{profile?.name ?? 'Загрузка…'}</h1>{profile?.address ? <p className="mt-2 text-neutral-600">{profile.address}</p> : null}</header>
+    <form className="grid gap-5 rounded-clay-card border border-white/80 bg-clay-raised p-6 shadow-clay" onSubmit={(event) => { void submit(event); }}>
+      <h2 className="rounded-clay-control bg-clay px-4 py-3 text-xl font-semibold shadow-clay">1. Услуга и мастер</h2>
       <label className="grid gap-1">Услуга<select className="rounded-lg border border-neutral-300 px-3 py-2" value={serviceId} onChange={(event) => setServiceId(event.target.value)} required><option value="">Выберите услугу</option>{services.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.durationMinutes} мин.</option>)}</select></label>
       <label className="grid gap-1">Мастер<select className="rounded-lg border border-neutral-300 px-3 py-2" value={staffId} onChange={(event) => setStaffId(event.target.value)}><option value="any">Любой мастер</option>{staff.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
-      <h2 className="text-xl font-semibold">2. Дата и время</h2>
+      <h2 className="rounded-clay-control bg-clay px-4 py-3 text-xl font-semibold shadow-clay">2. Дата и время</h2>
       <label className="grid gap-1">Дата<input className="rounded-lg border border-neutral-300 px-3 py-2" type="date" value={date} onChange={(event) => setDate(event.target.value)} required/></label>
       <button className="w-fit rounded-lg border border-neutral-300 px-4 py-2" type="button" onClick={() => { void loadSlots(); }}>Показать время</button>
       <div role="group" aria-label="Доступное время" className="flex flex-wrap gap-2">{slots.map((slot) => <button aria-pressed={selectedSlot === slot.startAt} className={`rounded-lg border px-3 py-2 ${selectedSlot === slot.startAt ? 'border-primary-700 bg-primary-50' : 'border-neutral-300'}`} key={slot.startAt} type="button" onClick={() => setSelectedSlot(slot.startAt)}>{new Date(slot.startAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: profile?.timezone ?? 'UTC' })}</button>)}</div>
-      <h2 className="text-xl font-semibold">3. Контакты</h2>
+      <h2 className="rounded-clay-control bg-clay px-4 py-3 text-xl font-semibold shadow-clay">3. Контакты</h2>
       <label className="grid gap-1">Имя<input autoComplete="given-name" className="rounded-lg border border-neutral-300 px-3 py-2" name="firstName" required maxLength={80}/></label>
       <label className="grid gap-1">Фамилия<input autoComplete="family-name" className="rounded-lg border border-neutral-300 px-3 py-2" name="lastName" maxLength={80}/></label>
       <label className="grid gap-1">Телефон<input autoComplete="tel" className="rounded-lg border border-neutral-300 px-3 py-2" name="phone" required minLength={5} maxLength={64}/></label>
