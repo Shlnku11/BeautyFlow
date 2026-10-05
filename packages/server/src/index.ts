@@ -34,6 +34,7 @@ app.use(express.json({ limit: '1mb', strict: true }));
 app.use((_, response, next) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
   response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });

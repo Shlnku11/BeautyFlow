@@ -14,7 +14,16 @@
 | 9 — Payments | Закрыт: PAY-01/02/04/05/06, tenant-scoped payment/transaction repositories, целочисленные суммы, идемпотентное создание, append-only журнал charge/refund в транзакциях; экран /app/payments и действие принятия оплаты из календаря. Unit/integration/race проверки и typecheck/lint/build зелёные | 2026-10-05 |
 | 10 — Dashboard | Закрыт: DSH-01 (KPI/previous), DSH-05 (ближайшие записи, limit≤20), MST-01 («Мой день», только свои данные без денег); локальные бизнес-периоды с Luxon/DST, `$match businessId` первым этапом агрегаций, загрузка мастера через общий CAL-01/booking-engine. UI /app/dashboard и /app/my-day. Unit/integration/E2E, полный test suite, race, typecheck/lint/build зелёные | 2026-10-05 |
 | 11 — Финальный UI/a11y | Закрыт: UI/cleanup/a11y, все E2E §11 сценарии 1–10, включая перенос+конкурентный слот, master invitation и A/B direct URL. Исправлен auth navigation flake (повторное использование вкладки со stale React Query session после cookie clear); все E2E 9/9 | 2026-10-05 |
-| 12 — E2E, безопасность, деплой | Не начат; следующий: 12.1 полная матрица роль × эндпоинт + A/B gate | 2026-10-05 |
+| 12 — E2E, безопасность, деплой | 🟡 В работе. 12.1: добавлен общий API role×endpoint проход для всех session route контрактов (owner/admin/master + anonymous), cross-tenant ID/body проверки и проверки заголовков. Он выявил незакрытые AUTH-07/08/09 (501). 12.2: CSP заголовок добавлен; `npm audit` находит 5 high в dev dependency tailwindcss 3.4.19 → chokidar/micromatch/braces; фикс требует breaking Tailwind 4 (зависимости/контракт стека не менялись). Gitleaks не установлен. 12.3: README описывает production topology, фактического deploy нет. Этап не закрыт | 2026-10-05 |
+
+## Этап 12 — текущий статус (2026-10-05)
+
+- Добавлен `tests/api/route-role-matrix.test.ts`: реальные Express маршруты прогоняются для каждой session-роли и без сессии; проверяются ожидаемые 401/403, tenant B в path/body и отсутствие утечки/изменения чужих объектов. Это общий контрактный gate, но не заменяет отдельный позитивный валидный сценарий для каждого эндпоинта.
+- Добавлен CSP для API: `default-src 'none'; frame-ancestors 'none'; base-uri 'none'`; security header test покрывает CSP, `nosniff`, Referrer/Permissions-Policy и отключённый `X-Powered-By`.
+- AUTH-07/08/09 остаются не реализованы (реестр отвечает 501); это блокирует полное закрытие security/auth gate.
+- `npm audit --audit-level=high`: 5 high уязвимостей в dev dependency цепочке Tailwind 3.4.19 → chokidar/micromatch/braces. `npm audit fix --force` предлагает переход на Tailwind 4; зависимость не менялась из-за ограничения стека. Prod-only audit был чистым.
+- Сканер gitleaks в среде отсутствует, поэтому сканирование секретов не выполнено.
+- API suite после добавления matrix: 3 файла / 7 тестов ✅; полный `npm test`: 27 файлов / 94 теста ✅; typecheck/lint ✅; race 2/2 ✅; build ✅; E2E 9/9 ✅; contrast ✅; a11y 1/1 ✅. Build сохраняет известные upstream warnings о chunk/use-client. Нужны завершение security gate и реальный staging deployment.
 
 ## Обязательные работы перед финалом (этапы 11–12)
 

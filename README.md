@@ -33,6 +33,18 @@ CRM для салонов красоты: онлайн-запись, распи�
 
 Тесты интеграции и API требуют MongoDB replica set. `TEST_MONGODB_URI` можно указать для отдельной тестовой базы.
 
+## Подготовка production deployment
+
+Текущий `docker-compose.yml` предназначен только для локальной MongoDB: он не включает API, worker, reverse proxy или TLS. Production deployment в этой репозитории не развёрнут и не проверен.
+
+Перед выпуском подготовьте MongoDB 8 replica set с включённой аутентификацией, TLS на внешнем соединении и закрытым сетевым доступом. Создайте отдельные учётные записи приложения и миграций; у роли приложения должны быть только нужные права, а коллекция `transactions` должна запрещать update/delete. Проверьте восстановление резервной копии на отдельном экземпляре.
+
+Соберите приложение командой `npm ci && npm run build`. Запустите API через `npm run start` (порт 3000), а worker отдельным процессом через `npm run worker`. Раздавайте `dist/client` как статические файлы за reverse proxy; проксируйте `/api/*` на API и включите HTTPS. Установите точное число доверенных proxy hops в `TRUSTED_PROXY_HOPS`, чтобы корректно работали secure cookies и rate limiting.
+
+Настройте production environment вне репозитория: `NODE_ENV=production`, публичный `APP_BASE_URL`, replica-set `MONGODB_URI`, имя БД, уникальные `TOKEN_PEPPER` и `CRON_SECRET` (не менее 32 символов), и SMTP параметры с `EMAIL_PROVIDER=smtp`. Не используйте `EMAIL_PROVIDER=console` в production. Запускайте `npm run migrate` как отдельный release шаг до запуска API/worker. Планировщик может вызывать `POST /api/internal/jobs/notifications/run` с `CRON_SECRET`; при этом отдельный worker обычно предпочтительнее. Настройте мониторинг `/api/health`, задержки/ошибки worker, SMTP, диска и БД.
+
+Эти шаги описывают целевую схему, но не заменяют фактический staging deploy, TLS-проверку, проверку восстановления backup и эксплуатационное подтверждение мониторинга.
+
 ## Структура
 
 - `packages/client/` — Vite, React Router, UI, хуки и клиентские утилиты.
