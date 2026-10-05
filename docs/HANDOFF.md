@@ -27,10 +27,12 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 
 ## Что НЕ сделано (важно для следующего исполнителя)
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
-- AUTH-07/08/09 отвечают 501 и нуждаются в реализации; matrix test обнаруживает это в логах как незакрытые маршруты.
+- AUTH-07/08/09 — начаты, но не завершены; runtime маршруты остаются 501. Не переписывать с нуля: продолжить `packages/server/src/services/auth-service.ts` (`requestPasswordReset`, `resetPassword`, `changePassword`) и `packages/server/src/repositories/auth-repository.ts` (reset-token lookup/set/clear, password update, session delete, notification enqueue, audit). Подключить handlers в `packages/server/src/http/auth-routes.ts`, затем закрыть тесты/безопасность.
+- Content-Security-Policy — заголовок установлен и проверен API-тестом.
 - `npm audit --audit-level=high` находит 5 high в Tailwind 3 dev dependency цепочке (chokidar/micromatch/braces); исправление npm предлагает breaking upgrade на Tailwind 4, который не применялся.
-- Gitleaks недоступен в среде; secret scan не выполнен.
-- Реальный production/staging deploy, TLS, миграции в production, backup restore и мониторинг не проверялись. README содержит целевую инструкцию, не свидетельство deploy.
+- Secret scan не выполнен (gitleaks недоступен в среде).
+- Реальный production/staging deploy не проверен; TLS, миграции в production, backup restore и мониторинг также не проверялись. Это блок 12.3. README содержит целевую инструкцию, не свидетельство deploy.
+- Полная матрица роль × эндпоинт частично завершена; дозакрыть после реализации AUTH-07/08/09.
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
@@ -70,4 +72,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить этап 12: закрыть AUTH-07/08/09; усилить matrix до позитивных проверок по каждому маршруту и полных A/B path/query/body; завершить security checklist §10 (npm audit решение и gitleaks), прогнать E2E/race/build/a11y и выполнить staging deployment/backup restore перед заявлением о готовности.
+Продолжить этап 12.2 с начатой реализации AUTH: функции `requestPasswordReset`, `resetPassword`, `changePassword` в `auth-service.ts` и supporting methods в `auth-repository.ts` уже есть — продолжить, не начинать заново. Подключить эндпоинты в `auth-routes.ts`; добавить integration/race/security tests и проверить transaction boundaries, one-time token/expiry, identical forgot response/timing, audit, session invalidation/current-session behavior. Затем дозакрыть role×endpoint/A/B matrix. Не менять зависимости: 5 high в dev-цепочке Tailwind 3; Tailwind 4 — post-MVP. Secret scan не выполнен. После этого 12.3 production deployment/backup restore.

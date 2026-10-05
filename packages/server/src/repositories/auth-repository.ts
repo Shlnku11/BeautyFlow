@@ -1,8 +1,26 @@
 import type { ClientSession, Types } from 'mongoose';
-import { Business, BusinessMember, Session, Settings, User } from '../db/models';
+import { AuditLog, Business, BusinessMember, Notification, Session, Settings, User } from '../db/models';
 
 export class AuthRepository {
   findUserByEmail(emailNormalized: string) { return User.findOne({ emailNormalized }).lean().exec(); }
+  findActiveUserByResetToken(tokenHash: string, now: Date, session: ClientSession) {
+    return User.findOne({ status: 'active', passwordResetTokenHash: tokenHash, passwordResetExpiresAt: { $gt: now } }).session(session).lean().exec();
+  }
+  setPasswordReset(userId: Types.ObjectId, tokenHash: string, expiresAt: Date, session: ClientSession) {
+    return User.updateOne({ _id: userId, status: 'active' }, { $set: { passwordResetTokenHash: tokenHash, passwordResetExpiresAt: expiresAt } }, { session }).exec();
+  }
+  updatePassword(userId: Types.ObjectId, passwordHash: string, now: Date, session: ClientSession) {
+    return User.updateOne({ _id: userId }, { $set: { passwordHash, passwordChangedAt: now }, $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 } }, { session }).exec();
+  }
+  deleteUserSessions(userId: Types.ObjectId, session: ClientSession, keepSessionId?: Types.ObjectId) {
+    return Session.deleteMany({ userId, ...(keepSessionId ? { _id: { $ne: keepSessionId } } : {}) }, { session }).exec();
+  }
+  enqueuePasswordReset(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
+    return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
+  }
+  writePasswordAudit(businessId: Types.ObjectId, userId: Types.ObjectId, session: ClientSession) {
+    return AuditLog.create([{ businessId, actorUserId: userId, actorRole: 'system', action: 'auth.password_changed', entityType: 'user', entityId: userId }], { session });
+  }
   findUserById(userId: Types.ObjectId, session?: ClientSession) { const query = User.findOne({ _id: userId }); return (session ? query.session(session) : query).lean().exec(); }
   findSessionByTokenHash(tokenHash: string) { return Session.findOne({ tokenHash }).lean().exec(); }
   findInvitationByTokenHash(tokenHash: string, now: Date, session: ClientSession) {

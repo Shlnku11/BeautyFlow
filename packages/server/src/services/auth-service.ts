@@ -9,6 +9,7 @@ import { ERROR_CODES } from '@/shared/error-codes';
 import { PERMISSION_SCOPES } from '../domain/permissions';
 import type { BusinessRole } from '@/shared/constants';
 import type { RegisterBusinessRequestDto } from '@/shared/types/dto';
+import { buildDedupeKey } from '../notifications/dedupe-key';
 
 const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
@@ -43,6 +44,69 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 }
 
 export class AuthService {
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await repository.findUserByEmail(email.toLowerCase());
+    if (!user || user.status !== 'active') return;
+    const membership = await repository.findActiveMembershipByUserId(user._id);
+    if (!membership) return;
+    const business = await repository.findBusinessById(membership.businessId);
+    if (!business || business.status !== 'active') return;
+    const token = createSessionToken();
+    const tokenHash = hashSessionToken(token);
+    const now = new Date();
+    const dedupeKey = buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: user._id.toString(), tokenHash });
+    // API_CONTRACTS §2 AUTH-07 and NOTIFICATIONS_SPEC §5: only the keyed token is stored; the raw token is delivered through the email queue.
+    await withTransaction(async (session) => {
+      await repository.setPasswordReset(user._id, tokenHash, new Date(now.getTime() + 60 * 60_000), session);
+      await repository.enqueuePasswordReset({
+        businessId: membership.businessId,
+        channel: 'email',
+        kind: 'password_reset',
+        recipient: { email: user.email, name: user.name },
+        status: 'scheduled',
+        scheduledFor: now,
+        nextAttemptAt: now,
+        attempts: 0,
+        maxAttempts: 5,
+        dedupeKey,
+        templateData: { businessName: business.name, resetUrl: `${getEnv().APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}` },
+      }, session);
+    });
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    const passwordHash = await hash(password, argonOptions);
+    const tokenHash = hashSessionToken(token);
+    const now = new Date();
+    await withTransaction(async (session) => {
+      const user = await repository.findActiveUserByResetToken(tokenHash, now, session);
+      if (!user) throw new AppError(ERROR_CODES.RESET_INVALID, 404, 'Ссылка сброса не найдена');
+      const membership = await repository.findActiveMembershipByUserId(user._id);
+      if (!membership) throw new AppError(ERROR_CODES.RESET_INVALID, 404, 'Ссылка сброса не найдена');
+      await repository.updatePassword(user._id, passwordHash, now, session);
+      await repository.deleteUserSessions(user._id, session);
+      await repository.writePasswordAudit(membership.businessId, user._id, session);
+    });
+  }
+
+  async changePassword(userId: string, businessId: string, request: Request, currentPassword: string, newPassword: string): Promise<void> {
+    const id = new Types.ObjectId(userId);
+    const user = await repository.findUserById(id);
+    if (!user?.passwordHash || !(await verify(user.passwordHash, currentPassword))) {
+      throw new AppError(ERROR_CODES.WRONG_PASSWORD, 403, 'Текущий пароль неверен');
+    }
+    const passwordHash = await hash(newPassword, argonOptions);
+    const token = request.headers.get('cookie')?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${getEnv().SESSION_COOKIE_NAME}=`))?.split('=').slice(1).join('=');
+    const currentSessionHash = token ? hashSessionToken(token) : undefined;
+    const now = new Date();
+    await withTransaction(async (session) => {
+      await repository.updatePassword(id, passwordHash, now, session);
+      const currentSession = currentSessionHash ? await repository.findSessionByTokenHash(currentSessionHash) : null;
+      await repository.deleteUserSessions(id, session, currentSession?._id);
+      await repository.writePasswordAudit(new Types.ObjectId(businessId), id, session);
+    });
+  }
+
   async acceptInvite(input: { token: string; name: string; password: string }, request: Request): Promise<AuthResult> {
     const passwordHash = await hash(input.password, argonOptions);
     return withTransaction(async (session) => {
