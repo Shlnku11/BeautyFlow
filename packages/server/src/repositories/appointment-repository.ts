@@ -6,7 +6,15 @@ import { Appointment, BlockedPeriod, Business, Customer, Service, Settings, Staf
 export class AppointmentRepository {
   list(ctx: TenantContext, filter: Record<string, unknown>, skip: number, limit: number) { return Appointment.find({ businessId: ctx.businessId, ...filter }).sort({ startAt: 1, _id: 1 }).skip(skip).limit(limit).lean().exec(); }
   findById(ctx: TenantContext, id: string) { return Appointment.findOne({ _id: id, businessId: ctx.businessId }).lean().exec(); }
-  updateById(ctx: TenantContext, id: string, update: Record<string, unknown>, session: ClientSession, expectedUpdatedAt?: Date) { return Appointment.findOneAndUpdate({ _id: id, businessId: ctx.businessId, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) }, update, { returnDocument: 'after', session, runValidators: true }).lean().exec(); }
+  updateById(ctx: TenantContext, id: string, update: Record<string, unknown>, session: ClientSession, expectedUpdatedAt?: Date) {
+    const increments = update.$inc && typeof update.$inc === 'object' ? update.$inc as Record<string, number> : {};
+    // NOTIFICATIONS_SPEC §5: status/change notification keys use the appointment __v, so every mutation must advance it.
+    return Appointment.findOneAndUpdate(
+      { _id: id, businessId: ctx.businessId, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },
+      { ...update, $inc: { ...increments, __v: 1 } },
+      { returnDocument: 'after', session, runValidators: true },
+    ).lean().exec();
+  }
   findIdempotent(ctx: TenantContext, key: string) { return Appointment.findOne({ businessId: ctx.businessId, idempotencyKey: key }).lean().exec(); }
   findStaffById(ctx: TenantContext, id: string, session?: ClientSession) { const query = Staff.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false, isActive: true }); return (session ? query.session(session) : query).lean().exec(); }
   findServiceById(ctx: TenantContext, id: string, session?: ClientSession) { const query = Service.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false, isActive: true }); return (session ? query.session(session) : query).lean().exec(); }

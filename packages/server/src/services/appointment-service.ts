@@ -13,13 +13,16 @@ import { AvailabilityService } from './availability-service';
 import { AppointmentRepository } from '../repositories/appointment-repository';
 import { canTransitionStatus, type AppointmentStatus } from '../domain/booking-engine/transitions';
 import { assertPermission } from '../domain/permissions';
-import { Notification } from '../db/models';
+import { Appointment, Business, Notification, Service, Staff } from '../db/models';
 import { hashSessionToken, createSessionToken } from '../auth/session-token';
 import { createHmac } from 'node:crypto';
 import { getEnv } from '../config/env';
+import { buildDedupeKey } from '../notifications/dedupe-key';
+import { enqueueNotification } from '../notifications/enqueue';
 
 const repository = new AppointmentRepository();
 const availability = new AvailabilityService();
+const notificationRetentionAt = (): Date => new Date(Date.now() + 400 * 86_400_000);
 type CreateInput = z.infer<typeof CreateAppointmentSchema>;
 
 function isDuplicateKey(error: unknown): boolean {
@@ -53,15 +56,43 @@ function toDto(appointment: Record<string, unknown>, customer: Record<string, un
 }
 
 export class AppointmentService {
-  private async enqueueEmail(ctx: TenantContext, session: import('mongoose').ClientSession, appointmentId: unknown, customerId: unknown, email: string | undefined, name: string, kind: 'appointment_confirmed' | 'appointment_changed' | 'appointment_cancelled' | 'reminder_24h' | 'reminder_1h' | 'followup_after_visit', scheduledFor: Date, dedupeSuffix: string, enabled: boolean) {
-    if (!email || !enabled) return;
-    await Notification.updateOne({ businessId: ctx.businessId, dedupeKey: `email:${kind}:${String(appointmentId)}:${dedupeSuffix}` }, { $setOnInsert: { businessId: ctx.businessId, appointmentId, customerId, channel: 'email', kind, recipient: { email, name }, status: 'scheduled', scheduledFor, nextAttemptAt: scheduledFor, attempts: 0, maxAttempts: 5, dedupeKey: `email:${kind}:${String(appointmentId)}:${dedupeSuffix}` } }, { upsert: true, session }).exec();
+  private async enqueueEmail(ctx: TenantContext, session: import('mongoose').ClientSession, appointmentId: unknown, customerId: unknown, email: string | undefined, name: string, kind: 'appointment_confirmed' | 'appointment_changed' | 'appointment_cancelled' | 'reminder_24h' | 'reminder_1h' | 'followup_after_visit', scheduledFor: Date, dedupeSuffix: string, enabled: boolean, manageUrl?: string) {
+    if (!enabled) return;
+    const appointmentObjectId = appointmentId instanceof Types.ObjectId ? appointmentId : new Types.ObjectId(String(appointmentId));
+    const appointment = await Appointment.findOne({ _id: appointmentObjectId, businessId: ctx.businessId }).session(session).lean().exec();
+    const [business, staff] = appointment ? await Promise.all([
+      Business.findById(ctx.businessId).select('name address phone timezone slug').session(session).lean().exec(),
+      Staff.findOne({ _id: appointment.staffId, businessId: ctx.businessId }).select('displayName').session(session).lean().exec(),
+    ]) : [null, null];
+    const service = appointment ? await Service.findOne({ _id: appointment.serviceId, businessId: ctx.businessId }).select('name').session(session).lean().exec() : null;
+    const priorReminder = (kind === 'appointment_changed' || kind === 'appointment_cancelled') && appointment ? await Notification.findOne({ businessId: ctx.businessId, appointmentId: appointmentObjectId, kind: { $in: ['appointment_confirmed', 'appointment_changed'] } }).select('templateData').sort({ createdAt: -1 }).session(session).lean().exec() : null;
+    const snapshot = appointment?.serviceSnapshot as { name?: string } | undefined;
+    const templateData = {
+      ...(business ? { businessName: business.name, timezone: business.timezone, ...(business.address ? { businessAddress: business.address } : {}), ...(business.phone ? { businessPhone: business.phone } : {}) } : {}),
+      ...(staff ? { staffName: staff.displayName } : {}),
+      ...(service || snapshot?.name ? { serviceName: service?.name ?? snapshot?.name } : {}),
+      ...(appointment ? { startAt: appointment.startAt.toISOString() } : {}),
+      customerName: name,
+      ...(kind !== 'reminder_24h' && kind !== 'reminder_1h' ? (manageUrl ? { manageUrl } : priorReminder?.templateData && typeof priorReminder.templateData === 'object' && 'manageUrl' in priorReminder.templateData && typeof priorReminder.templateData.manageUrl === 'string' ? { manageUrl: priorReminder.templateData.manageUrl } : {}) : {}),
+    };
+    const dedupeKey = kind === 'reminder_24h' || kind === 'reminder_1h'
+      ? buildDedupeKey({ channel: 'email', kind, appointmentId: String(appointmentId), startAt: new Date(Number(dedupeSuffix)) })
+      : kind === 'followup_after_visit'
+        ? buildDedupeKey({ channel: 'email', kind, appointmentId: String(appointmentId) })
+        : buildDedupeKey({ channel: 'email', kind, appointmentId: String(appointmentId), version: Number(dedupeSuffix) });
+    const noRecipient = !email;
+    await enqueueNotification({
+      businessId: ctx.businessId, appointmentId, customerId, channel: 'email', kind,
+      recipient: { ...(email ? { email } : {}), name }, status: noRecipient ? 'skipped' : 'scheduled',
+      scheduledFor, nextAttemptAt: scheduledFor, attempts: 0, maxAttempts: 5, dedupeKey, templateData,
+      ...(noRecipient ? { lastError: 'NO_RECIPIENT', expireAt: new Date(Date.now() + 400 * 86_400_000) } : {}),
+    }, session);
   }
 
-  private async enqueueConfirmed(ctx: TenantContext, session: import('mongoose').ClientSession, appointmentId: unknown, customerId: unknown, email: string | undefined, name: string, startAt: Date, settings: NonNullable<Awaited<ReturnType<AppointmentRepository['findSettings']>>>) {
+  private async enqueueConfirmed(ctx: TenantContext, session: import('mongoose').ClientSession, appointmentId: unknown, customerId: unknown, email: string | undefined, name: string, startAt: Date, settings: NonNullable<Awaited<ReturnType<AppointmentRepository['findSettings']>>>, manageUrl?: string) {
     const now = new Date();
     const epoch = String(startAt.getTime());
-    await this.enqueueEmail(ctx, session, appointmentId, customerId, email, name, 'appointment_confirmed', now, '0', settings.notifications.emailEnabled && settings.notifications.confirmationEnabled);
+    await this.enqueueEmail(ctx, session, appointmentId, customerId, email, name, 'appointment_confirmed', now, '0', settings.notifications.emailEnabled && settings.notifications.confirmationEnabled, manageUrl);
     for (const [kind, offset, enabled] of [['reminder_24h', 86_400_000, settings.notifications.reminder24hEnabled], ['reminder_1h', 3_600_000, settings.notifications.reminder1hEnabled]] as const) {
       const scheduledFor = new Date(startAt.getTime() - offset);
       if (scheduledFor > now) await this.enqueueEmail(ctx, session, appointmentId, customerId, email, name, kind, scheduledFor, epoch, settings.notifications.emailEnabled && enabled);
@@ -166,7 +197,7 @@ export class AppointmentService {
         const email = typeof row.contactEmail === 'string' ? row.contactEmail : customer.email;
         const name = `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ''}`;
         const suffix = String(saved.__v);
-        await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled' } }, { session }).exec();
+        await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled', expireAt: notificationRetentionAt() } }, { session }).exec();
         await this.enqueueEmail(ctx, session, saved._id, customer._id, email, name, 'appointment_changed', new Date(), suffix, settings.notifications.emailEnabled && settings.notifications.changeEnabled);
         for (const [kind, offset, enabled] of [['reminder_24h', 86_400_000, settings.notifications.reminder24hEnabled], ['reminder_1h', 3_600_000, settings.notifications.reminder1hEnabled]] as const) {
           const scheduledFor = new Date(startAt.getTime() - offset);
@@ -204,10 +235,10 @@ export class AppointmentService {
         const name = `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ''}`;
         if (status === 'confirmed') await this.enqueueConfirmed(ctx, session, saved._id, customer._id, typeof row.contactEmail === 'string' ? row.contactEmail : customer.email, name, row.startAt, settings);
         if (status === 'cancelled') {
-          await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled' } }, { session }).exec();
+          await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled', expireAt: notificationRetentionAt() } }, { session }).exec();
           await this.enqueueEmail(ctx, session, saved._id, customer._id, typeof row.contactEmail === 'string' ? row.contactEmail : customer.email, name, 'appointment_cancelled', new Date(), String(saved.__v), settings.notifications.emailEnabled && settings.notifications.cancellationEnabled);
         }
-        if (status === 'no_show' || status === 'completed') await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled' } }, { session }).exec();
+        if (status === 'no_show' || status === 'completed') await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled', expireAt: notificationRetentionAt() } }, { session }).exec();
         if (status === 'completed') await this.enqueueEmail(ctx, session, saved._id, customer._id, typeof row.contactEmail === 'string' ? row.contactEmail : customer.email, name, 'followup_after_visit', new Date(Date.now() + settings.notifications.followUpDelayMinutes * 60_000), String(saved.__v), settings.notifications.emailEnabled && settings.notifications.followUpEnabled);
       }
       return saved;
@@ -305,7 +336,10 @@ export class AppointmentService {
             ...(idempotencyKey ? { idempotencyKey } : {}),
             ...(options?.source === 'public' ? { manageTokenHash: hashSessionToken(manageToken as string), manageTokenExpiresAt, ...(options.privacyAcceptedAt ? { privacyAcceptedAt: options.privacyAcceptedAt } : {}) } : { createdBy: new Types.ObjectId(ctx.userId) }),
           }, session);
-          if ((input.status ?? (settings.booking.autoConfirm ? 'confirmed' : 'pending')) === 'confirmed') await this.enqueueConfirmed(ctx, session, appointment._id, actualCustomer._id, input.newCustomer?.email ?? actualCustomer.email, `${actualCustomer.firstName}${actualCustomer.lastName ? ` ${actualCustomer.lastName}` : ''}`, startAt, settings);
+          if ((input.status ?? (settings.booking.autoConfirm ? 'confirmed' : 'pending')) === 'confirmed') {
+            const manageUrl = manageToken && options?.source === 'public' ? `${getEnv().APP_BASE_URL}/b/${encodeURIComponent(business.slug)}/manage/${encodeURIComponent(manageToken)}` : undefined;
+            await this.enqueueConfirmed(ctx, session, appointment._id, actualCustomer._id, input.newCustomer?.email ?? actualCustomer.email, `${actualCustomer.firstName}${actualCustomer.lastName ? ` ${actualCustomer.lastName}` : ''}`, startAt, settings, manageUrl);
+          }
           return { dto: toDto(appointment.toObject() as unknown as Record<string, unknown>, actualCustomer as unknown as Record<string, unknown>, staff as unknown as Record<string, unknown>, service as unknown as Record<string, unknown>), statusCode: 201 as const };
         });
         return { appointment: result.dto, statusCode: result.statusCode, ...(manageToken ? { manageToken } : {}) };

@@ -8,6 +8,8 @@ import { withTransaction } from '../db/transactions';
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../http/errors';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { MemberRepository } from '../repositories/member-repository';
+import { buildDedupeKey } from '../notifications/dedupe-key';
+import { Business } from '../db/models';
 
 const repository = new MemberRepository();
 type ListQuery = z.infer<typeof MemberListQuerySchema>;
@@ -67,13 +69,15 @@ export class MemberService {
       const expiresAt = new Date(Date.now() + 7 * 86_400_000);
       const updated = await repository.updateInvitation(ctx, id, tokenHash, expiresAt, session);
       if (!updated) throw new NotFoundError();
+      const business = await Business.findById(ctx.businessId).select('name').session(session).lean().exec();
+      if (!business) throw new NotFoundError();
       const now = new Date();
       const inviteUrl = `${getEnv().APP_BASE_URL}/accept-invite?token=${encodeURIComponent(token)}`;
       await repository.enqueueInvite(ctx, {
         kind: 'staff_invite', channel: 'email', recipient: { email: user.email, name: user.name }, status: 'scheduled',
         scheduledFor: now, nextAttemptAt: now, attempts: 0, maxAttempts: 5,
-        dedupeKey: `email:staff_invite:${member._id.toString()}:${tokenHash.slice(0, 8)}`,
-        templateData: { staffName: user.name, inviteUrl },
+        dedupeKey: buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: member._id.toString(), tokenHash }),
+        templateData: { businessName: business.name, staffName: user.name, inviteUrl },
       }, session);
       return { accepted: true };
     }).catch((error: unknown) => {

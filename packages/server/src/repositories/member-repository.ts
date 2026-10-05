@@ -1,8 +1,9 @@
 import { Types } from 'mongoose';
 import type { ClientSession } from 'mongoose';
 import type { TenantContext } from '@/shared/types/tenant-context';
-import { AuditLog, BusinessMember, Notification, Session, User } from '../db/models';
+import { AuditLog, BusinessMember, Session, User } from '../db/models';
 import type { BusinessMemberDocument } from '../db/models/business-members';
+import { enqueueNotification } from '../notifications/enqueue';
 
 export class MemberRepository {
   async list(ctx: TenantContext, query: { status?: BusinessMemberDocument['status'] | undefined; role?: BusinessMemberDocument['role'] | undefined; page: number; limit: number }) {
@@ -50,6 +51,6 @@ export class MemberRepository {
   }
 
   enqueueInvite(ctx: TenantContext, data: Record<string, unknown>, session: ClientSession) {
-    return new Notification({ businessId: new Types.ObjectId(ctx.businessId), ...data }).save({ session });
+    return enqueueNotification({ businessId: new Types.ObjectId(ctx.businessId), ...data }, session);
   }
 }

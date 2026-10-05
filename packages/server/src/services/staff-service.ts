@@ -9,6 +9,7 @@ import { assertPermission } from '../domain/permissions';
 import { ERROR_CODES } from '@/shared/error-codes';
 import type { z } from 'zod';
 import type { CreateStaffSchema } from '@/shared/schemas/staff';
+import { buildDedupeKey } from '../notifications/dedupe-key';
 
 const repository = new StaffRepository();
 
@@ -83,7 +84,7 @@ export class StaffService {
         await repository.enqueueInvite(ctx, {
           channel: 'email', kind: 'staff_invite', recipient: { email: input.email, name: input.displayName }, status: 'scheduled',
           scheduledFor: now, nextAttemptAt: now, attempts: 0, maxAttempts: 5,
-          dedupeKey: `email:staff_invite:${member._id.toString()}:${inviteTokenHash.slice(0, 8)}`,
+          dedupeKey: buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: member._id.toString(), tokenHash: inviteTokenHash }),
           templateData: { businessName: business.name, staffName: input.displayName, inviteUrl },
         }, session);
         await repository.recordInvite(ctx, member._id, session);

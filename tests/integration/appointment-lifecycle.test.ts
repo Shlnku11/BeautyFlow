@@ -60,7 +60,10 @@ describe('appointment internal lifecycle', () => {
     const owner: TenantContext = { businessId: businessA.toString(), userId: new mongoose.Types.ObjectId().toString(), role: 'owner' };
     await expect(service.changeStatus(owner, appointmentId.toString(), { status: 'confirmed' })).rejects.toMatchObject({ code: 'INVALID_STATUS_TRANSITION' });
     await service.changeStatus(owner, appointmentId.toString(), { status: 'cancelled', cancelReason: 'Changed plans' });
-    expect(await Appointment.findOne({ _id: appointmentId, businessId: businessA }).then((row) => row?.occupiedKeys)).toBeUndefined();
+    const cancelled = await Appointment.findOne({ _id: appointmentId, businessId: businessA }).lean().exec();
+    expect(cancelled?.occupiedKeys).toBeUndefined();
+    expect(cancelled?.__v).toBe(1);
     expect(await Notification.countDocuments({ businessId: businessA, appointmentId, kind: 'appointment_cancelled', status: 'scheduled' })).toBe(1);
+    expect(await Notification.findOne({ businessId: businessA, appointmentId, kind: 'appointment_cancelled' }).then((row) => row?.dedupeKey)).toBe(`email:appointment_cancelled:${appointmentId.toString()}:1`);
   });
 });

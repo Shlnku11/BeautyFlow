@@ -1,8 +1,9 @@
 import { Types } from 'mongoose';
 import type { ClientSession } from 'mongoose';
 import type { TenantContext } from '@/shared/types/tenant-context';
-import { Appointment, AuditLog, Business, BusinessMember, Notification, Service, Session, Staff, StaffService, User } from '../db/models';
+import { Appointment, AuditLog, Business, BusinessMember, Service, Session, Staff, StaffService, User } from '../db/models';
 import type { StaffDocument } from '../db/models/staff';
+import { enqueueNotification } from '../notifications/enqueue';
 
 export class StaffRepository {
   list(ctx: TenantContext, query: { includeInactive: boolean; page: number; limit: number }) {
@@ -94,7 +95,7 @@ export class StaffRepository {
   }
 
   enqueueInvite(ctx: TenantContext, data: Record<string, unknown>, session: ClientSession) {
-    return new Notification({ businessId: new Types.ObjectId(ctx.businessId), ...data }).save({ session });
+    return enqueueNotification({ businessId: new Types.ObjectId(ctx.businessId), ...data }, session);
   }
 
   async recordInvite(ctx: TenantContext, memberId: Types.ObjectId, session: ClientSession) {

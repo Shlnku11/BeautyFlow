@@ -9,11 +9,11 @@
 | 4 — Staff + Services + Schedule | Частично: добавлены STF-02 email-приглашение/AUTH-06, STF-04 деактивация, STF-11/12, BLK-01…03 и MEM-01/03/04 с транзакционными интеграционными тестами; экранные UI и полная route×role/A/B матрица ещё не завершены | 2026-10-05 |
 | 5 — Customers + Settings | Частично: CUS-01 теперь возвращает activity/pagination и сохраняет master A/B-scope; добавлены CUS-03 summary и CUS-06 history с transaction totals/master DTO; UI и полная route×role матрица ещё не завершены | 2026-10-05 |
 | 6 — Booking | 6b завершён: AVL-01, APT-01…06, role transition rules, атомарный reschedule/status и Mongo notifications queue; internal 20-way race: 1 success + 19×409. 6c завершён: PUB-01…10, manage token, privacy/honeypot, публичная форма и manage UI; public race 1 success + 19×409, E2E booking→manage→cancel проходит. 6a остаётся частичным: полный набор BOOKING_ENGINE_SPEC §13 (15 случаев/DST) ещё не покрыт | 2026-10-05 |
-| 7 — Calendar | Реализован CAL-01 (локальные day/week границы, A/B tenant scope, master own-only, расписания/исключения/блокировки, load по DASHBOARD_SPEC §3.5), базовый экран списка календаря; интеграционные тесты роли/A-B/DST/load добавлены. Финальная общая route×role и полная A/B матрица остаются обязательными для этапов 11–12 | 2026-10-05 |
-| 8 — Notifications + email | Не начат | 2026-10-04 |
+| 7 — Calendar | Закрыт: CAL-01, локальные day/week границы, A/B tenant scope, master own-only, расписания/исключения/блокировки, load по DASHBOARD_SPEC §3.5; доступный список календаря и интеграционные проверки роли/A-B/DST/load. Общая route×role и A/B матрица остаётся обязательной для финального gate | 2026-10-05 |
+| 8 — Notifications + email | Закрыт: dedupe/backoff, SMTP + Console providers, SMS/Push skipped adapters, 8 RU-шаблонов, атомарный claim с арендой/recovery, retry/status/TTL, циклический worker, SYS-02 с CRON_SECRET. Проверены retry, duplicate enqueue, crash recovery, parallel workers, password-reset templateData cleanup и A/B изоляция. Reminders рендерятся по актуальной записи и содержат телефон бизнеса + инструкцию позвонить; manageUrl хранится только в confirmed/changed/cancelled уведомлениях | 2026-10-05 |
 | 9 — Payments | Не начат | 2026-10-04 |
 | 10 — Dashboard | Не начат | 2026-10-04 |
-| 11 — Финальный UI/a11y | Частично: UI kit и компонентный axe smoke-тест; финальная визуальная/a11y проверка экранов и 4/5/6a остаются обязательными | 2026-10-05 |
+| 11 — Финальный UI/a11y | Частично: UI kit и компонентный axe smoke-тест; финальная визуальная/a11y проверка ключевых экранов и 4/5/6a остаются обязательными | 2026-10-05 |
 | 12 — E2E, безопасность, деплой | Частично: Playwright smoke/auth, health, race DB-index проходят; полный security/E2E и сквозные ролевые сценарии остаются обязательными | 2026-10-05 |
 
 ## Обязательные работы перед финалом (этапы 11–12)
@@ -22,4 +22,3 @@
 - **Этап 5:** завершить UI customers/settings и route×role/A/B для CUS/SET.
 - **Этап 6a:** покрыть оставшиеся 15 сценариев `BOOKING_ENGINE_SPEC §13`, включая полную DST/границы матрицу из `TESTING_STRATEGY §8`.
 - **Все реализованные эндпоинты (обязательный финальный gate):** построить и прогнать полную матрицу **роль × эндпоинт** по `PERMISSIONS_MATRIX.md`, включая owner/admin/master, анонимный/просроченный доступ, ожидаемые 200/201/204/403/404/422, область `own`, проверки чужих ID во всех path/query/body полях и подтверждение, что при A→B обращениях данные B не читаются и не меняются. Источник ожидаемых прав — контракт, не ручное допущение.
-- **Календарь:** до финала добавить browser/a11y проверки day/week и ширин 320–1440 px; текущий интерфейс — доступный список календарных данных, полноценная временная сетка и действия панели записи ещё не закрыты.
