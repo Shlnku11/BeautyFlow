@@ -49,6 +49,10 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByLabel('Пароль').fill('Strong-password-123');
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page).toHaveURL(/\/app/);
+  await page.goto('/app/dashboard');
+  await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
+  await expect(page.getByTestId('dashboard-kpis').locator('article')).toHaveCount(4);
+  await expect(page.getByRole('heading', { name: 'Ближайшие записи' })).toBeVisible();
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: 'http://localhost:3000' },

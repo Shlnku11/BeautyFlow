@@ -7,6 +7,7 @@ import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from './UiSandbox';
 import { PublicBooking, PublicManage } from './PublicBooking';
 import { PaymentsPage } from './Payments';
+import { DashboardPage, MyDayPage } from './Dashboard';
 import { useSession } from '@/hooks/use-session';
 
 interface CalendarPayload {
@@ -72,8 +73,9 @@ function AppShell() {
   const location = useLocation();
   const session = useSession();
   const active = links.find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`));
-  const visibleLinks = links.filter(([path]) => path !== '/app/payments' || session.data?.permissions.includes('payments:read'));
-  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : session.data?.permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="/app/calendar" replace/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<PageFrame title="Карточка клиента"/>}/><Route path="staff/:id" element={<PageFrame title="Сотрудник"/>}/><Route path="*" element={<Navigate to="/app/dashboard" replace/>}/></Routes></section></div>;
+  const permissions = session.data?.permissions ?? [];
+  const visibleLinks = links.filter(([path]) => path === '/app/payments' ? permissions.includes('payments:read') : path === '/app/dashboard' ? permissions.includes('dashboard:read') : path === '/app/my-day' ? permissions.includes('dashboard:read_own') : true);
+  return <div className="min-h-screen md:grid md:grid-cols-[16rem_1fr]"><aside className="border-r border-neutral-200 bg-neutral-0 p-5"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-1">{visibleLinks.map(([to, label]) => <Link key={to} className="rounded-lg px-3 py-2 text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></aside><section><header className="border-b border-neutral-200 bg-neutral-0 px-6 py-4" aria-label="Панель приложения">{active?.[1] ?? 'Приложение'}</header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('payments:read') ? <PaymentsPage/> : <Navigate to="calendar" replace/> : path === '/app/dashboard' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read') ? <DashboardPage/> : <Navigate to="my-day" replace/> : path === '/app/my-day' ? session.isLoading ? <p role="status">Загрузка прав доступа…</p> : permissions.includes('dashboard:read_own') ? <MyDayPage/> : <Navigate to="dashboard" replace/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<PageFrame title="Карточка клиента"/>}/><Route path="staff/:id" element={<PageFrame title="Сотрудник"/>}/><Route path="*" element={<Navigate to={permissions.includes('dashboard:read_own') ? 'my-day' : 'dashboard'} replace/>}/></Routes></section></div>;
 }
 
 function AuthPage({ register = false }: { register?: boolean }) {

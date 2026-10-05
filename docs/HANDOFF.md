@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 10: Dashboard. Статус: следующий этап; этап 9 (Payments) завершён.
+Этап 11: Финальный UI/a11y. Статус: этап 10 (Dashboard) завершён; необходимо закрыть хвосты 4/5/6a/7 и продолжить этапы 11–12.
 
 ## Последний коммит
-`c8ea674 feat(payments): implement payment workflows and append-only transactions`
+Обновить после коммита этапа 10.
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -21,17 +21,17 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 7 (calendar): 🟡 backend ✅, UI частично.
 - Этап 8 (notifications + email): ✅ очередь, dedupe/retry, worker, шаблоны, Console/SMTP providers и SYS-02; напоминания без manage-ссылок.
 - Этап 9 (payments): ✅ PAY-01/02/04/05/06, /app/payments, целочисленные денежные суммы, идемпотентность, atomic refunds и append-only transactions.
-- Этапы 10–12: не начаты/не завершены.
+- Этап 10 (dashboard): ✅ DSH-01/05 и MST-01; 4 KPI с previous, ближайшие записи, master day/upcoming/counts, локальные бизнес-периоды с Luxon/DST и tenant match-first агрегации. Master load делегирует CAL-01/общему booking-engine.
+- Этапы 11–12: не завершены.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
 - UI экранов Staff/Services/Customers/Settings (этапы 4/5).
 - Временная сетка календаря и полноценные действия с записью в панели (этап 7); сейчас принятие оплаты доступно через действие записи в календаре.
 - Полные 15 сценариев booking-engine и DST (этап 6a).
 - Полная матрица роль × эндпоинт и A/B изоляция (этап 12, обязательный gate).
-- Этап 10 (dashboard): DSH-01, DSH-05, MST-01.
 - Этап 11 (очистка прототипа, финальный UI/a11y).
 - Этап 12 (полный E2E, security, deploy).
-- Для этапа 9 не запускался E2E; реализованы и прогнаны unit/integration/race тесты.
+- Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
 - Сверить оставшиеся частичные контракты этапов 4/5/6a с PHASED_PLAN и спецификациями.
@@ -43,10 +43,10 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 ## Зелёные тесты на момент остановки
 - `npm run typecheck` ✅
 - `npm run lint` ✅
-- `npm test` — 24 файла, 73 теста ✅
+- `npm test` — 26 файлов, 77 тестов ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- E2E этапа 9 не запускался; последний известный предыдущий smoke: 5 тестов ✅
+- `npm run test:e2e` — 5 тестов ✅ (включая отрисовку 4 KPI и upcoming)
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
@@ -66,4 +66,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Продолжить с этапа 10 (Dashboard) по PHASED_PLAN. Сохранить частичные этапы 4/5/6a и полную матрицу роль × эндпоинт/A-B как обязательные для этапов 11–12.
+Продолжить с этапа 11 (финальный UI/a11y и дозакрытие хвостов 4/5/6a/7) по PHASED_PLAN. На этапе 12 выполнить полную матрицу роль × эндпоинт и A/B isolation gate.
