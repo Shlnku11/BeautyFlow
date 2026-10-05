@@ -6,7 +6,7 @@ import { Appointment, BlockedPeriod, Business, Customer, Service, Settings, Staf
 export class AppointmentRepository {
   list(ctx: TenantContext, filter: Record<string, unknown>, skip: number, limit: number) { return Appointment.find({ businessId: ctx.businessId, ...filter }).sort({ startAt: 1, _id: 1 }).skip(skip).limit(limit).lean().exec(); }
   findById(ctx: TenantContext, id: string) { return Appointment.findOne({ _id: id, businessId: ctx.businessId }).lean().exec(); }
-  updateById(ctx: TenantContext, id: string, update: Record<string, unknown>, session: ClientSession) { return Appointment.findOneAndUpdate({ _id: id, businessId: ctx.businessId }, update, { new: true, session, runValidators: true }).lean().exec(); }
+  updateById(ctx: TenantContext, id: string, update: Record<string, unknown>, session: ClientSession, expectedUpdatedAt?: Date) { return Appointment.findOneAndUpdate({ _id: id, businessId: ctx.businessId, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) }, update, { returnDocument: 'after', session, runValidators: true }).lean().exec(); }
   findIdempotent(ctx: TenantContext, key: string) { return Appointment.findOne({ businessId: ctx.businessId, idempotencyKey: key }).lean().exec(); }
   findStaffById(ctx: TenantContext, id: string, session?: ClientSession) { const query = Staff.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false, isActive: true }); return (session ? query.session(session) : query).lean().exec(); }
   findServiceById(ctx: TenantContext, id: string, session?: ClientSession) { const query = Service.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false, isActive: true }); return (session ? query.session(session) : query).lean().exec(); }
@@ -19,7 +19,7 @@ export class AppointmentRepository {
   staffProvidesService(ctx: TenantContext, staffId: string, serviceId: string) { return StaffService.exists({ businessId: ctx.businessId, staffId, serviceId }).exec(); }
   findCustomer(ctx: TenantContext, id: string) { return Customer.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false }).lean().exec(); }
   findCustomerByPhone(ctx: TenantContext, phoneNormalized: string, session?: ClientSession) { const query = Customer.findOne({ businessId: ctx.businessId, phoneNormalized, isDeleted: false }); return (session ? query.session(session) : query).lean().exec(); }
-  createCustomer(ctx: TenantContext, data: Record<string, unknown>, session: ClientSession) { return new Customer({ businessId: new Types.ObjectId(ctx.businessId), source: 'internal', ...data }).save({ session }); }
+  createCustomer(ctx: TenantContext, data: Record<string, unknown>, session: ClientSession, source: 'internal' | 'public' = 'internal') { return new Customer({ businessId: new Types.ObjectId(ctx.businessId), source, ...data }).save({ session }); }
   async findReferences(ctx: TenantContext, appointment: { customerId: Types.ObjectId; staffId: Types.ObjectId; serviceId: Types.ObjectId }) {
     const [customer, staff, service] = await Promise.all([
       Customer.findOne({ _id: appointment.customerId, businessId: ctx.businessId }).lean().exec(),

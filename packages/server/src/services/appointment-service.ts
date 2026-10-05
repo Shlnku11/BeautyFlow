@@ -14,6 +14,9 @@ import { AppointmentRepository } from '../repositories/appointment-repository';
 import { canTransitionStatus, type AppointmentStatus } from '../domain/booking-engine/transitions';
 import { assertPermission } from '../domain/permissions';
 import { Notification } from '../db/models';
+import { hashSessionToken, createSessionToken } from '../auth/session-token';
+import { createHmac } from 'node:crypto';
+import { getEnv } from '../config/env';
 
 const repository = new AppointmentRepository();
 const availability = new AvailabilityService();
@@ -21,6 +24,12 @@ type CreateInput = z.infer<typeof CreateAppointmentSchema>;
 
 function isDuplicateKey(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
+}
+
+function isTransactionContention(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  if ('hasErrorLabel' in error && typeof error.hasErrorLabel === 'function' && (error.hasErrorLabel('TransientTransactionError') || error.hasErrorLabel('UnknownTransactionCommitResult'))) return true;
+  return 'code' in error && error.code === 112;
 }
 
 function toDto(appointment: Record<string, unknown>, customer: Record<string, unknown>, staff: Record<string, unknown>, service: Record<string, unknown>) {
@@ -67,20 +76,21 @@ export class AppointmentService {
     if (query.status) filter.status = Array.isArray(query.status) ? { $in: query.status } : query.status;
     const rows = await repository.list(ctx, filter, ((query.page as number) - 1) * (query.limit as number), query.limit as number);
     const result = await Promise.all(rows.map(async (row) => this.renderExisting(ctx, row)));
-    return result.map((value) => ctx.role === 'master' ? this.masterDto(value) : value);
+    return Promise.all(result.map((value) => ctx.role === 'master' ? this.masterDto(ctx, value) : value));
   }
 
   async get(ctx: TenantContext, id: string) {
     const row = await repository.findById(ctx, id);
     if (!row || (ctx.role === 'master' && String(row.staffId) !== ctx.staffId)) throw new NotFoundError();
     const dto = await this.renderExisting(ctx, row);
-    return ctx.role === 'master' ? this.masterDto(dto) : dto;
+    return ctx.role === 'master' ? this.masterDto(ctx, dto) : dto;
   }
 
-  private masterDto(value: unknown) {
+  private async masterDto(ctx: TenantContext, value: unknown) {
     const dto = value as Record<string, unknown>;
     const customer = dto.customer as Record<string, unknown>;
-    return { ...dto, customer: { id: customer.id, firstName: customer.firstName, ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}) }, payment: undefined, internalNote: undefined };
+    const settings = await repository.findSettings(ctx);
+    return { ...dto, customer: { id: customer.id, firstName: customer.firstName, ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}), ...(settings?.privacy.masterSeesCustomerPhone && typeof customer.phone === 'string' ? { phone: customer.phone } : {}) }, payment: undefined, internalNote: undefined };
   }
 
   async update(ctx: TenantContext, id: string, input: Record<string, unknown>) {
@@ -111,21 +121,24 @@ export class AppointmentService {
     const changed = await withTransaction(async (session) => {
       const previousStaff = String(row.staffId);
       const nextStaff = String(set.staffId ?? row.staffId);
-      if (nextStaff !== previousStaff) {
-        const [a, b] = await Promise.all([repository.findStaffById(ctx, previousStaff, session), repository.findStaffById(ctx, nextStaff, session)]);
-        if (!a || !b) throw new NotFoundError();
-        for (const staff of [a, b]) if ((await repository.incrementBookingVersion(ctx, staff._id.toString(), staff.bookingVersion, session)).modifiedCount !== 1) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Расписание изменилось');
+      if (set.staffId) {
+        for (const staffId of [...new Set([previousStaff, nextStaff])].sort()) {
+          const staff = await repository.findStaffById(ctx, staffId, session);
+          if (!staff) throw new NotFoundError();
+          if ((await repository.incrementBookingVersion(ctx, staffId, staff.bookingVersion, session)).modifiedCount !== 1) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Расписание изменилось');
+        }
       }
       if (set.staffId && (await repository.hasOverlap(ctx, nextStaff, row.startAt, set.blockedUntilAt as Date, session, id) || await repository.hasBlockOverlap(ctx, nextStaff, row.startAt, set.blockedUntilAt as Date, session))) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
-      return repository.updateById(ctx, id, { $set: set }, session);
+      return repository.updateById(ctx, id, { $set: set }, session, row.updatedAt);
     });
-    if (!changed) throw new NotFoundError();
+    if (!changed) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Запись уже изменена');
     return this.get(ctx, id);
   }
 
   async reschedule(ctx: TenantContext, id: string, input: Record<string, unknown>) {
     const row = await repository.findById(ctx, id);
     if (!row) throw new NotFoundError();
+    if (row.status !== 'pending' && row.status !== 'confirmed') throw new ConflictError(ERROR_CODES.INVALID_STATUS_TRANSITION, 'Запись нельзя перенести в текущем статусе');
     const staffId = String(input.staffId ?? row.staffId);
     const staff = await repository.findStaffById(ctx, staffId);
     const service = await repository.findServiceById(ctx, String(row.serviceId));
@@ -145,12 +158,24 @@ export class AppointmentService {
         const current = await repository.findStaffById(ctx, value, session);
         if (!current || (await repository.incrementBookingVersion(ctx, value, current.bookingVersion, session)).modifiedCount !== 1) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Расписание изменилось');
       }
-      const fresh = await repository.findById(ctx, id);
-      if (!fresh || fresh.updatedAt.getTime() !== row.updatedAt.getTime()) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Запись уже изменена');
       if (await repository.hasOverlap(ctx, staffId, startAt, blockedUntilAt, session, id) || await repository.hasBlockOverlap(ctx, staffId, startAt, blockedUntilAt, session)) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
-      return repository.updateById(ctx, id, { $set: { staffId: staff._id, startAt, endAt, blockedUntilAt, bufferMinutes: service.bufferMinutes, occupiedKeys: occupiedKeysFor(staffId, startAt, blockedUntilAt) }, $inc: { rescheduleCount: 1 } }, session);
+      const saved = await repository.updateById(ctx, id, { $set: { staffId: staff._id, startAt, endAt, blockedUntilAt, bufferMinutes: service.bufferMinutes, occupiedKeys: occupiedKeysFor(staffId, startAt, blockedUntilAt) }, $inc: { rescheduleCount: 1 } }, session, row.updatedAt);
+      const [settings, refs] = await Promise.all([repository.findSettings(ctx), repository.findReferences(ctx, row)]);
+      if (saved && settings && refs) {
+        const customer = refs.customer;
+        const email = typeof row.contactEmail === 'string' ? row.contactEmail : customer.email;
+        const name = `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ''}`;
+        const suffix = String(saved.__v);
+        await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled' } }, { session }).exec();
+        await this.enqueueEmail(ctx, session, saved._id, customer._id, email, name, 'appointment_changed', new Date(), suffix, settings.notifications.emailEnabled && settings.notifications.changeEnabled);
+        for (const [kind, offset, enabled] of [['reminder_24h', 86_400_000, settings.notifications.reminder24hEnabled], ['reminder_1h', 3_600_000, settings.notifications.reminder1hEnabled]] as const) {
+          const scheduledFor = new Date(startAt.getTime() - offset);
+          if (scheduledFor > new Date()) await this.enqueueEmail(ctx, session, saved._id, customer._id, email, name, kind, scheduledFor, String(startAt.getTime()), settings.notifications.emailEnabled && enabled);
+        }
+      }
+      return saved;
     });
-    if (!updated) throw new NotFoundError();
+    if (!updated) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Запись уже изменена');
     return this.get(ctx, id);
   }
 
@@ -163,7 +188,7 @@ export class AppointmentService {
     if (ctx.role === 'master' && status === 'cancelled' && !input.cancelReason) throw new AppError(ERROR_CODES.VALIDATION_ERROR, 422, 'Укажите причину отмены');
     const set: Record<string, unknown> = { status };
     const unset: Record<string, ''> = {};
-    if (status === 'cancelled') { set.cancelledAt = new Date(); set.cancelledBy = 'staff'; if (input.cancelReason) set.cancelReason = input.cancelReason; unset.occupiedKeys = ''; }
+    if (status === 'cancelled') { set.cancelledAt = new Date(); set.cancelledBy = input.actor === 'customer' ? 'customer' : 'staff'; if (input.cancelReason) set.cancelReason = input.cancelReason; unset.occupiedKeys = ''; }
     if (status === 'no_show') unset.occupiedKeys = '';
     if (status === 'confirmed') { set.occupiedKeys = row.occupiedKeys ?? occupiedKeysFor(String(row.staffId), row.startAt, row.blockedUntilAt); unset.cancelledAt = ''; unset.cancelledBy = ''; unset.cancelReason = ''; }
     if (status === 'completed') set.completedAt = new Date();
@@ -171,7 +196,7 @@ export class AppointmentService {
       const staff = await repository.findStaffById(ctx, String(row.staffId), session);
       if (!staff || (await repository.incrementBookingVersion(ctx, String(row.staffId), staff.bookingVersion, session)).modifiedCount !== 1) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Расписание изменилось');
       if (status === 'confirmed' && (await repository.hasOverlap(ctx, String(row.staffId), row.startAt, row.blockedUntilAt, session, id) || await repository.hasBlockOverlap(ctx, String(row.staffId), row.startAt, row.blockedUntilAt, session))) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
-      const saved = await repository.updateById(ctx, id, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) }, session);
+      const saved = await repository.updateById(ctx, id, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) }, session, row.updatedAt);
       const settings = await repository.findSettings(ctx);
       const refs = await repository.findReferences(ctx, row);
       if (saved && settings && refs) {
@@ -187,15 +212,18 @@ export class AppointmentService {
       }
       return saved;
     });
-    if (!updated) throw new NotFoundError();
+    if (!updated) throw new ConflictError(ERROR_CODES.INVALID_STATUS_TRANSITION, 'Запись уже изменена');
     return this.get(ctx, id);
   }
 
-  async create(ctx: TenantContext, input: CreateInput, idempotencyKey?: string): Promise<{ appointment: unknown; statusCode: 200 | 201 }> {
+  async create(ctx: TenantContext, input: CreateInput, idempotencyKey?: string, options?: { source: 'public'; privacyAcceptedAt?: Date }): Promise<{ appointment: unknown; statusCode: 200 | 201; manageToken?: string }> {
     if (idempotencyKey && idempotencyKey.length > 80) throw new AppError(ERROR_CODES.VALIDATION_ERROR, 422, 'Idempotency-Key не должен превышать 80 символов');
     if (idempotencyKey) {
       const previous = await repository.findIdempotent(ctx, idempotencyKey);
-      if (previous) return { appointment: await this.renderExisting(ctx, previous), statusCode: 200 };
+      if (previous) {
+        if (options?.source === 'public' && previous.source !== 'public') throw new ConflictError(ERROR_CODES.CONFLICT, 'Ключ идемпотентности уже использован');
+        return { appointment: await this.renderExisting(ctx, previous), statusCode: 200, ...(options?.source === 'public' ? { manageToken: this.deriveManageToken(previous._id, idempotencyKey) } : {}) };
+      }
     }
     const startAt = new Date(input.startAt);
     if (startAt.getTime() % 300_000 !== 0) throw new AppError(ERROR_CODES.VALIDATION_ERROR, 422, 'Время записи должно быть кратно пяти минутам');
@@ -203,7 +231,8 @@ export class AppointmentService {
     if (!business || !settings || !service) throw new NotFoundError();
     const localDate = DateTime.fromJSDate(startAt, { zone: business.timezone }).toISODate();
     if (!localDate) throw new AppError(ERROR_CODES.VALIDATION_ERROR, 422, 'Некорректная дата записи');
-    const available = await availability.get(ctx, { serviceId: input.serviceId, staffId: input.staffId, date: localDate, enforceNotice: input.enforceNotice ?? false });
+    if (options?.source === 'public' && (!settings.booking.publicEnabled || !service.onlineBookingEnabled)) throw new NotFoundError();
+    const available = await availability.get(ctx, { serviceId: input.serviceId, staffId: input.staffId, date: localDate, enforceNotice: options?.source === 'public' || (input.enforceNotice ?? false) });
     if (!available.slots.some((slot) => slot.startAt === startAt.toISOString())) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
 
     let candidates: Array<NonNullable<Awaited<ReturnType<AppointmentRepository['findStaff']>>>>;
@@ -226,6 +255,11 @@ export class AppointmentService {
     if (input.newCustomer && newPhoneNormalized) customer = await repository.findCustomerByPhone(ctx, newPhoneNormalized);
     if (candidates.length === 0) throw new NotFoundError('Нет доступных сотрудников для услуги');
 
+    const appointmentId = new Types.ObjectId();
+    // API_CONTRACTS §2 requires idempotent retries to return a usable manage link; derive the opaque 256-bit token from the secret and scoped key, storing only its HMAC.
+    const manageToken = options?.source === 'public' ? (idempotencyKey ? this.deriveManageToken(appointmentId, idempotencyKey) : createSessionToken()) : undefined;
+    const manageTokenExpiresAt = options?.source === 'public' ? new Date(startAt.getTime() + 24 * 60 * 60_000) : undefined;
+
     for (const staff of candidates) {
       try {
         const result = await withTransaction(async (session) => {
@@ -246,12 +280,13 @@ export class AppointmentService {
               if (value.email !== undefined) { customerData.email = value.email; customerData.emailNormalized = value.email.toLocaleLowerCase('en'); }
               if (value.contacts !== undefined) customerData.contacts = value.contacts;
               if (value.notes !== undefined) customerData.notes = value.notes;
-              actualCustomer = await repository.createCustomer(ctx, customerData, session) as unknown as NonNullable<typeof actualCustomer>;
+              actualCustomer = await repository.createCustomer(ctx, customerData, session, options?.source ?? 'internal') as unknown as NonNullable<typeof actualCustomer>;
             }
           }
           if (!actualCustomer) throw new NotFoundError('Клиент не найден');
           const snapshot = { name: service.name, durationMinutes: service.durationMinutes, priceMinor: service.priceMinor, currency: service.currency };
           const appointment = await repository.create(ctx, {
+            ...(options?.source === 'public' ? { _id: appointmentId } : {}),
             customerId: actualCustomer._id,
             staffId: staff._id,
             serviceId: service._id,
@@ -261,24 +296,38 @@ export class AppointmentService {
             blockedUntilAt,
             occupiedKeys: occupiedKeysFor(staff._id.toString(), startAt, blockedUntilAt),
             status: input.status ?? (settings.booking.autoConfirm ? 'confirmed' : 'pending'),
-            source: 'internal',
+            source: options?.source ?? 'internal',
             serviceSnapshot: snapshot,
             rescheduleCount: 0,
-            ...(actualCustomer.email ? { contactEmail: actualCustomer.email } : {}),
+            ...(options?.source === 'public' && input.newCustomer?.email ? { contactEmail: input.newCustomer.email } : actualCustomer.email ? { contactEmail: actualCustomer.email } : {}),
             ...(input.customerNote ? { customerNote: input.customerNote } : {}),
             ...(input.internalNote ? { internalNote: input.internalNote } : {}),
             ...(idempotencyKey ? { idempotencyKey } : {}),
-            createdBy: new Types.ObjectId(ctx.userId),
+            ...(options?.source === 'public' ? { manageTokenHash: hashSessionToken(manageToken as string), manageTokenExpiresAt, ...(options.privacyAcceptedAt ? { privacyAcceptedAt: options.privacyAcceptedAt } : {}) } : { createdBy: new Types.ObjectId(ctx.userId) }),
           }, session);
-          if ((input.status ?? (settings.booking.autoConfirm ? 'confirmed' : 'pending')) === 'confirmed') await this.enqueueConfirmed(ctx, session, appointment._id, actualCustomer._id, actualCustomer.email, `${actualCustomer.firstName}${actualCustomer.lastName ? ` ${actualCustomer.lastName}` : ''}`, startAt, settings);
+          if ((input.status ?? (settings.booking.autoConfirm ? 'confirmed' : 'pending')) === 'confirmed') await this.enqueueConfirmed(ctx, session, appointment._id, actualCustomer._id, input.newCustomer?.email ?? actualCustomer.email, `${actualCustomer.firstName}${actualCustomer.lastName ? ` ${actualCustomer.lastName}` : ''}`, startAt, settings);
           return { dto: toDto(appointment.toObject() as unknown as Record<string, unknown>, actualCustomer as unknown as Record<string, unknown>, staff as unknown as Record<string, unknown>, service as unknown as Record<string, unknown>), statusCode: 201 as const };
         });
-        return { appointment: result.dto, statusCode: result.statusCode };
+        return { appointment: result.dto, statusCode: result.statusCode, ...(manageToken ? { manageToken } : {}) };
       } catch (error: unknown) {
-        if (!isDuplicateKey(error)) throw error;
+        if (!isDuplicateKey(error)) {
+          if (isTransactionContention(error)) {
+            const committed = options?.source === 'public' ? await repository.findById(ctx, appointmentId.toString()) : null;
+            if (committed) return { appointment: await this.renderExisting(ctx, committed), statusCode: 201, ...(manageToken ? { manageToken } : {}) };
+            if (idempotencyKey) {
+              const previous = await repository.findIdempotent(ctx, idempotencyKey);
+              if (previous) return { appointment: await this.renderExisting(ctx, previous), statusCode: 200, ...(options?.source === 'public' ? { manageToken: this.deriveManageToken(previous._id, idempotencyKey) } : {}) };
+            }
+            throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже заняли');
+          }
+          throw error;
+        }
         if (idempotencyKey) {
           const previous = await repository.findIdempotent(ctx, idempotencyKey);
-          if (previous) return { appointment: await this.renderExisting(ctx, previous), statusCode: 200 };
+          if (previous) {
+            if (options?.source === 'public' && previous.source !== 'public') throw new ConflictError(ERROR_CODES.CONFLICT, 'Ключ идемпотентности уже использован');
+            return { appointment: await this.renderExisting(ctx, previous), statusCode: 200, ...(options?.source === 'public' ? { manageToken: this.deriveManageToken(previous._id, idempotencyKey) } : {}) };
+          }
         }
         if (input.staffId !== 'any' || staff === candidates[candidates.length - 1]) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время только что заняли');
       }
@@ -290,5 +339,9 @@ export class AppointmentService {
     const refs = await repository.findReferences(ctx, appointment);
     if (!refs) throw new NotFoundError();
     return toDto(appointment as unknown as Record<string, unknown>, refs.customer as unknown as Record<string, unknown>, refs.staff as unknown as Record<string, unknown>, refs.service as unknown as Record<string, unknown>);
+  }
+
+  private deriveManageToken(appointmentId: Types.ObjectId, idempotencyKey: string): string {
+    return createHmac('sha256', getEnv().TOKEN_PEPPER).update(`manage:${appointmentId.toString()}:${idempotencyKey}`).digest('base64url');
   }
 }

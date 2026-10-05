@@ -133,4 +133,18 @@ describe('blocked-period service', () => {
     expect(failure.reason).toMatchObject({ httpStatus: 409 });
     expect(await BlockedPeriod.countDocuments({ businessId: businessA }) + await Appointment.countDocuments({ businessId: businessA })).toBe(1);
   }, 30_000);
+
+  it('returns one success and conflicts for the other nineteen simultaneous booking attempts', async () => {
+    await Settings.create({ businessId: businessA });
+    const customer = await Customer.create({ businessId: businessA, firstName: 'Race Client', phone: '+996555987654', phoneNormalized: '+996555987654', searchTokens: ['race client'], source: 'internal' });
+    const treatment = await Service.create({ businessId: businessA, name: 'Race Cut', nameNormalized: 'race cut', durationMinutes: 30, bufferMinutes: 0, priceMinor: 1000, currency: 'KGS', onlineBookingEnabled: true, isActive: true, displayOrder: 0 });
+    await StaffService.create({ businessId: businessA, staffId: staffA, serviceId: treatment._id });
+    await StaffSchedule.create({ businessId: businessA, staffId: staffA, weekly: [{ isoWeekday: 6, intervals: [{ start: '10:00', end: '12:00' }], breaks: [] }] });
+    const booking = new AppointmentService();
+    const outcomes = await Promise.allSettled(Array.from({ length: 20 }, (_, index) => booking.create(context(businessA, userA), { customerId: customer._id.toString(), staffId: staffA.toString(), serviceId: treatment._id.toString(), startAt: '2026-10-10T04:00:00.000Z', enforceNotice: false }, `internal-race-${index}`)));
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(19);
+    for (const outcome of outcomes) if (outcome.status === 'rejected') expect(outcome.reason).toMatchObject({ httpStatus: 409 });
+    expect(await Appointment.countDocuments({ businessId: businessA, staffId: staffA, serviceId: treatment._id })).toBe(1);
+  }, 30_000);
 });

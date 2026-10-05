@@ -5,13 +5,14 @@ import { defineExpressRoute } from './define-express-route';
 import { AppointmentService } from '../services/appointment-service';
 import { assertPermission } from '../domain/permissions';
 import { z } from 'zod';
+import { NotFoundError } from './errors';
 
 const service = new AppointmentService();
 const idSchema = z.object({ id: z.string().regex(/^[a-f\d]{24}$/i) }).strict();
 export const IMPLEMENTED_APPOINTMENT_ROUTE_IDS = new Set(['APT-01', 'APT-02', 'APT-03', 'APT-04', 'APT-05', 'APT-06']);
 
 export function registerAppointmentRoutes(app: Express): void {
-  app.get('/api/appointments', defineExpressRoute({ id: 'APT-01', method: 'GET', path: '/api/appointments', auth: 'session', contextSource: 'SESSION', querySchema: AppointmentListQuerySchema, handler: ({ context, query }) => { assertPermission((context as TenantContext).role, 'appointments:read'); return service.list(context as TenantContext, query as unknown as Record<string, unknown>); } }));
+  app.get('/api/appointments', defineExpressRoute({ id: 'APT-01', method: 'GET', path: '/api/appointments', auth: 'session', contextSource: 'SESSION', querySchema: AppointmentListQuerySchema, handler: ({ context, query }) => { const ctx = context as TenantContext; assertPermission(ctx.role, 'appointments:read'); if (ctx.role === 'master' && query.staffId && query.staffId !== ctx.staffId) throw new NotFoundError(); return service.list(ctx, query as unknown as Record<string, unknown>); } }));
   app.post('/api/appointments', defineExpressRoute({ id: 'APT-02', method: 'POST', path: '/api/appointments', auth: 'session', permission: 'appointments:create', contextSource: 'SESSION', bodySchema: CreateAppointmentSchema, handler: async ({ context, body, request }) => {
     const key = request.headers.get('idempotency-key') ?? undefined;
     const result = await service.create(context as TenantContext, body, key);

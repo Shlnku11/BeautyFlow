@@ -5,6 +5,7 @@ import { LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from './UiSandbox';
+import { PublicBooking, PublicManage } from './PublicBooking';
 
 const links = [
   ['/app/dashboard', 'Обзор'], ['/app/calendar', 'Календарь'], ['/app/customers', 'Клиенты'],
@@ -58,5 +59,5 @@ function AuthPage({ register = false }: { register?: boolean }) {
 }
 
 export function App() {
-  return <Routes><Route path="/login" element={<AuthPage/>}/><Route path="/register" element={<AuthPage register/>}/><Route path="/b/:slug/*" element={<PageFrame title="Онлайн-запись"/>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<Navigate to="/app/dashboard" replace/>}/></Routes>;
+  return <Routes><Route path="/login" element={<AuthPage/>}/><Route path="/register" element={<AuthPage register/>}/><Route path="/b/:slug/manage/:token" element={<PublicManage/>}/><Route path="/b/:slug/*" element={<PublicBooking/>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<Navigate to="/app/dashboard" replace/>}/></Routes>;
 }

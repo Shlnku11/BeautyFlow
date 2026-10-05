@@ -145,4 +145,26 @@ test('business owner can register and log back in using a server-side session', 
     data: { displayName: 'Injected tenant', color: 'teal', acceptsOnlineBooking: true, businessId: '000000000000000000000000' },
   });
   expect(rejectedTenantOverride.status()).toBe(422);
+
+  const bookingDate = new Date();
+  const untilMonday = (8 - bookingDate.getDay()) % 7 || 7;
+  bookingDate.setDate(bookingDate.getDate() + untilMonday);
+  const publicDate = bookingDate.toISOString().slice(0, 10);
+  const publicSettings = (await settingsResponse.json()).data as { business: { slug: string; name: string } };
+  await page.goto(`/b/${publicSettings.business.slug}`);
+  await expect(page.getByRole('heading', { name: publicSettings.business.name, exact: true })).toBeVisible();
+  await page.getByLabel('Услуга').selectOption(createdService.id);
+  await page.getByLabel('Мастер').selectOption(createdStaff.id);
+  await page.getByLabel('Дата').fill(publicDate);
+  await page.getByRole('button', { name: 'Показать время' }).click();
+  await page.getByRole('button', { name: /\d{2}:\d{2}/ }).first().click();
+  await page.getByLabel('Имя').fill('Public E2E Client');
+  await page.getByLabel('Телефон').fill(`+996777${(Number(run) % 1_000_000).toString().padStart(6, '0')}`);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Подтвердить запись' }).click();
+  await expect(page.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
+  const managePath = new URL(await page.getByRole('link', { name: 'Управлять записью' }).getAttribute('href') ?? '').pathname;
+  await page.goto(`http://localhost:5173${managePath}`);
+  await expect(page.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
+  await page.getByRole('button', { name: 'Отменить запись' }).click();
 });
