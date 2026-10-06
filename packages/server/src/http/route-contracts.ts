@@ -77,6 +77,24 @@ export const MVP_ROUTE_CONTRACTS = [
     "rateLimit": "RL-API"
   },
   {
+    "id": "AUTH-11",
+    "method": "post",
+    "path": "/api/auth/verify-email",
+    "auth": "none",
+    "contextSource": "NONE",
+    "permission": null,
+    "rateLimit": "RL-RESET"
+  },
+  {
+    "id": "AUTH-12",
+    "method": "post",
+    "path": "/api/auth/resend-verification",
+    "auth": "none",
+    "contextSource": "NONE",
+    "permission": null,
+    "rateLimit": "RL-RESET"
+  },
+  {
     "id": "MEM-01",
     "method": "get",
     "path": "/api/members",

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { verifyRegistrationEmail } from '../email-verification';
 
 async function registerOwner(page: Page, run: string): Promise<void> {
   const ipOffset = Number(run.slice(-8)) % 65_536;
@@ -10,11 +11,12 @@ async function registerOwner(page: Page, run: string): Promise<void> {
   await page.getByLabel('Страна').selectOption('KG');
   await page.getByLabel('Валюта').selectOption('KGS');
   await page.getByLabel('Ваше имя').fill('A11y Owner');
-  await page.getByLabel('Email').fill(`a11y.${run}@example.test`);
+  const email = `a11y.${run}@example.test`;
+  await page.getByLabel('Email').fill(email);
   await page.getByLabel('Пароль').fill('Strong-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
-  await expect(page).toHaveURL(/\/app/);
+  await verifyRegistrationEmail(page, email);
 }
 
 async function expectNoSeriousAxeViolations(page: Page, screen: string): Promise<void> {

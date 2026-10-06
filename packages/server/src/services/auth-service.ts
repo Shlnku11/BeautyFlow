@@ -1,3 +1,4 @@
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
 import { performance } from 'node:perf_hooks';
 import { Types } from 'mongoose';
@@ -5,7 +6,7 @@ import { withTransaction } from '../db/transactions';
 import { AuthRepository } from '../repositories/auth-repository';
 import { createSessionToken, hashSessionToken } from '../auth/session-token';
 import { getEnv } from '../config/env';
-import { AppError, ConflictError } from '../http/errors';
+import { AppError, ConflictError, RateLimitError } from '../http/errors';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { PERMISSION_SCOPES } from '../domain/permissions';
 import type { BusinessRole } from '@/shared/constants';
@@ -15,6 +16,7 @@ import { buildDedupeKey } from '../notifications/dedupe-key';
 const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
 const FORGOT_PASSWORD_MIN_DURATION_MS = 150;
+const EMAIL_VERIFICATION_TTL_MS = 15 * 60_000;
 
 async function keepMinimumDuration(startedAt: number): Promise<void> {
   const remaining = FORGOT_PASSWORD_MIN_DURATION_MS - (performance.now() - startedAt);
@@ -22,12 +24,22 @@ async function keepMinimumDuration(startedAt: number): Promise<void> {
 }
 
 export interface AuthResult {
-  data: { user: { id: string; name: string; email: string; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master'; staffId?: string } };
+  data: { user: { id: string; name: string; email: string; emailVerified: boolean; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master'; staffId?: string } };
   cookie: string;
 }
 
-function userDto(user: { _id: Types.ObjectId; name: string; email: string }) {
-  return { id: user._id.toString(), name: user.name, email: user.email, locale: 'ru' as const };
+function userDto(user: { _id: Types.ObjectId; name: string; email: string; emailVerified?: boolean }) {
+  return { id: user._id.toString(), name: user.name, email: user.email, emailVerified: user.emailVerified ?? false, locale: 'ru' as const };
+}
+
+function createEmailVerificationCode(): string { return randomInt(0, 1_000_000).toString().padStart(6, '0'); }
+
+function hashEmailVerificationCode(code: string): string { return createHmac('sha256', getEnv().TOKEN_PEPPER).update(code).digest('hex'); }
+
+function sameHash(left: string, right: string): boolean {
+  const leftBytes = Buffer.from(left, 'hex');
+  const rightBytes = Buffer.from(right, 'hex');
+  return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
 }
 
 function membershipDto(businessId: Types.ObjectId, businessName: string, slug: string, role: 'owner' | 'admin' | 'master') {
@@ -51,6 +63,64 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 }
 
 export class AuthService {
+  private async queueEmailVerification(user: { _id: Types.ObjectId; email: string; name: string }, businessId: Types.ObjectId, businessName: string, code: string, session: import('mongoose').ClientSession): Promise<void> {
+    const codeHash = hashEmailVerificationCode(code);
+    const now = new Date();
+    const updated = await repository.setEmailVerification(user._id, codeHash, new Date(now.getTime() + EMAIL_VERIFICATION_TTL_MS), session);
+    if (updated.matchedCount !== 1) throw new AppError(ERROR_CODES.INTERNAL, 500, 'Не удалось поставить подтверждение email');
+    const dedupeKey = buildDedupeKey({ channel: 'email', kind: 'email_verification', userId: user._id.toString(), tokenHash: codeHash });
+    await repository.enqueueEmailVerification({
+      businessId,
+      channel: 'email',
+      kind: 'email_verification',
+      recipient: { email: user.email, name: user.name },
+      status: 'scheduled',
+      scheduledFor: now,
+      nextAttemptAt: now,
+      attempts: 0,
+      maxAttempts: 5,
+      dedupeKey,
+      templateData: { businessName, verificationCode: code },
+    }, session);
+  }
+
+  async verifyEmail(email: string, code: string): Promise<void> {
+    const normalized = email.toLowerCase();
+    const now = new Date();
+    const user = await repository.findUserByEmail(normalized);
+    if (user?.emailVerified) throw new AppError(ERROR_CODES.EMAIL_VERIFICATION_INVALID, 400, 'Код подтверждения неверен или истёк');
+    const storedHash = user?.emailVerificationCodeHash;
+    const codeHash = hashEmailVerificationCode(code);
+    if (storedHash && user.emailVerificationExpiresAt && user.emailVerificationExpiresAt > now && user.emailVerificationAttempts < 5 && sameHash(storedHash, codeHash)) {
+      const consumed = await withTransaction((session) => repository.consumeEmailVerification(normalized, codeHash, now, session));
+      if (consumed.modifiedCount === 1) return;
+    }
+    const state = await repository.findEmailVerificationState(normalized);
+    if (state && !state.emailVerified && state.emailVerificationAttempts >= 5) throw new RateLimitError(900);
+    if (state && !state.emailVerified && state.emailVerificationExpiresAt && state.emailVerificationExpiresAt > now) {
+      await repository.incrementEmailVerificationAttempt(normalized, now);
+      const afterAttempt = await repository.findEmailVerificationState(normalized);
+      if (afterAttempt?.emailVerificationAttempts !== undefined && afterAttempt.emailVerificationAttempts >= 5) {
+        await repository.clearEmailVerification(normalized);
+      }
+    }
+    throw new AppError(ERROR_CODES.EMAIL_VERIFICATION_INVALID, 400, 'Код подтверждения неверен или истёк');
+  }
+
+  async resendEmailVerification(email: string): Promise<void> {
+    const user = await repository.findUserByEmail(email.toLowerCase());
+    if (!user || user.status !== 'active' || user.emailVerified) return;
+    const membership = await repository.findActiveMembershipByUserId(user._id);
+    if (!membership) return;
+    const business = await repository.findBusinessById(membership.businessId);
+    if (!business || business.status !== 'active') return;
+    const code = createEmailVerificationCode();
+    await withTransaction(async (session) => {
+      await repository.cancelPendingEmailVerifications(membership.businessId, user.email, session);
+      await this.queueEmailVerification(user, membership.businessId, business.name, code, session);
+    });
+  }
+
   async requestPasswordReset(email: string): Promise<void> {
     const startedAt = performance.now();
     try {
@@ -158,6 +228,7 @@ export class AuthService {
       const business = await repository.createBusiness({ name: input.businessName, slug, timezone: input.timezone, currency: input.currency, countryCode: input.countryCode, status: 'active' }, session);
       await repository.createSettings({ businessId: business._id }, session);
       await repository.createMembership({ businessId: business._id, userId: user._id, role: 'owner', status: 'active', joinedAt: new Date() }, session);
+      await this.queueEmailVerification(user, business._id, business.name, createEmailVerificationCode(), session);
       const { cookie } = await issueSession(user._id, business._id, request, session);
       return { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, 'owner') }, cookie };
     });
@@ -174,6 +245,7 @@ export class AuthService {
     const { cookie } = await issueSession(user._id, business._id, request);
     return { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, memberships.role) }, cookie };
   }
+
 
   permissionsFor(role: BusinessRole): string[] {
     return Object.entries(PERMISSION_SCOPES).filter(([, scopes]) => scopes[role] !== null).map(([permission]) => permission);

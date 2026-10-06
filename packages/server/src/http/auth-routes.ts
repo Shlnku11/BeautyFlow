@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { AuthService } from '../services/auth-service';
-import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { getEnv } from '../config/env';
 import { defineExpressRoute } from './define-express-route';
 import { AppError } from './errors';
@@ -9,9 +9,23 @@ import { noContent } from './responses';
 import { removeCurrentSession } from '../auth/route-runtime';
 
 const authService = new AuthService();
-export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06','AUTH-07','AUTH-08','AUTH-09']);
+export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06','AUTH-07','AUTH-08','AUTH-09','AUTH-11','AUTH-12']);
 
 export function registerAuthRoutes(app: Express): void {
+  app.post('/api/auth/verify-email', defineExpressRoute({
+    id: 'AUTH-11', method: 'POST', path: '/api/auth/verify-email', auth: 'none', contextSource: 'NONE', bodySchema: VerifyEmailSchema, rateLimit: 'RL-RESET',
+    handler: async ({ body }) => {
+      await authService.verifyEmail(body.email, body.code);
+      return Response.json({ data: { emailVerified: true } });
+    },
+  }));
+  app.post('/api/auth/resend-verification', defineExpressRoute({
+    id: 'AUTH-12', method: 'POST', path: '/api/auth/resend-verification', auth: 'none', contextSource: 'NONE', bodySchema: EmailSchema, rateLimit: 'RL-RESET',
+    handler: async ({ body }) => {
+      await authService.resendEmailVerification(body.email);
+      return Response.json({ data: { message: 'Если аккаунт требует подтверждения, мы отправили письмо' } }, { status: 202 });
+    },
+  }));
   app.post('/api/auth/forgot-password', defineExpressRoute({
     id: 'AUTH-07', method: 'POST', path: '/api/auth/forgot-password', auth: 'none', contextSource: 'NONE', bodySchema: EmailSchema, rateLimit: 'RL-RESET',
     handler: async ({ body }) => {

@@ -7,6 +7,7 @@ export const RegisterBusinessSchema = z.object({ businessName: z.string().trim()
 export const LoginSchema = z.object({ email: normalizedEmail, password: z.string().min(1).max(128) }).strict();
 export const AcceptInviteSchema = z.object({ token: z.string().min(32).max(512), name: z.string().trim().min(2).max(120), password }).strict();
 export const EmailSchema = z.object({ email: normalizedEmail }).strict();
+export const VerifyEmailSchema = z.object({ email: normalizedEmail, code: z.string().regex(/^\d{6}$/) }).strict();
 export const ResetPasswordSchema = z.object({ token: z.string().min(32).max(512), password }).strict();
 export const ChangePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword: password }).strict();
 export const EmptyBodySchema = z.object({}).strict();

@@ -6,6 +6,10 @@ export interface UserDocument {
   _id: Types.ObjectId;
   email: string;
   emailNormalized: string;
+  emailVerified: boolean;
+  emailVerificationCodeHash?: string;
+  emailVerificationExpiresAt?: Date;
+  emailVerificationAttempts: number;
   passwordHash: string | null;
   name: string;
   locale: 'ru';
@@ -21,6 +25,10 @@ export interface UserDocument {
 const schema = createModelSchema<UserDocument>({
   email: { type: String, required: true, trim: true, maxlength: 254 },
   emailNormalized: { type: String, required: true, trim: true, lowercase: true, maxlength: 254 },
+  emailVerified: { type: Boolean, required: true, default: false },
+  emailVerificationCodeHash: { type: String, trim: true },
+  emailVerificationExpiresAt: { type: Date },
+  emailVerificationAttempts: { type: Number, required: true, min: 0, default: 0 },
   passwordHash: { type: String, default: null },
   name: { type: String, required: true, trim: true, minlength: 1, maxlength: 120 },
   locale: { type: String, enum: ['ru'], required: true, default: 'ru' },

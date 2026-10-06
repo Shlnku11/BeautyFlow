@@ -34,6 +34,13 @@ export const ru = {
     acceptTerms: 'Я принимаю условия использования',
     submitLogin: 'Войти',
     submitRegister: 'Создать бизнес',
+    verifyEmailTitle: 'Подтвердите email',
+    verifyEmailDescription: 'Введите 6-значный код из письма. Он действует 15 минут.',
+    verifyEmailCode: 'Код подтверждения',
+    verifyEmailSubmit: 'Подтвердить email',
+    resendVerification: 'Отправить код повторно',
+    resendVerificationSent: 'Если аккаунт требует подтверждения, мы отправили письмо.',
+    emailVerificationBanner: 'Подтвердите email',
   },
   landing: {
     title: 'BeautyFlow — Онлайн-запись для салонов',

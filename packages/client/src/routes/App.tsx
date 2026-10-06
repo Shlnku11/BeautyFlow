@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { ru } from '@/shared/i18n/ru';
-import { LoginSchema, RegisterBusinessSchema } from '@/shared/schemas';
+import { LoginSchema, RegisterBusinessSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from './UiSandbox';
@@ -119,6 +119,18 @@ function AppointmentDirectPage() {
 function AppShell() {
   const location = useLocation();
   const session = useSession();
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  async function resendVerification() {
+    if (!session.data?.user.email) return;
+    setVerificationError(null);
+    try {
+      await apiRequest('/api/auth/resend-verification', { method: 'POST', body: { email: session.data.user.email }, redirectOnUnauthorized: false });
+      setVerificationNotice(ru.auth.resendVerificationSent);
+    } catch (reason: unknown) {
+      setVerificationError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
+    }
+  }
   if (session.isLoading) return <SessionLoading/>;
   if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
   if (!session.data) return <SessionFailure retry={() => { void session.refetch(); }}/>;
@@ -128,13 +140,15 @@ function AppShell() {
   const visibleLinks = links.filter(([path]) => permissions.includes(requiredPermission[path] ?? ''));
   const home = permissions.includes('dashboard:read') ? '/app/dashboard' : permissions.includes('dashboard:read_own') ? '/app/my-day' : undefined;
   const permissionFallback = home ? <Navigate to={home} replace/> : <AccessDenied/>;
-  return <div className="min-h-screen md:grid md:grid-cols-[16rem_minmax(0,1fr)]"><a className="fixed left-3 top-3 z-50 -translate-y-20 rounded bg-neutral-0 px-4 py-3 text-primary-800 shadow focus:translate-y-0" href="#main-content">Перейти к основному содержимому</a><aside className="clay-sidebar hidden border-r border-neutral-200 p-5 md:block"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-2">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className={`clay-nav-link rounded-clay-control px-3 py-2 text-neutral-700 ${location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'clay-nav-active' : ''}`} to={to}>{label}</Link>)}</nav></aside><section id="main-content" tabIndex={-1} className="min-w-0 pb-20 md:pb-0"><header className="glass-surface sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200 px-4 py-4 md:px-6" aria-label="Панель приложения"><span>{active?.[1] ?? 'Приложение'}</span><ThemeToggle/></header><Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? permissions.includes('payments:read') ? <PaymentsPage/> : permissionFallback : path === '/app/dashboard' ? permissions.includes('dashboard:read') ? <DashboardPage/> : permissions.includes('dashboard:read_own') ? <Navigate to="/app/my-day" replace/> : <AccessDenied/> : path === '/app/my-day' ? permissions.includes('dashboard:read_own') ? <MyDayPage/> : permissions.includes('dashboard:read') ? <Navigate to="/app/dashboard" replace/> : <AccessDenied/> : path === '/app/settings' ? permissions.includes('settings:business_read') ? <SettingsPage/> : permissionFallback : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={home ? <Navigate to={home} replace/> : <AccessDenied/>}/></Routes></section><nav aria-label="Мобильная навигация" className="fixed inset-x-0 bottom-0 z-40 flex gap-1 overflow-x-auto border-t border-neutral-200 bg-neutral-0 px-2 py-2 shadow-lg md:hidden">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="min-w-fit rounded-lg px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></div>;
+  return <div className="min-h-screen md:grid md:grid-cols-[16rem_minmax(0,1fr)]"><a className="fixed left-3 top-3 z-50 -translate-y-20 rounded bg-neutral-0 px-4 py-3 text-primary-800 shadow focus:translate-y-0" href="#main-content">Перейти к основному содержимому</a><aside className="clay-sidebar hidden border-r border-neutral-200 p-5 md:block"><Link className="font-semibold text-primary-700" to="/">{ru.app.name}</Link><nav aria-label="Основная навигация" className="mt-8 grid gap-2">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className={`clay-nav-link rounded-clay-control px-3 py-2 text-neutral-700 ${location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'clay-nav-active' : ''}`} to={to}>{label}</Link>)}</nav></aside><section id="main-content" tabIndex={-1} className="min-w-0 pb-20 md:pb-0"><header className="glass-surface sticky top-0 z-30 flex items-center justify-between border-b border-neutral-200 px-4 py-4 md:px-6" aria-label="Панель приложения"><span>{active?.[1] ?? 'Приложение'}</span><ThemeToggle/></header>{!session.data.user.emailVerified ? <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:px-6" role="status"><div className="flex flex-wrap items-center gap-3"><span>{ru.auth.emailVerificationBanner}, {session.data.user.name}.</span><button className="font-medium underline" onClick={() => { void resendVerification(); }}>{ru.auth.resendVerification}</button>{verificationNotice ? <span aria-live="polite">{verificationNotice}</span> : null}{verificationError ? <span role="alert">{verificationError}</span> : null}</div></div> : null}<Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? permissions.includes('payments:read') ? <PaymentsPage/> : permissionFallback : path === '/app/dashboard' ? permissions.includes('dashboard:read') ? <DashboardPage/> : permissions.includes('dashboard:read_own') ? <Navigate to="/app/my-day" replace/> : <AccessDenied/> : path === '/app/my-day' ? permissions.includes('dashboard:read_own') ? <MyDayPage/> : permissions.includes('dashboard:read') ? <Navigate to="/app/dashboard" replace/> : <AccessDenied/> : path === '/app/settings' ? permissions.includes('settings:business_read') ? <SettingsPage/> : permissionFallback : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={home ? <Navigate to={home} replace/> : <AccessDenied/>}/></Routes></section><nav aria-label="Мобильная навигация" className="fixed inset-x-0 bottom-0 z-40 flex gap-1 overflow-x-auto border-t border-neutral-200 bg-neutral-0 px-2 py-2 shadow-lg md:hidden">{visibleLinks.map(([to, label]) => <Link key={to} aria-current={location.pathname === to || location.pathname.startsWith(`${to}/`) ? 'page' : undefined} className="min-w-fit rounded-lg px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline" to={to}>{label}</Link>)}</nav></div>;
 }
 
 function AuthPage({ register = false }: { register?: boolean }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const title = register ? ru.auth.registerTitle : ru.auth.loginTitle;
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -145,12 +159,43 @@ function AuthPage({ register = false }: { register?: boolean }) {
     if (!parsed.success) { setError(ru.errors.VALIDATION_ERROR); return; }
     try {
       await apiRequest(register ? '/api/auth/register-business' : '/api/auth/login', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      if (register) {
+        setVerificationEmail(parsed.data.email);
+        return;
+      }
       await queryClient.resetQueries({ queryKey: ['session'] });
       navigate('/app', { replace: true });
     } catch (reason: unknown) {
       setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
     }
   }
+  async function submitVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!verificationEmail) return;
+    setError(null);
+    const data = new FormData(event.currentTarget);
+    const parsed = VerifyEmailSchema.safeParse({ email: verificationEmail, code: data.get('code') });
+    if (!parsed.success) { setError(ru.errors.VALIDATION_ERROR); return; }
+    try {
+      await apiRequest('/api/auth/verify-email', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      await queryClient.resetQueries({ queryKey: ['session'] });
+      navigate('/app', { replace: true });
+    } catch (reason: unknown) {
+      setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
+    }
+  }
+  async function resendVerification() {
+    if (!verificationEmail) return;
+    setError(null);
+    setVerificationNotice(null);
+    try {
+      await apiRequest('/api/auth/resend-verification', { method: 'POST', body: { email: verificationEmail }, redirectOnUnauthorized: false });
+      setVerificationNotice(ru.auth.resendVerificationSent);
+    } catch (reason: unknown) {
+      setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
+    }
+  }
+  if (verificationEmail) return <main className="mx-auto flex min-h-screen max-w-lg items-center p-6"><section className="w-full rounded-2xl border border-neutral-200 bg-neutral-0 p-8 shadow-sm"><p className="text-sm font-semibold text-primary-700">{ru.app.name}</p><h1 className="mt-3 text-2xl font-semibold">{ru.auth.verifyEmailTitle}</h1><p className="mt-2 text-sm text-neutral-600">{ru.auth.verifyEmailDescription} <strong>{verificationEmail}</strong></p><form className="mt-6 grid gap-4" onSubmit={(event) => { void submitVerification(event); }}><label className="grid gap-1">{ru.auth.verifyEmailCode}<input autoComplete="one-time-code" className="rounded-lg border border-neutral-300 px-3 py-2 tracking-[0.3em]" name="code" inputMode="numeric" pattern="[0-9]{6}" minLength={6} maxLength={6} required/></label>{error ? <p className="text-danger-fg" role="alert">{error}</p> : null}{verificationNotice ? <p role="status">{verificationNotice}</p> : null}<button className="rounded-lg bg-primary-600 px-4 py-2 font-medium text-neutral-0" type="submit">{ru.auth.verifyEmailSubmit}</button><button className="rounded-lg border px-4 py-2 font-medium" type="button" onClick={() => { void resendVerification(); }}>{ru.auth.resendVerification}</button></form></section></main>;
   return <main className="mx-auto flex min-h-screen max-w-lg items-center p-6"><section className="w-full rounded-2xl border border-neutral-200 bg-neutral-0 p-8 shadow-sm"><p className="text-sm font-semibold text-primary-700">{ru.app.name}</p><h1 className="mt-3 text-2xl font-semibold">{title}</h1><form className="mt-6 grid gap-4" onSubmit={(event) => { void submit(event); }}>
     {register ? <>
       <label className="grid gap-1">{ru.auth.businessName}<input autoComplete="organization" className="rounded-lg border border-neutral-300 px-3 py-2" name="businessName" minLength={2} maxLength={120} required/></label>

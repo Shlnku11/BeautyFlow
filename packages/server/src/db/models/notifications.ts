@@ -13,6 +13,7 @@ export const NOTIFICATION_KINDS = [
   'followup_after_visit',
   'staff_invite',
   'password_reset',
+  'email_verification',
 ] as const;
 export const NOTIFICATION_STATUSES = ['scheduled', 'processing', 'sent', 'failed', 'cancelled', 'skipped'] as const;
 

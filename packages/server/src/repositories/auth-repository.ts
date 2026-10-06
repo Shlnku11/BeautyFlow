@@ -22,6 +22,33 @@ export class AuthRepository {
   enqueuePasswordReset(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
     return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
   }
+  setEmailVerification(userId: Types.ObjectId, codeHash: string, expiresAt: Date, session: ClientSession) {
+    return User.updateOne({ _id: userId, status: 'active', emailVerified: false }, { $set: { emailVerificationCodeHash: codeHash, emailVerificationExpiresAt: expiresAt, emailVerificationAttempts: 0 } }, { session }).exec();
+  }
+  enqueueEmailVerification(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
+    return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
+  }
+  consumeEmailVerification(emailNormalized: string, codeHash: string, now: Date, session: ClientSession) {
+    return User.updateOne({ emailNormalized, status: 'active', emailVerified: false, emailVerificationCodeHash: codeHash, emailVerificationExpiresAt: { $gt: now }, emailVerificationAttempts: { $lt: 5 } }, { $set: { emailVerified: true, emailVerificationAttempts: 0 }, $unset: { emailVerificationCodeHash: 1, emailVerificationExpiresAt: 1 } }, { session }).exec();
+  }
+  incrementEmailVerificationAttempt(emailNormalized: string, now: Date) {
+    return User.collection.findOneAndUpdate(
+      { emailNormalized, status: 'active', emailVerified: false, emailVerificationExpiresAt: { $gt: now }, emailVerificationAttempts: { $lt: 5 } },
+      [{ $set: {
+        emailVerificationAttempts: { $add: [{ $ifNull: ['$emailVerificationAttempts', 0] }, 1] },
+        emailVerificationCodeHash: { $cond: [{ $gte: [{ $add: [{ $ifNull: ['$emailVerificationAttempts', 0] }, 1] }, 5] }, '$$REMOVE', '$emailVerificationCodeHash'] },
+        emailVerificationExpiresAt: { $cond: [{ $gte: [{ $add: [{ $ifNull: ['$emailVerificationAttempts', 0] }, 1] }, 5] }, '$$REMOVE', '$emailVerificationExpiresAt'] },
+      } }],
+      { returnDocument: 'after' },
+    );
+  }
+  findEmailVerificationState(emailNormalized: string) { return User.findOne({ emailNormalized, status: 'active' }).select('emailVerified emailVerificationAttempts emailVerificationExpiresAt').lean().exec(); }
+  clearEmailVerification(emailNormalized: string) {
+    return User.updateOne({ emailNormalized, emailVerified: false }, { $unset: { emailVerificationCodeHash: 1, emailVerificationExpiresAt: 1 } }).exec();
+  }
+  cancelPendingEmailVerifications(businessId: Types.ObjectId, email: string, session: ClientSession) {
+    return Notification.updateMany({ businessId, kind: 'email_verification', 'recipient.email': email, status: 'scheduled' }, { $set: { status: 'cancelled' } }, { session }).exec();
+  }
   writePasswordAudit(businessId: Types.ObjectId, userId: Types.ObjectId, session: ClientSession) {
     return AuditLog.create([{ businessId, actorUserId: userId, actorRole: 'system', action: 'auth.password_changed', entityType: 'user', entityId: userId }], { session });
   }

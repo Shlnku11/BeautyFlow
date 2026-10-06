@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { verifyRegistrationEmail } from './email-verification';
 
 test('root opens the public landing page without a redirect loop', async ({ page }) => {
   const mainFrameNavigations: string[] = [];
@@ -58,7 +59,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByLabel('Пароль').fill('Strong-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
-  await expect(page).toHaveURL(/\/app/);
+  await verifyRegistrationEmail(page, email);
 
   await context.clearCookies();
   // A separate Page starts with a fresh React Query auth cache. Reusing the registration
@@ -224,11 +225,12 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByLabel('Страна').selectOption('KG');
   await page.getByLabel('Валюта').selectOption('KGS');
   await page.getByLabel('Ваше имя').fill('Runtime Owner');
-  await page.getByLabel('Email').fill(`runtime.${run}@example.test`);
+  const email = `runtime.${run}@example.test`;
+  await page.getByLabel('Email').fill(email);
   await page.getByLabel('Пароль').fill('Runtime-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
-  await expect(page).toHaveURL(/\/app(?:\/dashboard)?$/);
+  await verifyRegistrationEmail(page, email);
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
   await expect(page.getByTestId('dashboard-kpis').locator('article')).toHaveCount(4);
   await page.screenshot({ path: 'test-results/runtime-dashboard.png' });

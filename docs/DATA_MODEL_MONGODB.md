@@ -42,6 +42,10 @@
 |---|---|---|---|---|
 | email | String | да | — | как введён, trim, ≤254 |
 | emailNormalized | String | да | — | lowercase(email), unique |
+| emailVerified | Boolean | да | `false` | подтверждён ли контроль над адресом |
+| emailVerificationCodeHash | String | нет | null | HMAC-SHA256 кода подтверждения, без сырого кода |
+| emailVerificationExpiresAt | Date | нет | null | +15 минут |
+| emailVerificationAttempts | Number | да | `0` | не более 5 неверных проверок на код |
 | passwordHash | String | нет | null | argon2id; `null` пока статус `invited` |
 | name | String | да | — | 1–120 |
 | locale | String enum `ru` | да | `ru` | зарезервировано под `en` |
@@ -350,7 +354,7 @@ Hard delete допустим (связь без истории). Замена с
 | appointmentId | ObjectId | нет | нет у `staff_invite`, `password_reset` |
 | customerId | ObjectId | нет | |
 | channel | enum `email`,`sms`,`push` | да | в MVP реально работает только `email` |
-| kind | enum `appointment_confirmed`,`appointment_changed`,`appointment_cancelled`,`reminder_24h`,`reminder_1h`,`followup_after_visit`,`staff_invite`,`password_reset` | да | |
+| kind | enum `appointment_confirmed`,`appointment_changed`,`appointment_cancelled`,`reminder_24h`,`reminder_1h`,`followup_after_visit`,`staff_invite`,`password_reset`,`email_verification` | да | |
 | recipient | `{email?, phone?, name?}` | да | |
 | status | enum `scheduled`,`processing`,`sent`,`failed`,`cancelled`,`skipped` | да | основные по ТЗ: `scheduled`,`sent`,`failed`; остальные — служебные |
 | scheduledFor | Date | да | |

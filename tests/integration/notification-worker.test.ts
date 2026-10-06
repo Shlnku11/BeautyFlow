@@ -137,6 +137,17 @@ describe('notification worker', () => {
     expect(JSON.stringify(stored)).not.toContain(rawToken);
   });
 
+  it('removes email verification codes from notification documents after delivery', async () => {
+    const code = '004219';
+    const row = await queued(businessA, { kind: 'email_verification', dedupeKey: 'email:email_verification:user:abcdef01', templateData: { verificationCode: code } });
+    const provider = new MemoryProvider();
+    await runNotificationBatch({ now, providers: new ProviderRegistry(provider) });
+    const stored = await Notification.findOne({ _id: row._id, businessId: businessA }).lean().exec();
+    expect(provider.messages[0]?.text).toContain(code);
+    expect(stored?.templateData).toBeUndefined();
+    expect(JSON.stringify(stored)).not.toContain(code);
+  });
+
   it('renders each business from its own snapshot without cross-tenant content', async () => {
     await queued(businessA, { recipient: { email: 'a@example.test', name: 'Client A' }, templateData: { businessName: 'Private Salon A', serviceName: 'Cut A', timezone: 'Asia/Bishkek', startAt: '2026-10-06T04:00:00.000Z' } });
     await queued(businessB, { recipient: { email: 'b@example.test', name: 'Client B' }, templateData: { businessName: 'Private Salon B', serviceName: 'Cut B', timezone: 'Europe/Berlin', startAt: '2026-10-06T04:00:00.000Z' } });

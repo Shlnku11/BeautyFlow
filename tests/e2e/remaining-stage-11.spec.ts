@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import mongoose from 'mongoose';
+import { verifyRegistrationEmail } from './email-verification';
 
 const origin = 'http://localhost:5173';
 const ownerPassword = 'Strong-password-123';
@@ -20,11 +21,12 @@ async function registerOwner(page: Page, label: string): Promise<{ businessId: s
   await page.getByLabel('Страна').selectOption('KG');
   await page.getByLabel('Валюта').selectOption('KGS');
   await page.getByLabel('Ваше имя').fill(`${label} Owner`);
-  await page.getByLabel('Email').fill(`${label.toLowerCase()}.${run}@example.test`);
+  const email = `${label.toLowerCase()}.${run}@example.test`;
+  await page.getByLabel('Email').fill(email);
   await page.getByLabel('Пароль').fill(ownerPassword);
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
-  await expect(page).toHaveURL(/\/app/);
+  await verifyRegistrationEmail(page, email);
   const response = await page.request.get(`${origin}/api/auth/me`);
   expect(response.ok()).toBeTruthy();
   const me = (await response.json()).data as { active: { businessId: string; business: { slug: string } } };

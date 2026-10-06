@@ -31,4 +31,5 @@ export interface NotificationTemplateData {
   manageUrl?: string;
   inviteUrl?: string;
   resetUrl?: string;
+  verificationCode?: string;
 }

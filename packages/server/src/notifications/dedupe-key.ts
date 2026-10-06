@@ -3,7 +3,8 @@ export type DedupeKeyInput =
   | { channel: 'email' | 'sms' | 'push'; kind: 'reminder_24h' | 'reminder_1h'; appointmentId: string; startAt: Date }
   | { channel: 'email' | 'sms' | 'push'; kind: 'followup_after_visit'; appointmentId: string }
   | { channel: 'email' | 'sms' | 'push'; kind: 'staff_invite'; memberId: string; tokenHash: string }
-  | { channel: 'email' | 'sms' | 'push'; kind: 'password_reset'; userId: string; tokenHash: string };
+  | { channel: 'email' | 'sms' | 'push'; kind: 'password_reset'; userId: string; tokenHash: string }
+  | { channel: 'email'; kind: 'email_verification'; userId: string; tokenHash: string };
 
 export function buildDedupeKey(input: DedupeKeyInput): string {
   switch (input.kind) {
@@ -20,5 +21,7 @@ export function buildDedupeKey(input: DedupeKeyInput): string {
       return `${input.channel}:staff_invite:${input.memberId}:${input.tokenHash.slice(0, 8)}`;
     case 'password_reset':
       return `${input.channel}:password_reset:${input.userId}:${input.tokenHash.slice(0, 8)}`;
+    case 'email_verification':
+      return `${input.channel}:email_verification:${input.userId}:${input.tokenHash.slice(0, 8)}`;
   }
 }

@@ -12,6 +12,7 @@ describe('notification primitives', () => {
     expect(buildDedupeKey({ channel: 'email', kind: 'followup_after_visit', appointmentId: 'apt-1' })).toBe('email:followup_after_visit:apt-1');
     expect(buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: 'member-1', tokenHash: 'test-hash-123456' })).toBe('email:staff_invite:member-1:test-has');
     expect(buildDedupeKey({ channel: 'email', kind: 'password_reset', userId: 'user-1', tokenHash: 'hash-value-123456' })).toBe('email:password_reset:user-1:hash-val');
+    expect(buildDedupeKey({ channel: 'email', kind: 'email_verification', userId: 'user-1', tokenHash: 'verify-hash-123456' })).toBe('email:email_verification:user-1:verify-h');
   });
 
   it('uses the specified bounded retry schedule', () => {
@@ -45,5 +46,13 @@ describe('notification primitives', () => {
   it('keeps SMS and push adapters explicitly skipped until configured', async () => {
     expect(await new SmsProvider().send()).toEqual({ status: 'skipped', reason: 'CHANNEL_NOT_CONFIGURED' });
     expect(await new PushProvider().send()).toEqual({ status: 'skipped', reason: 'CHANNEL_NOT_CONFIGURED' });
+  });
+
+  it('renders email verification codes without exposing template markup', () => {
+    const rendered = renderRuTemplate('email_verification', { verificationCode: '004219' });
+    expect(rendered.subject).toBe('Подтверждение email');
+    expect(rendered.text).toContain('004219');
+    expect(rendered.text).toContain('15 минут');
+    expect(rendered.html).toContain('<strong>004219</strong>');
   });
 });

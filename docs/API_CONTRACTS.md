@@ -3,7 +3,7 @@
 Контракты — единственный источник для реализации и тестов. Имена полей — из DATA_MODEL_MONGODB.md, ключи прав — из PERMISSIONS_MATRIX.md. UI_UX_SPEC ссылается на **ID эндпоинтов** (`AUTH-01` …).
 
 <!-- CHANGED: A2 -->
-**Объём MVP.** Всего описано 83 эндпоинта; в MVP реализуются **64**, остальные 19 помечены **post-MVP** и в реестр маршрутов MVP **не попадают** (контракт сохраняется для будущего). Полная таблица «ID → MVP / приоритет / этап» — `docs/MVP_SCOPE.md`. Эндпоинт без пометки `post-MVP` — MVP.
+**Объём MVP.** Всего описано 85 эндпоинтов; в MVP реализуются **66**, остальные 19 помечены **post-MVP** и в реестр маршрутов MVP **не попадают** (контракт сохраняется для будущего). Полная таблица «ID → MVP / приоритет / этап» — `docs/MVP_SCOPE.md`. Эндпоинт без пометки `post-MVP` — MVP.
 
 ## 0. Общие соглашения
 
@@ -43,7 +43,7 @@
 
 ## 1. DTO (сокращённо)
 
-- **UserDto** `{id,name,email,locale}`; **MembershipDto** `{businessId,businessName,slug,role,staffId?}`.
+- **UserDto** `{id,name,email,emailVerified,locale}`; **MembershipDto** `{businessId,businessName,slug,role,staffId?}`.
 - **CustomerDto** `{id,firstName,lastName?,phone,email?,contacts[],notes?,source,createdAt}`; **CustomerLimitedDto** (master) `{id,firstName,lastName?,phone?}`; **CustomerSummary** `{visitsCount (completed), lastVisitAt?, nextVisitAt?, totalPaidMinor (net of refunds), currency}`.
 - **StaffDto** `{id,displayName,email?,phone?,bio?,color,isActive,acceptsOnlineBooking,displayOrder,serviceIds[]?}`.
 - **ScheduleDto** `{weekly:[{isoWeekday,intervals:[{start,end}],breaks:[{start,end}]}]}`; **ExceptionDto** `{date,kind,intervals[],breaks[],reason?}`; **BlockedPeriodDto** `{id,staffId,startAt,endAt,reason?,groupId?}`.
@@ -64,7 +64,7 @@
 **AUTH-01 `POST /api/auth/register-business`** — регистрация бизнеса и владельца.
 Auth: нет · Permission: — · Context: `NONE` (создаёт новый).
 Request: `{ businessName(2–120), slug(опц., иначе из названия), timezone(IANA), currency(RUB|KZT|KGS|USD|EUR), **countryCode(RU|KZ|KG|US|OTHER, обязателен; клиент подставляет по региону локали браузера (Intl), иначе по `APP_DEFAULT_COUNTRY_CODE`; если определить нельзя — пользователь обязан выбрать)**, ownerName, email, password(≥10, ≤128, не из топ-списка), acceptTerms:true, website:"" (honeypot) }`.
-Response `201`: `{ data:{ user:UserDto, membership:MembershipDto } }` + `Set-Cookie`. Транзакция создаёт `users`, `businesses`, `settings` (defaults), `businessMembers(owner)`, `sessions`.
+Response `201`: `{ data:{ user:UserDto, membership:MembershipDto } }` + `Set-Cookie`. Транзакция создаёт `users`, `businesses`, `settings` (defaults), `businessMembers(owner)`, `sessions` и уведомление `email_verification`; новый пользователь имеет `emailVerified=false`. Вход разрешён до подтверждения, а `AUTH-04` отдаёт флаг для ненавязчивого баннера.
 Codes: 201, 409 `SLUG_TAKEN`/`EMAIL_TAKEN` (единый текст «email или адрес уже используются» не раскрывает аккаунт — для email возвращается `422` общей формулировкой), 422, 429.
 Isolation: создаёт новый тенант; ничего не читает из чужих. Rate: `RL-REGISTER`.
 Tests: ST-5, ST-6; honeypot≠"" → 422; дубли slug/email; зарезервированный slug; создание атомарно (сбой на шаге → ничего не сохранено); пароль слабый → 422.
@@ -98,6 +98,10 @@ Tests: токен одноразовый; истёкший → 404; роль б�
 **AUTH-08 `POST /api/auth/reset-password`** — установить новый пароль. Auth: нет. Request: `{ token, password }`. Response `200`; удаляет все сессии пользователя, ставит `passwordChangedAt`, пишет аудит. Codes: 200, 404 `RESET_INVALID`, 422, 429. Tests: токен одноразовый (TTL 60 мин); старые сессии недействительны.
 
 **AUTH-09 `POST /api/auth/change-password`** — смена пароля. Auth: сессия · `account:self` · `SESSION`. Request: `{ currentPassword, newPassword }`. Response `204`; удаляет все **остальные** сессии. Codes: 204, 401, 403 `WRONG_PASSWORD`, 422. Rate: `RL-API`. Tests: неверный текущий → 403; остальные сессии недействительны.
+
+**AUTH-11 `POST /api/auth/verify-email`** — подтвердить адрес владельца аккаунта. Auth: нет · Context: `NONE`. Request: `{ email, code }` (6 цифр). Response `200`: `{ data:{ emailVerified:true } }`. В `users` код хранится как HMAC-SHA256; очередь email хранит код для доставки и очищает `templateData` после результата отправки. Код действует 15 минут и допускает 5 неверных проверок; после пятой попытки код очищается, дальнейшие запросы → `429 RATE_LIMITED`. Успешное подтверждение одноразово выставляет `emailVerified=true` и удаляет hash/expiry. Неверный, просроченный, повторно использованный код или неизвестный email → единый `400 EMAIL_VERIFICATION_INVALID`. Rate: `RL-RESET`. Тесты: TTL, пять ошибочных попыток с конкурентным ограничением/429 после исчерпания, успешный код, повторное использование и изоляция разных аккаунтов A/B.
+
+**AUTH-12 `POST /api/auth/resend-verification`** — повторно отправить код. Auth: нет · Context: `NONE`. Request: `{ email }`. Response `202` всегда с нейтральным текстом; если аккаунт существует, активен и не подтверждён — новый код и уведомление ставятся в очередь, прежние ожидающие коды аннулируются. Rate: `RL-RESET`.
 
 **AUTH-10 `PATCH /api/auth/me`** · **post-MVP** — обновить имя профиля. Auth: сессия · `account:self`. Request: `{ name }` (strict). Response `200 UserDto`. Tests: ST-4; email менять нельзя в MVP (422).
 
