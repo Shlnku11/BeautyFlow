@@ -127,6 +127,7 @@ time, .tabular-nums, [data-numeric] { font-variant-numeric: tabular-nums; }
 .skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-150%); border-radius: 6px; background: var(--surface-solid); padding: 8px 12px; color: var(--text-primary); box-shadow: var(--shadow-sm); }
 .skip-link:focus { transform: translateY(0); }
 .app-sidebar { border-color: var(--border-subtle); }
+.app-brand-mark { background: #09090b; color: #fff; }
 .app-nav-link { display: flex; align-items: center; gap: 10px; border-radius: 6px; padding: 6px 10px; color: var(--text-secondary); font-size: 13px; font-weight: 500; transition: background-color 100ms ease-out, color 100ms ease-out; }
 .app-topbar { border-color: var(--border-subtle); }
 .app-mobile-nav { border-color: var(--border-subtle); box-shadow: none; }
@@ -187,6 +188,7 @@ time, .tabular-nums, [data-numeric] { font-variant-numeric: tabular-nums; }
     --shadow-clay-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-clay-hover: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
+  .app-brand-mark { background: #fafafa; color: #09090b; }
   .bg-white, .bg-white\/80, .bg-neutral-0 { background-color: var(--surface-solid); }
   .bg-neutral-25 { background-color: var(--surface-app); }
   .border-white\/80, .border-white\/90, .border-neutral-200 { border-color: var(--border-subtle); }

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { ru } from '@/shared/i18n/ru';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
@@ -8,7 +8,10 @@ import { AuthPage } from '@/features/auth/AuthPage';
 import { PublicBooking, PublicManage } from '@/features/public-booking/PublicBooking';
 import { PaymentsPage } from '@/features/payments/Payments';
 import { DashboardPage, MyDayPage } from '@/features/dashboard/Dashboard';
-import { CustomerDetailPage, CustomersPage, ServicesPage, SettingsPage, StaffDetailPage, StaffPage } from '@/features/operations/Operations';
+import { CustomerDetailPage, CustomersPage } from '@/features/customers/Customers';
+import { ServicesPage } from '@/features/services/Services';
+import { SettingsPage } from '@/features/settings/Settings';
+import { StaffDetailPage, StaffPage } from '@/features/staff/Staff';
 import { useSession } from '@/hooks/use-session';
 import { LandingPage } from '@/features/public-landing/Landing';
 import { AppLayout } from '@/app/layouts/AppLayout';
@@ -59,6 +62,7 @@ function AppointmentDirectPage() {
 
 function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const session = useSession();
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -72,6 +76,15 @@ function AppShell() {
       setVerificationError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
     }
   }
+  async function logout() {
+    try {
+      await apiRequest('/api/auth/logout', { method: 'POST' });
+      await session.refetch();
+      navigate('/login', { replace: true });
+    } catch (reason: unknown) {
+      setVerificationError(reason instanceof ApiClientError ? reason.message : 'Не удалось выйти. Повторите попытку.');
+    }
+  }
   if (session.isLoading) return <SessionLoading/>;
   if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
   if (!session.data) return <SessionFailure retry={() => { void session.refetch(); }}/>;
@@ -83,7 +96,7 @@ function AppShell() {
   const permissionFallback = home ? <Navigate to={home} replace/> : <AccessDenied/>;
   const pageRoutes = <Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/payments' ? permissions.includes('payments:read') ? <PaymentsPage/> : permissionFallback : path === '/app/dashboard' ? permissions.includes('dashboard:read') ? <DashboardPage/> : permissions.includes('dashboard:read_own') ? <Navigate to="/app/my-day" replace/> : <AccessDenied/> : path === '/app/my-day' ? permissions.includes('dashboard:read_own') ? <MyDayPage/> : permissions.includes('dashboard:read') ? <Navigate to="/app/dashboard" replace/> : <AccessDenied/> : path === '/app/settings' ? permissions.includes('settings:business_read') ? <SettingsPage/> : permissionFallback : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={home ? <Navigate to={home} replace/> : <AccessDenied/>}/></Routes>;
   const verificationBanner = !session.data.user.emailVerified ? <div className="border-b border-warning-solid/30 bg-warning-bg px-4 py-3 text-sm text-warning-fg md:px-6" role="status"><div className="flex flex-wrap items-center gap-3"><span>{ru.auth.emailVerificationBanner}, {session.data.user.name}.</span><button className="font-medium" onClick={() => { void resendVerification(); }}>{ru.auth.resendVerification}</button>{verificationNotice ? <span aria-live="polite">{verificationNotice}</span> : null}{verificationError ? <span role="alert">{verificationError}</span> : null}</div></div> : null;
-  return <AppLayout navItems={visibleLinks} currentPath={location.pathname} title={active?.[1] ?? 'Приложение'} brand={ru.app.name} banner={verificationBanner}>{pageRoutes}</AppLayout>;
+  return <AppLayout navItems={visibleLinks} currentPath={location.pathname} title={active?.[1] ?? 'Приложение'} brand={ru.app.name} banner={verificationBanner} userName={session.data.user.name} userEmail={session.data.user.email} userRole={session.data.active.role === 'master' ? 'Мастер' : 'Владелец'} onLogout={() => { void logout(); }}>{pageRoutes}</AppLayout>;
 }
 
 export function App() {
