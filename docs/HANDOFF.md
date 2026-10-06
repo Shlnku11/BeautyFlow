@@ -7,7 +7,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 Этапы функциональности 1–12/12: реализованы. Email-подтверждение, optional Google OAuth и базовый redesign UI завершены. Текущий UI использует профессиональные нейтральные токены, системные light/dark темы, app layouts, календарные сетки day/week/month и реальный dashboard screenshot на landing. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
 
 ## Последний коммит этапа
-Обновить после фиксации текущего UI redesign commit.
+`2c301a7 feat(ui): redesign frontend for professional workspace`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -55,6 +55,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm run check:contrast` ✅
 - `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
 - Итоговый прогон 2026-10-06: typecheck ✅, lint ✅, `npm test` 28 файлов/101 тест ✅, race 2/2 ✅, build ✅, E2E 11/11 ✅, contrast ✅, a11y 1/1 ✅. ConsoleEmailProvider доставил 1 очередь через worker. Build выдаёт предупреждения dependency `use client` и chunk >500kB.
+- UI redesign commit `2c301a7`: typecheck ✅, lint ✅, `npm test` 31 файла/115 тестов ✅, race 2/2 ✅, build ✅, E2E 11/11 ✅, contrast ✅, a11y/responsive 1/1 ✅. Build сохраняет upstream `use client` и chunk size warnings.
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
