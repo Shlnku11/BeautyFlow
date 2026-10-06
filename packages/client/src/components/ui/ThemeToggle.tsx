@@ -18,6 +18,13 @@ export function initializeTheme() {
 export function ThemeToggle() {
   const [dark, setDark] = useState(() => readDarkMode());
   useEffect(() => {
+    if (localStorage.getItem('beautyflow-theme')) return;
+    const preference = matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setDark(preference.matches);
+    preference.addEventListener('change', sync);
+    return () => preference.removeEventListener('change', sync);
+  }, []);
+  useEffect(() => {
     applyTheme(dark);
   }, [dark]);
 

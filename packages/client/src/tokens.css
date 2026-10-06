@@ -152,7 +152,11 @@ body { background: linear-gradient(160deg, #f4f0fa 0%, #ede7f6 100%); }
 .theme-dark .text-neutral-900 { color: #f5f3ff; }
 .theme-dark .text-neutral-800, .theme-dark .text-neutral-700 { color: #e9e4f5; }
 .theme-dark .text-neutral-600, .theme-dark .text-neutral-500 { color: #c4bbd8; }
-.theme-dark { color-scheme: dark; --surface-app: #1a1625; --surface-clay: #302941; --surface-clay-raised: #2a2338; --surface-clay-inset: #211c2e; --color-neutral-0: #2a2338; --color-neutral-25: #302941; --color-neutral-50: #302941; --color-neutral-100: #39324a; --color-neutral-200: #504666; --color-neutral-300: #665c7c; --color-neutral-500: #c4bbd8; --color-neutral-600: #c4bbd8; --color-neutral-700: #e9e4f5; --color-neutral-800: #f0ebf8; --color-neutral-900: #f5f3ff; --text-primary: #f5f3ff; --text-secondary: #c4bbd8; --shadow-clay-raised: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08); --shadow-clay-pressed: inset 4px 4px 10px rgba(0, 0, 0, 0.34); --shadow-clay-hover: 0 14px 30px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.1); }
+.theme-dark .text-primary-800, .theme-dark .text-primary-900, .theme-dark .text-primary-700 { color: #d9caff; }
+.theme-dark .bg-white.text-primary-800 { color: #47268f; }
+.theme-dark .bg-white.text-primary-800 { background-color: #f5f3ff; }
+.theme-dark .bg-primary-50, .theme-dark .bg-primary-100 { background-color: #3c3151; }
+.theme-dark { color-scheme: dark; --surface-app: #1a1625; --surface-clay: #302941; --surface-clay-raised: #2a2338; --surface-clay-inset: #211c2e; --color-neutral-25: #302941; --color-neutral-50: #302941; --color-neutral-100: #39324a; --color-neutral-200: #504666; --color-neutral-300: #665c7c; --color-neutral-500: #c4bbd8; --color-neutral-600: #c4bbd8; --color-neutral-700: #e9e4f5; --color-neutral-800: #f0ebf8; --color-neutral-900: #f5f3ff; --text-primary: #f5f3ff; --text-secondary: #c4bbd8; --shadow-clay-raised: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08); --shadow-clay-pressed: inset 4px 4px 10px rgba(0, 0, 0, 0.34); --shadow-clay-hover: 0 14px 30px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.1); }
 .theme-dark .glass-surface, .theme-dark .glass-surface-strong { background: rgba(42, 35, 56, 0.9); border-color: rgba(130, 112, 164, 0.35); }
 .theme-dark .bg-white\/80 { background-color: rgba(42, 35, 56, 0.9); }
 .theme-dark .clay-nav-active { color: #d9caff; }
@@ -281,6 +285,8 @@ main a:not([class*="rounded"]):hover, footer a:hover { text-decoration: underlin
 
   .theme-dark { --surface-clay: #302941; --surface-clay-raised: #2a2338; --surface-clay-inset: #211c2e; --shadow-clay-raised: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px rgba(255, 255, 255, 0.08); --shadow-clay-pressed: inset 4px 4px 10px rgba(0, 0, 0, 0.34); --shadow-clay-hover: 0 14px 30px rgba(0, 0, 0, 0.48), inset 0 1px rgba(255, 255, 255, 0.1); }
 
+  .theme-dark { --shadow-clay-raised: 0 1px 2px rgba(0, 0, 0, 0.2); --shadow-clay-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.2); --shadow-clay-hover: 0 4px 12px rgba(0, 0, 0, 0.24); }
+
   .landing-glow {
     display: none;
   }
@@ -312,6 +318,6 @@ main a:not([class*="rounded"]):hover, footer a:hover { text-decoration: underlin
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not(.theme-light) { color-scheme: dark; --surface-app: #1a1625; --surface-clay: #302941; --surface-clay-raised: #2a2338; --surface-clay-inset: #211c2e; --text-primary: #f5f3ff; --text-secondary: #c4bbd8; --color-neutral-0: #2a2338; --color-neutral-25: #302941; --color-neutral-50: #302941; --color-neutral-100: #39324a; --color-neutral-200: #504666; --color-neutral-300: #665c7c; --color-neutral-500: #c4bbd8; --color-neutral-600: #c4bbd8; --color-neutral-700: #e9e4f5; --color-neutral-800: #f0ebf8; --color-neutral-900: #f5f3ff; --shadow-clay-raised: 0 8px 24px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.08); --shadow-clay-pressed: inset 4px 4px 10px rgba(0,0,0,.34); --shadow-clay-hover: 0 14px 30px rgba(0,0,0,.48); }
+  :root:not(.theme-light) { color-scheme: dark; --surface-app: #1a1625; --surface-clay: #302941; --surface-clay-raised: #2a2338; --surface-clay-inset: #211c2e; --text-primary: #f5f3ff; --text-secondary: #c4bbd8; --color-neutral-25: #302941; --color-neutral-50: #302941; --color-neutral-100: #39324a; --color-neutral-200: #504666; --color-neutral-300: #665c7c; --color-neutral-500: #c4bbd8; --color-neutral-600: #c4bbd8; --color-neutral-700: #e9e4f5; --color-neutral-800: #f0ebf8; --color-neutral-900: #f5f3ff; --shadow-clay-raised: 0 8px 24px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.08); --shadow-clay-pressed: inset 4px 4px 10px rgba(0,0,0,.34); --shadow-clay-hover: 0 14px 30px rgba(0,0,0,.48); }
   :root:not(.theme-light) body { background: linear-gradient(160deg, #1a1625 0%, #221c33 100%); }
 }
