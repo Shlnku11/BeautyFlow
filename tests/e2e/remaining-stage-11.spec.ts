@@ -212,15 +212,15 @@ test('E2E-7: direct A-to-B customer, staff, and appointment routes stay isolated
   await ownerA.goto(`/app/customers/${customer.id}`);
   const customerDetail = await customerDetailPromise;
   expect(customerDetail.status()).toBe(404);
-  await expect(ownerA.getByRole('alert')).toContainText('Не найдено');
+  await expect(ownerA.getByText('Не найдено', { exact: true })).toBeVisible();
   const staffDetailPromise = ownerA.waitForResponse((response) => response.url().includes(`/api/staff/${staff.id}`));
   await ownerA.goto(`/app/staff/${staff.id}`);
   expect((await staffDetailPromise).status()).toBe(404);
-  await expect(ownerA.getByRole('alert')).toContainText('Не найдено');
+  await expect(ownerA.getByText('Не найдено', { exact: true })).toBeVisible();
   const appointmentDetailPromise = ownerA.waitForResponse((response) => response.url().includes(`/api/appointments/${appointment.id}`));
   await ownerA.goto(`/app/appointments/${appointment.id}`);
   expect((await appointmentDetailPromise).status()).toBe(404);
-  await expect(ownerA.getByRole('alert')).toContainText('Не найдено');
+  await expect(ownerA.getByText('Не найдено', { exact: true })).toBeVisible();
   await contextA.close();
   await contextB.close();
 });

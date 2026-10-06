@@ -11,7 +11,7 @@ test('root opens the public landing page without a redirect loop', async ({ page
   await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'Ваш салон. Ваш ритм. Всё под контролем.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Онлайн-запись для салонов. Работает.' })).toBeVisible();
   await page.waitForTimeout(500);
   const transitions = mainFrameNavigations.filter((path, index) => index === 0 || path !== mainFrameNavigations[index - 1]);
   expect(transitions, mainFrameNavigations.join(' → ')).toEqual(['/']);
@@ -130,7 +130,7 @@ test('business owner can register and log back in using a server-side session', 
   const customerData = (await customerResponse.json()).data as { id: string; phone: string };
   expect(customerData.phone).toBe(phone);
   await page.goto('/app/customers');
-  await page.getByLabel('Поиск').fill('E2E');
+  await page.getByRole('textbox', { name: 'Поиск клиентов' }).fill('E2E');
   await expect(page.getByRole('link', { name: 'E2E Client' })).toBeVisible();
   await page.getByRole('link', { name: 'E2E Client' }).click();
   await expect(page.getByRole('heading', { name: 'E2E Client' })).toBeVisible();
@@ -159,7 +159,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.goto('/app/calendar');
   await expect(page.getByRole('heading', { name: 'Календарь' })).toBeVisible();
   await page.getByLabel('Дата').fill('2030-06-10');
-  await page.getByRole('button', { name: /E2E Client/ }).click();
+  await page.locator('button[title^="E2E Staff · E2E Client"]').click();
   await expect(page.getByRole('heading', { name: 'Запись' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Запись' })).toBeHidden();
