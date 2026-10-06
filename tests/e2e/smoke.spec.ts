@@ -159,6 +159,13 @@ test('business owner can register and log back in using a server-side session', 
   await page.goto('/app/calendar');
   await expect(page.getByRole('heading', { name: 'Календарь' })).toBeVisible();
   await page.getByLabel('Дата').fill('2030-06-10');
+  await page.getByRole('button', { name: 'Неделя' }).click();
+  await page.waitForLoadState('networkidle');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.screenshot({ path: 'outputs/calendar-final-light.png' });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: 'outputs/calendar-final-dark.png' });
+  await page.emulateMedia({ colorScheme: 'light' });
   await page.locator('button[title^="E2E Staff · E2E Client"]').click();
   await expect(page.getByRole('heading', { name: 'Запись' })).toBeVisible();
   await page.keyboard.press('Escape');
