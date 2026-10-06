@@ -2,7 +2,21 @@ import type { ClientSession, Types } from 'mongoose';
 import { AuditLog, Business, BusinessMember, Notification, Session, Settings, User } from '../db/models';
 
 export class AuthRepository {
-  findUserByEmail(emailNormalized: string) { return User.findOne({ emailNormalized }).lean().exec(); }
+  findUserByEmail(emailNormalized: string, session?: ClientSession) {
+    const query = User.findOne({ emailNormalized });
+    return (session ? query.session(session) : query).lean().exec();
+  }
+  findUserByGoogleId(googleId: string, session?: ClientSession) {
+    const query = User.findOne({ googleId });
+    return (session ? query.session(session) : query).lean().exec();
+  }
+  linkGoogleIdentity(userId: Types.ObjectId, googleId: string, avatarUrl: string | undefined, session: ClientSession) {
+    return User.findOneAndUpdate(
+      { _id: userId, status: 'active', $or: [{ googleId: { $exists: false } }, { googleId }] },
+      { $set: { googleId, emailVerified: true, ...(avatarUrl ? { avatarUrl } : {}) } },
+      { session, returnDocument: 'after' },
+    ).lean().exec();
+  }
   findActiveUserByResetToken(tokenHash: string, now: Date, session: ClientSession) {
     return User.findOne({ status: 'active', passwordResetTokenHash: tokenHash, passwordResetExpiresAt: { $gt: now } }).session(session).lean().exec();
   }

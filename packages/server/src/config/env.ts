@@ -27,6 +27,8 @@ const EnvSchema = z
     EMAIL_PROVIDER: z.enum(['smtp', 'console']).default('console'),
     EMAIL_FROM_ADDRESS: z.email(),
     EMAIL_FROM_NAME: z.string().min(1),
+    GOOGLE_CLIENT_ID: optionalString,
+    GOOGLE_CLIENT_SECRET: optionalString,
     SMTP_HOST: optionalString,
     SMTP_PORT: optionalPort,
     SMTP_SECURE: z

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { connectToDatabase, disconnectFromDatabase } from '@/server/db/connection';
 import { logger } from '@/server/http/logger';
 import { up as initializeIndexes, migrationId } from '../migrations/000_init';
+import { up as addGoogleIdentityIndex, migrationId as googleIdentityMigrationId } from '../migrations/001_google_identity';
 
 async function runMigrations(): Promise<void> {
   const mongoose = await connectToDatabase();
@@ -13,22 +14,23 @@ async function runMigrations(): Promise<void> {
 
   const collection = db.collection('schemaMigrations');
   await collection.createIndex({ id: 1 }, { unique: true });
-  const migrationPath = fileURLToPath(new URL('../migrations/000_init.ts', import.meta.url));
-  const source = await readFile(migrationPath);
-  const checksum = createHash('sha256').update(source).digest('hex');
-  const existing = await collection.findOne<{ checksum: string }>({ id: migrationId });
-
-  if (existing) {
-    if (existing.checksum !== checksum) {
-      throw new Error(`Контрольная сумма применённой миграции ${migrationId} изменилась`);
+  const migrations = [
+    { id: migrationId, filename: '000_init.ts', up: initializeIndexes },
+    { id: googleIdentityMigrationId, filename: '001_google_identity.ts', up: addGoogleIdentityIndex },
+  ];
+  for (const migration of migrations) {
+    const migrationPath = fileURLToPath(new URL(`../migrations/${migration.filename}`, import.meta.url));
+    const checksum = createHash('sha256').update(await readFile(migrationPath)).digest('hex');
+    const existing = await collection.findOne<{ checksum: string }>({ id: migration.id });
+    if (existing) {
+      if (existing.checksum !== checksum) throw new Error(`Контрольная сумма применённой миграции ${migration.id} изменилась`);
+      logger.info({ migrationId: migration.id }, 'migration already applied');
+      continue;
     }
-    logger.info({ migrationId }, 'migration already applied');
-    return;
+    await migration.up(db);
+    await collection.insertOne({ id: migration.id, appliedAt: new Date(), checksum });
+    logger.info({ migrationId: migration.id }, 'migration applied');
   }
-
-  await initializeIndexes(db);
-  await collection.insertOne({ id: migrationId, appliedAt: new Date(), checksum });
-  logger.info({ migrationId }, 'migration applied');
 }
 
 runMigrations()

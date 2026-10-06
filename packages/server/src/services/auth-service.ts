@@ -12,6 +12,9 @@ import { PERMISSION_SCOPES } from '../domain/permissions';
 import type { BusinessRole } from '@/shared/constants';
 import type { RegisterBusinessRequestDto } from '@/shared/types/dto';
 import { buildDedupeKey } from '../notifications/dedupe-key';
+import { isGoogleOAuthConfigured, verifyGoogleIdToken } from '../auth/google-token';
+import type { GoogleRegisterBusinessSchema } from '@/shared/schemas/auth';
+import type { z } from 'zod';
 
 const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
@@ -63,6 +66,59 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 }
 
 export class AuthService {
+  googleOAuthConfig() {
+    const env = getEnv();
+    return { enabled: isGoogleOAuthConfigured(), clientId: isGoogleOAuthConfigured() ? env.GOOGLE_CLIENT_ID : null };
+  }
+
+  async loginWithGoogle(idToken: string, request: Request): Promise<AuthResult> {
+    const identity = await verifyGoogleIdToken(idToken);
+    return withTransaction(async (session) => {
+      let user = await repository.findUserByGoogleId(identity.googleId, session);
+      if (!user) {
+        const emailUser = await repository.findUserByEmail(identity.email, session);
+        if (!emailUser || emailUser.status !== 'active') throw new AppError(ERROR_CODES.GOOGLE_ACCOUNT_NOT_FOUND, 404, 'Сначала создайте аккаунт');
+        user = await repository.linkGoogleIdentity(emailUser._id, identity.googleId, identity.avatarUrl, session);
+        if (!user) throw new ConflictError(ERROR_CODES.GOOGLE_EMAIL_TAKEN, 'Этот Google аккаунт уже привязан к другому профилю');
+      }
+      if (user.status !== 'active') throw new AppError(ERROR_CODES.GOOGLE_ACCOUNT_NOT_FOUND, 404, 'Сначала создайте аккаунт');
+      const membership = await repository.findActiveMembershipByUserId(user._id, session);
+      if (!membership) throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+      const business = await repository.findBusinessById(membership.businessId, session);
+      if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+      const { cookie } = await issueSession(user._id, business._id, request, session);
+      return { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, membership.role) }, cookie };
+    });
+  }
+
+  async registerBusinessWithGoogle(input: z.infer<typeof GoogleRegisterBusinessSchema>, request: Request): Promise<AuthResult> {
+    const identity = await verifyGoogleIdToken(input.idToken);
+    const slugCandidate = input.slug ?? input.businessName.normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slugBase = slugCandidate.slice(0, 40).replace(/-+$/g, '');
+    const slug = slugBase.length >= 3 ? slugBase : `salon-${identity.googleId.slice(-8).toLowerCase()}`;
+    try {
+      // API_CONTRACTS AUTH-15: account, tenant, owner membership, and first session commit as one unit.
+      return await withTransaction(async (session) => {
+        const linked = await repository.findUserByGoogleId(identity.googleId, session);
+        if (linked) throw new ConflictError(ERROR_CODES.ALREADY_MEMBER, 'Этот Google аккаунт уже зарегистрирован');
+        const existing = await repository.findUserByEmail(identity.email, session);
+        if (existing) throw new ConflictError(ERROR_CODES.GOOGLE_EMAIL_TAKEN, 'Аккаунт с этим email уже существует. Войдите через Google или пароль.');
+        const user = await repository.createUser({ email: identity.email, emailNormalized: identity.email, googleId: identity.googleId, ...(identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}), emailVerified: true, passwordHash: null, name: identity.name, locale: 'ru', status: 'active' }, session);
+        const business = await repository.createBusiness({ name: input.businessName, slug, timezone: input.timezone, currency: input.currency, countryCode: input.countryCode, status: 'active' }, session);
+        await repository.createSettings({ businessId: business._id }, session);
+        await repository.createMembership({ businessId: business._id, userId: user._id, role: 'owner', status: 'active', joinedAt: new Date() }, session);
+        const { cookie } = await issueSession(user._id, business._id, request, session);
+        return { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, 'owner') }, cookie };
+      });
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) {
+        const keyPattern = 'keyPattern' in error && typeof error.keyPattern === 'object' ? error.keyPattern as Record<string, unknown> : {};
+        throw new ConflictError(keyPattern.slug ? ERROR_CODES.SLUG_TAKEN : ERROR_CODES.GOOGLE_EMAIL_TAKEN, keyPattern.slug ? 'Адрес бизнеса уже занят' : 'Google аккаунт уже зарегистрирован');
+      }
+      throw error;
+    }
+  }
+
   private async queueEmailVerification(user: { _id: Types.ObjectId; email: string; name: string }, businessId: Types.ObjectId, businessName: string, code: string, session: import('mongoose').ClientSession): Promise<void> {
     const codeHash = hashEmailVerificationCode(code);
     const now = new Date();

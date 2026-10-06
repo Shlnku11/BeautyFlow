@@ -41,6 +41,11 @@ export const ru = {
     resendVerification: 'Отправить код повторно',
     resendVerificationSent: 'Если аккаунт требует подтверждения, мы отправили письмо.',
     emailVerificationBanner: 'Подтвердите email',
+    googleComingSoon: 'Вход через Google скоро появится',
+    googleRegisterDetailsRequired: 'Заполните название бизнеса, страну, валюту и часовой пояс и примите условия.',
+    googleRegistrationRequired: 'Сначала создайте аккаунт или войдите по email и паролю.',
+    googleSignInFailed: 'Не удалось выполнить вход через Google. Попробуйте ещё раз.',
+    or: 'или',
   },
   landing: {
     title: 'BeautyFlow — Онлайн-запись для салонов',

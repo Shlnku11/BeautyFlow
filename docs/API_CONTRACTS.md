@@ -103,6 +103,16 @@ Tests: токен одноразовый; истёкший → 404; роль б�
 
 **AUTH-12 `POST /api/auth/resend-verification`** — повторно отправить код. Auth: нет · Context: `NONE`. Request: `{ email }`. Response `202` всегда с нейтральным текстом; если аккаунт существует, активен и не подтверждён — новый код и уведомление ставятся в очередь, прежние ожидающие коды аннулируются. Rate: `RL-RESET`.
 
+### Google OAuth (необязательное расширение, не входит в MVP route matrix)
+
+Google — дополнительный способ входа. Если `GOOGLE_CLIENT_ID` или `GOOGLE_CLIENT_SECRET` не заданы, `AUTH-14` возвращает `enabled:false`; UI показывает «Скоро», а email/password маршруты работают независимо.
+
+**AUTH-13 `POST /api/auth/google`** — вход по Google ID token. Auth: нет · Context: `NONE`. Request: `{ idToken }`. Сервер проверяет подпись, audience, subject и `email_verified=true`; связывает `googleId` по подтверждённому email либо находит уже связанный аккаунт, затем создаёт сессию для его активного членства. Не принимает `businessId` от клиента. Codes: 200, 401 `GOOGLE_TOKEN_INVALID`, 404 `GOOGLE_ACCOUNT_NOT_FOUND`, 409 `GOOGLE_EMAIL_TAKEN`, 503 `GOOGLE_AUTH_UNAVAILABLE`, 429. Rate: `RL-LOGIN`.
+
+**AUTH-14 `GET /api/auth/google/config`** — публичный статус кнопки OAuth. Response `200`: `{ data:{ enabled:boolean, clientId:string|null } }`. Возвращает только публичный Client ID; Client Secret не раскрывается.
+
+**AUTH-15 `POST /api/auth/google/register-business`** — атомарная регистрация нового владельца. Auth: нет · Context: `NONE`. Request: `{ idToken, businessName, slug?, timezone, currency, countryCode, acceptTerms:true }`. Email и имя берутся только из проверенного Google ID token. В одной Mongo-транзакции создаются `users` (emailVerified=true), `businesses`, `settings`, `businessMembers(owner)` и `sessions`. Codes: 201, 401 `GOOGLE_TOKEN_INVALID`, 409 `GOOGLE_EMAIL_TAKEN`/`SLUG_TAKEN`, 422, 429. Rate: `RL-REGISTER`.
+
 **AUTH-10 `PATCH /api/auth/me`** · **post-MVP** — обновить имя профиля. Auth: сессия · `account:self`. Request: `{ name }` (strict). Response `200 UserDto`. Tests: ST-4; email менять нельзя в MVP (422).
 
 ---

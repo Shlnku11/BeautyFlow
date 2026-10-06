@@ -600,3 +600,9 @@ export const MVP_ROUTE_CONTRACTS = [
   }
 ] satisfies readonly RouteContract[];
 export const MVP_ROUTE_IDS = new Set(MVP_ROUTE_CONTRACTS.map((route) => route.id));
+
+export const OPTIONAL_AUTH_ROUTE_CONTRACTS: readonly RouteContract[] = [
+  { id: 'AUTH-13', method: 'post', path: '/api/auth/google', auth: 'none', contextSource: 'NONE', permission: null, rateLimit: 'RL-LOGIN' },
+  { id: 'AUTH-14', method: 'get', path: '/api/auth/google/config', auth: 'none', contextSource: 'NONE', permission: null, rateLimit: null },
+  { id: 'AUTH-15', method: 'post', path: '/api/auth/google/register-business', auth: 'none', contextSource: 'NONE', permission: null, rateLimit: 'RL-REGISTER' },
+];

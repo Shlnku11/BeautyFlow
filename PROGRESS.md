@@ -121,4 +121,13 @@
 - Вход для неподтверждённых аккаунтов остаётся доступен; в приложении показывается баннер с повторной отправкой. После регистрации форма запрашивает 6-значный код и открывает приложение после подтверждения.
 - Проверки: `npm test` — 29 файлов / 107 тестов ✅; AUTH-11/12 API suite после concurrency changes — 4/4 ✅; `npm run typecheck` ✅; `npm run lint` ✅; race — 2/2 ✅; build ✅; `npm run test:e2e` — 11/11 ✅ (включая реальную регистрацию через Chromium); `npm run check:contrast` ✅; `npm run test:a11y` — 1/1 ✅.
 - E2E получает тестовый код из уведомления в тестовой MongoDB; реальная SMTP-доставка не проверялась (используется ConsoleEmailProvider).
-- Следующее: Google OAuth требует отдельного разрешения на добавление `google-auth-library` и `@react-oauth/google` перед установкой; до разрешения зависимости и код OAuth не трогать.
+- Продолжение: разрешение на `google-auth-library` и `@react-oauth/google` получено; блок B выполнен в следующей записи.
+
+## Google OAuth — блок B (2026-10-06)
+
+- По разрешению установлены `google-auth-library` и `@react-oauth/google`. Добавлены optional env `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`; если любой credential отсутствует, публичный config endpoint возвращает `enabled:false`, UI показывает «Скоро», email/password и email-код продолжают работать.
+- Добавлены `googleId` и `avatarUrl`, новая неизменяющая старую `000_init` миграция `001_google_identity` (unique sparse index), AUTH-13 Google login, AUTH-14 config и AUTH-15 атомарная Google-регистрация бизнеса. Токен проверяется сервером по подписи, audience и `email_verified`; бизнес ID из тела входа не принимается.
+- Google signup одной транзакцией создаёт user, business, settings, owner membership и session. Вход по Google связывает существующий активный профиль только по подтверждённому email и создаёт сессию через собственное активное членство.
+- README и API/DATA_MODEL/MVP docs обновлены. `.env.example` содержит необязательные пустые credentials с инструкцией Google Cloud Console; `.env` не менялся. `npm run migrate` подтвердил `000_init` уже применённой и добавил `001_google_identity` на настроенную локальную MongoDB.
+- Тесты с моками Google verifier: валидный/невалидный token, отсутствие credentials, сохранность обычного login, owner-only tenant session, отказ от businessId injection и rollback при slug conflict — 8/8. Полный Vitest — 31 файл / 115 тестов ✅; race 2/2 ✅; typecheck/lint/build ✅. В production build остаются upstream warnings `"use client"` и chunk >500 kB.
+- SMTP/Google production credentials не настроены и реальный Google Cloud sign-in не выполнялся.

@@ -46,7 +46,9 @@
 | emailVerificationCodeHash | String | нет | null | HMAC-SHA256 кода подтверждения, без сырого кода |
 | emailVerificationExpiresAt | Date | нет | null | +15 минут |
 | emailVerificationAttempts | Number | да | `0` | не более 5 неверных проверок на код |
-| passwordHash | String | нет | null | argon2id; `null` пока статус `invited` |
+| googleId | String | нет | — | Google subject (`sub`), уникален; nullable для пользователей без OAuth |
+| avatarUrl | String | нет | — | HTTPS URL аватара из проверенного Google ID token |
+| passwordHash | String | нет | null | argon2id; `null` для `invited` и Google-only аккаунтов без пароля |
 | name | String | да | — | 1–120 |
 | locale | String enum `ru` | да | `ru` | зарезервировано под `en` |
 | status | enum `active`,`invited`,`disabled` | да | `active` | |
@@ -55,7 +57,7 @@
 | passwordResetTokenHash | String | нет | — | HMAC токена сброса |
 | passwordResetExpiresAt | Date | нет | — | +60 минут |
 
-Индексы: `unique {emailNormalized:1}`; `{passwordResetTokenHash:1}` partial `{passwordResetTokenHash:{$exists:true}}`.
+Индексы: `unique {emailNormalized:1}`; `unique sparse {googleId:1}`; `{passwordResetTokenHash:1}` partial `{passwordResetTokenHash:{$exists:true}}`.
 Soft delete: нет (статус `disabled`).
 
 ## 2. sessions (глобальная)

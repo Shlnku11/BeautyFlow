@@ -1,9 +1,10 @@
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
-import { useEffect, useState, type FormEvent } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import { DateTime } from 'luxon';
 import { ru } from '@/shared/i18n/ru';
-import { LoginSchema, RegisterBusinessSchema, VerifyEmailSchema } from '@/shared/schemas';
+import { GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from './UiSandbox';
@@ -146,9 +147,16 @@ function AppShell() {
 function AuthPage({ register = false }: { register?: boolean }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
+  const googleConfig = useQuery({
+    queryKey: ['google-auth-config'],
+    queryFn: () => apiRequest<{ enabled: boolean; clientId: string | null }>('/api/auth/google/config'),
+    staleTime: 300_000,
+    retry: false,
+  });
   const title = register ? ru.auth.registerTitle : ru.auth.loginTitle;
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -195,8 +203,33 @@ function AuthPage({ register = false }: { register?: boolean }) {
       setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
     }
   }
+  async function submitGoogleCredential(idToken: string) {
+    setError(null);
+    try {
+      if (register) {
+        const data = new FormData(formRef.current ?? undefined);
+        const parsed = GoogleRegisterBusinessSchema.safeParse({
+          idToken,
+          businessName: data.get('businessName'),
+          slug: data.get('slug') || undefined,
+          timezone: data.get('timezone'),
+          currency: data.get('currency'),
+          countryCode: data.get('countryCode'),
+          acceptTerms: data.has('acceptTerms'),
+        });
+        if (!parsed.success) { setError(ru.auth.googleRegisterDetailsRequired); return; }
+        await apiRequest('/api/auth/google/register-business', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      } else {
+        await apiRequest('/api/auth/google', { method: 'POST', body: { idToken }, redirectOnUnauthorized: false });
+      }
+      await queryClient.resetQueries({ queryKey: ['session'] });
+      navigate('/app', { replace: true });
+    } catch (reason: unknown) {
+      setError(reason instanceof ApiClientError && reason.code === 'GOOGLE_ACCOUNT_NOT_FOUND' ? ru.auth.googleRegistrationRequired : reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
+    }
+  }
   if (verificationEmail) return <main className="mx-auto flex min-h-screen max-w-lg items-center p-6"><section className="w-full rounded-2xl border border-neutral-200 bg-neutral-0 p-8 shadow-sm"><p className="text-sm font-semibold text-primary-700">{ru.app.name}</p><h1 className="mt-3 text-2xl font-semibold">{ru.auth.verifyEmailTitle}</h1><p className="mt-2 text-sm text-neutral-600">{ru.auth.verifyEmailDescription} <strong>{verificationEmail}</strong></p><form className="mt-6 grid gap-4" onSubmit={(event) => { void submitVerification(event); }}><label className="grid gap-1">{ru.auth.verifyEmailCode}<input autoComplete="one-time-code" className="rounded-lg border border-neutral-300 px-3 py-2 tracking-[0.3em]" name="code" inputMode="numeric" pattern="[0-9]{6}" minLength={6} maxLength={6} required/></label>{error ? <p className="text-danger-fg" role="alert">{error}</p> : null}{verificationNotice ? <p role="status">{verificationNotice}</p> : null}<button className="rounded-lg bg-primary-600 px-4 py-2 font-medium text-neutral-0" type="submit">{ru.auth.verifyEmailSubmit}</button><button className="rounded-lg border px-4 py-2 font-medium" type="button" onClick={() => { void resendVerification(); }}>{ru.auth.resendVerification}</button></form></section></main>;
-  return <main className="mx-auto flex min-h-screen max-w-lg items-center p-6"><section className="w-full rounded-2xl border border-neutral-200 bg-neutral-0 p-8 shadow-sm"><p className="text-sm font-semibold text-primary-700">{ru.app.name}</p><h1 className="mt-3 text-2xl font-semibold">{title}</h1><form className="mt-6 grid gap-4" onSubmit={(event) => { void submit(event); }}>
+  return <main className="mx-auto flex min-h-screen max-w-lg items-center p-6"><section className="w-full rounded-2xl border border-neutral-200 bg-neutral-0 p-8 shadow-sm"><p className="text-sm font-semibold text-primary-700">{ru.app.name}</p><h1 className="mt-3 text-2xl font-semibold">{title}</h1><form ref={formRef} className="mt-6 grid gap-4" onSubmit={(event) => { void submit(event); }}>
     {register ? <>
       <label className="grid gap-1">{ru.auth.businessName}<input autoComplete="organization" className="rounded-lg border border-neutral-300 px-3 py-2" name="businessName" minLength={2} maxLength={120} required/></label>
       <label className="grid gap-1">{ru.auth.timezone}<input className="rounded-lg border border-neutral-300 px-3 py-2" defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone} name="timezone" required/></label>
@@ -210,7 +243,7 @@ function AuthPage({ register = false }: { register?: boolean }) {
     {error ? <p className="text-danger-fg" role="alert">{error}</p> : null}
     <button className="rounded-lg bg-primary-600 px-4 py-2 font-medium text-neutral-0" type="submit">{register ? ru.auth.submitRegister : ru.auth.submitLogin}</button>
     <Link className="text-primary-700 underline" to={register ? '/login' : '/register'}>{register ? 'Уже есть аккаунт? Войти' : 'Создать бизнес'}</Link>
-  </form></section></main>;
+  </form><div className="my-5 flex items-center gap-3 text-xs text-neutral-500"><span className="h-px flex-1 bg-neutral-200"/><span>{ru.auth.or}</span><span className="h-px flex-1 bg-neutral-200"/></div>{googleConfig.data?.enabled && googleConfig.data.clientId ? <GoogleOAuthProvider clientId={googleConfig.data.clientId}><GoogleLogin onSuccess={(response) => { if (response.credential) void submitGoogleCredential(response.credential); else setError(ru.auth.googleSignInFailed); }} onError={() => setError(ru.auth.googleSignInFailed)} /></GoogleOAuthProvider> : <p className="text-center text-sm text-neutral-500">{ru.auth.googleComingSoon}</p>}</section></main>;
 }
 
 export function App() {

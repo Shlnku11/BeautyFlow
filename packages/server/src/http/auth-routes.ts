@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { AuthService } from '../services/auth-service';
-import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, GoogleLoginSchema, GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { getEnv } from '../config/env';
 import { defineExpressRoute } from './define-express-route';
 import { AppError } from './errors';
@@ -10,8 +10,27 @@ import { removeCurrentSession } from '../auth/route-runtime';
 
 const authService = new AuthService();
 export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06','AUTH-07','AUTH-08','AUTH-09','AUTH-11','AUTH-12']);
+export const OPTIONAL_AUTH_ROUTE_IDS = new Set(['AUTH-13','AUTH-14','AUTH-15']);
 
 export function registerAuthRoutes(app: Express): void {
+  app.get('/api/auth/google/config', defineExpressRoute({
+    id: 'AUTH-14', method: 'GET', path: '/api/auth/google/config', auth: 'none', contextSource: 'NONE',
+    handler: async () => Response.json({ data: authService.googleOAuthConfig() }),
+  }));
+  app.post('/api/auth/google', defineExpressRoute({
+    id: 'AUTH-13', method: 'POST', path: '/api/auth/google', auth: 'none', contextSource: 'NONE', bodySchema: GoogleLoginSchema, rateLimit: 'RL-LOGIN',
+    handler: async ({ body, request }) => {
+      const result = await authService.loginWithGoogle(body.idToken, request);
+      return Response.json({ data: result.data }, { headers: { 'Set-Cookie': result.cookie } });
+    },
+  }));
+  app.post('/api/auth/google/register-business', defineExpressRoute({
+    id: 'AUTH-15', method: 'POST', path: '/api/auth/google/register-business', auth: 'none', contextSource: 'NONE', bodySchema: GoogleRegisterBusinessSchema, rateLimit: 'RL-REGISTER',
+    handler: async ({ body, request }) => {
+      const result = await authService.registerBusinessWithGoogle(body, request);
+      return Response.json({ data: result.data }, { status: 201, headers: { 'Set-Cookie': result.cookie } });
+    },
+  }));
   app.post('/api/auth/verify-email', defineExpressRoute({
     id: 'AUTH-11', method: 'POST', path: '/api/auth/verify-email', auth: 'none', contextSource: 'NONE', bodySchema: VerifyEmailSchema, rateLimit: 'RL-RESET',
     handler: async ({ body }) => {

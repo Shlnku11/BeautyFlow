@@ -39,6 +39,15 @@ BeautyFlow — CRM для салонов красоты: онлайн-запис
 | `npm run migrate` | Идемпотентное создание коллекционных индексов |
 | `npm run build` | Production-сборки Vite SPA и Express API |
 
+## Настройка Google OAuth
+
+Google — дополнительный способ входа и регистрации. Без credentials кнопка показывает «Вход через Google скоро появится», а вход по email и паролю и подтверждение email работают как обычно.
+
+1. Создайте проект в [Google Cloud Console](https://console.cloud.google.com/), откройте **APIs & Services → Credentials** и создайте **OAuth 2.0 Client ID** типа **Web application**.
+2. Добавьте `http://localhost:5173` и URL production-приложения в **Authorized JavaScript origins**. Для redirect flow также укажите эти URL в **Authorized redirect URIs**.
+3. Скопируйте Client ID и Client Secret в `.env` как `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`, перезапустите сервер. Секрет используется только сервером и не попадает в клиентскую сборку.
+4. Разрешённые origin/redirect URI должны совпадать с адресами, на которых открывается приложение. Тесты проверяют OAuth с мокированным Google token verifier и не требуют настоящих credentials.
+
 Тесты интеграции и API требуют MongoDB replica set. `TEST_MONGODB_URI` можно указать для отдельной тестовой базы.
 
 ## Подготовка production deployment

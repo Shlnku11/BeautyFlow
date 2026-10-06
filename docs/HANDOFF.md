@@ -4,7 +4,7 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этапы функциональности 1–12/12: реализованы. Статус проекта: функционально готов; claymorphism и тёмная тема реализованы, финальная дизайн-переделка в сторону более профессиональной среды Linear/Notion уровня ещё в работе и не начата. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
+Этапы функциональности 1–12/12: реализованы. Email-подтверждение и optional Google OAuth выполнены отдельными блоками. Статус проекта: функционально готов; claymorphism и тёмная тема реализованы, финальная дизайн-переделка в сторону более профессиональной среды Linear/Notion уровня — следующий блок. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
 
 ## Последний коммит этапа
 `9d3e274 feat(stage-12): AUTH-07/08/09 and security checklist`
@@ -27,7 +27,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 
 ## Что НЕ сделано (важно для следующего исполнителя)
 - Полная визуальная переделка UI в сдержанную профессиональную среду уровня Linear/Notion ещё НЕ начата. Приоритет следующего блока: календарная временная сетка, карточки записей, кнопки, шрифты и дизайн-токены, затем более сдержанный лендинг. Сохранять рабочие сценарии и clay/glass принципы, если они подходят новому направлению.
-- Email-подтверждение пользователей и Google OAuth не начаты.
+- Email-подтверждение пользователей: AUTH-11/12 готовы; Google OAuth: AUTH-13/14/15 optional маршруты готовы. Настроенная Google Cloud application и production sign-in не проверены.
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
 - Full `npm audit --audit-level=high` сообщает 5 high в dev-only Tailwind 3.4.19 dependency chain (chokidar/micromatch/braces); `npm audit --omit=dev` чист. По указанию не менять зависимости; Tailwind 4 post-MVP. Это остаётся открытым security release risk.
 - Content-Security-Policy — заголовок установлен и проверен API-тестом.
@@ -78,4 +78,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-По приоритету — начать полную переделку UI: профессиональная календарная сетка и карточки записей, типографика/кнопки/токены, затем сдержанный лендинг. Email-подтверждение и Google OAuth не начинать без отдельного scope. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.
+Следующий блок — полная переделка UI: профессиональная календарная сетка и карточки записей, типографика/кнопки/токены, затем сдержанный лендинг. Google OAuth работает только после настройки `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`; без них остается неактивная кнопка «Скоро», а основной вход сохраняется. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.
