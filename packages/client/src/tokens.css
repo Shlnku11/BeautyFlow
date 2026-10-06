@@ -193,6 +193,13 @@ body { background: linear-gradient(160deg, #f4f0fa 0%, #ede7f6 100%); }
   animation: landing-float 6s ease-in-out infinite;
 }
 
+#main-content > main { animation: page-enter 280ms ease-out both; }
+main a:not([class*="rounded"]), footer a { text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 180ms ease-out; }
+main a:not([class*="rounded"]):hover, footer a:hover { text-decoration: underline; text-decoration-color: currentColor; }
+.dialog-enter { animation: dialog-enter 220ms ease-out both; }
+.toast-enter { animation: toast-enter 260ms ease-out both; }
+.loading-skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }
+
 [data-reveal].reveal-pending {
   opacity: 0;
   transform: translateY(18px);
@@ -234,6 +241,11 @@ body { background: linear-gradient(160deg, #f4f0fa 0%, #ede7f6 100%); }
   from { transform: translate3d(-8px, 6px, 0) scale(0.96); }
   to { transform: translate3d(12px, -10px, 0) scale(1.04); }
 }
+
+@keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dialog-enter { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes toast-enter { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes skeleton-pulse { 50% { opacity: 0.52; } }
 
 @supports not (backdrop-filter: blur(1px)) {
   .glass-surface,
@@ -296,6 +308,7 @@ body { background: linear-gradient(160deg, #f4f0fa 0%, #ede7f6 100%); }
   }
 
   .clay-card:hover, .clay-control:hover { transform: none; }
+  #main-content > main { animation: none; }
 }
 
 @media (prefers-color-scheme: dark) {

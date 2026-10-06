@@ -10,6 +10,33 @@ const rubles = (minor: number, currency: string) => new Intl.NumberFormat('ru-RU
 const localDate = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 const appointmentTime = (value: string) => new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 
+function AnimatedMetric({ value }: { value: string }) {
+  const target = Number(value.replace(/\D/g, '')) || 0;
+  const suffix = value.match(/\D*$/)?.[0] ?? '';
+  const [current, setCurrent] = useState(0);
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    const node = document.querySelector('[data-testid="dashboard-kpis"]');
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting || started) return;
+      setStarted(true);
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setCurrent(target); observer.disconnect(); return; }
+      const start = performance.now();
+      const step = (now: number) => {
+        const progress = Math.min((now - start) / 650, 1);
+        setCurrent(Math.round(target * progress));
+        if (progress < 1) requestAnimationFrame(step);
+        else observer.disconnect();
+      };
+      requestAnimationFrame(step);
+    }, { threshold: 0.15 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [started, target]);
+  return <>{started && current >= target ? value : `${new Intl.NumberFormat('ru-RU').format(current)}${suffix}`}</>;
+}
+
 export function DashboardPage() {
   const [preset, setPreset] = useState('month');
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -24,7 +51,7 @@ export function DashboardPage() {
     ]).then(([summaryResult, upcomingResult]) => { setSummary(summaryResult); setUpcoming(upcomingResult); }).catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : 'Не удалось загрузить обзор'); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [preset]);
-  const metric = (title: string, value: string, tone: string, Icon: typeof CurrencyDollarIcon, previous?: number, current?: number) => <article className={`clay-card rounded-clay-card border border-white/80 p-5 shadow-clay ${tone}`}><div className="flex items-start justify-between gap-3"><h2 className="text-sm font-medium text-neutral-700">{title}</h2><Icon aria-hidden="true" className="size-6 text-primary-700"/></div><p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>{previous !== undefined && current !== undefined ? <p className="mt-1 text-sm text-neutral-600">{previous === 0 ? 'Нет данных для сравнения' : `${(((current - previous) / previous) * 100).toFixed(0)}% к предыдущему периоду`}</p> : null}</article>;
+  const metric = (title: string, value: string, tone: string, Icon: typeof CurrencyDollarIcon, previous?: number, current?: number) => <article className={`clay-card rounded-clay-card border border-white/80 p-5 shadow-clay ${tone}`}><div className="flex items-start justify-between gap-3"><h2 className="text-sm font-medium text-neutral-700">{title}</h2><Icon aria-hidden="true" className="size-6 text-primary-700"/></div><p className="mt-3 text-3xl font-bold tracking-tight"><AnimatedMetric value={value}/></p>{previous !== undefined && current !== undefined ? <p className="mt-1 text-sm text-neutral-600">{previous === 0 ? 'Нет данных для сравнения' : `${(((current - previous) / previous) * 100).toFixed(0)}% к предыдущему периоду`}</p> : null}</article>;
   return <main className="mx-auto w-full max-w-7xl p-4 md:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">Обзор</h1><label className="grid gap-1 text-sm">Период<select aria-label="Период" className="rounded border px-3 py-2" value={preset} onChange={(event) => setPreset(event.target.value)}><option value="today">Сегодня</option><option value="week">Эта неделя</option><option value="month">Этот месяц</option><option value="last_month">Прошлый месяц</option></select></label></div>
     {loading ? <p className="mt-6" role="status">Загрузка обзора…</p> : null}{error ? <p className="mt-6" role="alert">{error}</p> : null}
     {summary ? <><p className="mt-3 text-sm text-neutral-600">{summary.period.from} — {summary.period.to}</p><section aria-label="Ключевые показатели" className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="dashboard-kpis">

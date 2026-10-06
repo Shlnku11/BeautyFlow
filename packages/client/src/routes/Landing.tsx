@@ -15,7 +15,7 @@ export function LandingPage() {
         entry.target.classList.add('is-visible');
         observer.unobserve(entry.target);
       });
-    }, { threshold: 0.14 });
+    }, { threshold: 0.15 });
     elements.forEach((element) => {
       element.classList.add('reveal-pending');
       observer.observe(element);
