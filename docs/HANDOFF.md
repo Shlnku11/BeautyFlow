@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этапы функциональности 1–12/12: реализованы. Email-подтверждение и optional Google OAuth выполнены отдельными блоками. Статус проекта: функционально готов; claymorphism и тёмная тема реализованы, финальная дизайн-переделка в сторону более профессиональной среды Linear/Notion уровня — следующий блок. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
+Этапы функциональности 1–12/12: реализованы. Email-подтверждение, optional Google OAuth и базовый redesign UI завершены. Текущий UI использует профессиональные нейтральные токены, системные light/dark темы, app layouts, календарные сетки day/week/month и реальный dashboard screenshot на landing. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
 
 ## Последний коммит этапа
-`9d3e274 feat(stage-12): AUTH-07/08/09 and security checklist`
+Обновить после фиксации текущего UI redesign commit.
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -26,7 +26,8 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; deploy runbook и README подготовлены. Реальный production/staging deployment не выполнен.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- Полная визуальная переделка UI в сдержанную профессиональную среду уровня Linear/Notion ещё НЕ начата. Приоритет следующего блока: календарная временная сетка, карточки записей, кнопки, шрифты и дизайн-токены, затем более сдержанный лендинг. Сохранять рабочие сценарии и clay/glass принципы, если они подходят новому направлению.
+- Интерфейс приведён к нейтральному направлению, но `features/operations/Operations.tsx` всё ещё объединяет CRUD экраны staff/services/customers/settings; полное разбиение каждого feature на собственные `components/hooks/api/types.ts` осталось как структурный follow-up.
+- Inter Variable не поставлен: это требует отдельного разрешения на новую зависимость. Текущий stack — Inter/system-ui, с fallback системного шрифта.
 - Email-подтверждение пользователей: AUTH-11/12 готовы; Google OAuth: AUTH-13/14/15 optional маршруты готовы. Настроенная Google Cloud application и production sign-in не проверены.
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
 - Full `npm audit --audit-level=high` сообщает 5 high в dev-only Tailwind 3.4.19 dependency chain (chokidar/micromatch/braces); `npm audit --omit=dev` чист. По указанию не менять зависимости; Tailwind 4 post-MVP. Это остаётся открытым security release risk.
@@ -49,7 +50,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm test` — 28 файлов, 101 тест ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- `npm run test:e2e` — 11 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite, landing, registration, dashboard, booking/manage, payments и calendar UI. E2E следует запускать без уже работающих dev-серверов, чтобы Playwright поднял изолированное тестовое окружение.
+- `npm run test:e2e` — 11 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite, landing, registration, dashboard, booking/manage, payments и calendar UI. При переиспользовании локального dev server для Playwright задайте `TRUSTED_PROXY_HOPS=1`; без него X-Forwarded-For из E2E не распознаётся и shared rate limit может блокировать регистрации.
 - `npm run test:unit`, `npm run test:integration` — включены в полный прогон; `npm run test:api` — 4 файла / 13 тестов ✅.
 - `npm run check:contrast` ✅
 - `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
@@ -78,4 +79,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Следующий блок — полная переделка UI: профессиональная календарная сетка и карточки записей, типографика/кнопки/токены, затем сдержанный лендинг. Google OAuth работает только после настройки `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`; без них остается неактивная кнопка «Скоро», а основной вход сохраняется. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.
+Сверить текущий layout и календарь с бизнесом на реальном устройстве, при необходимости продолжить декомпозицию CRUD `Operations.tsx`, затем пройти deploy по `docs/DEPLOY.md`: replica set, TLS, секреты, backup restore, мониторинг и реальные email пока не проверены. Решение по 5 high dev-only npm audit advisories отложено, Tailwind 4 остаётся post-MVP. Google OAuth optional и работает только после настройки credentials; без них UI показывает «Скоро», email/password и email-код не затронуты. Сохранять ограничения проекта и проверять `PROGRESS.md`.

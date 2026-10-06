@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = process.cwd();
-const tokenFile = join(root, 'packages/client/src/tokens.css');
+const tokenFile = join(root, 'packages/client/src/styles/tokens.css');
 const css = readFileSync(tokenFile, 'utf8');
 const tokens = new Map<string, string>();
 for (const match of css.matchAll(/(--[\w-]+):\s*(#[\da-fA-F]{6})\s*;/g)) {

@@ -131,3 +131,13 @@
 - README и API/DATA_MODEL/MVP docs обновлены. `.env.example` содержит необязательные пустые credentials с инструкцией Google Cloud Console; `.env` не менялся. `npm run migrate` подтвердил `000_init` уже применённой и добавил `001_google_identity` на настроенную локальную MongoDB.
 - Тесты с моками Google verifier: валидный/невалидный token, отсутствие credentials, сохранность обычного login, owner-only tenant session, отказ от businessId injection и rollback при slug conflict — 8/8. Полный Vitest — 31 файл / 115 тестов ✅; race 2/2 ✅; typecheck/lint/build ✅. В production build остаются upstream warnings `"use client"` и chunk >500 kB.
 - SMTP/Google production credentials не настроены и реальный Google Cloud sign-in не выполнялся.
+
+## UI redesign — block C (2026-10-06)
+
+- Это обновление supersedes прежние записи о том, что переделка UI не начата. Перенесён frontend в `app/`, `features/`, `components/data/` и `styles/`; App/Auth/Public layouts разделены, feature-код не импортирует соседние features. Старые `src/routes/*` и `src/tokens.css` удалены после переноса.
+- UI направлен к нейтральному рабочему интерфейсу: системные light/dark токены, плотные поверхности, радиусы 8–12px, 36px controls, без clay/glass в рабочих экранах, без счётных и пружинящих анимаций. Переключатель темы удалён; contrast script обновлён на новое расположение токенов.
+- Календарь поддерживает сетки день/неделя/месяц: колонка времени 56px, 52 строки по 20px, интервалы 15 минут, 08:00–21:00; месяц агрегирует пять недель с максимум тремя видимыми записями на день. На узких экранах включается вид дня.
+- Dashboard KPI без анимированного счётчика; sidebar сворачивается с 240px до 56px. UI-kit кнопок, полей, карточек, диалогов, бейджей, табов и toast использует нейтральные стили.
+- Landing показывает реальный Playwright dashboard screenshot `packages/client/public/images/dashboard-preview.png`. Скриншоты проверки: `outputs/final-landing.png`, `outputs/final-landing-320.png`, `test-results/runtime-dashboard.png`.
+- Проверки после перестройки: typecheck ✅, lint ✅, `npm test` 31 файл / 115 тестов ✅, race 2/2 ✅, build ✅ (upstream warnings «use client» и chunk >500 kB), E2E 11/11 ✅, contrast ✅, a11y/responsive suite 1/1 ✅. Responsive E2E покрывает 320/375/768/1024/1440 px.
+- Ограничения: Inter Variable не установлен без разрешения на новую зависимость; используется font stack `Inter, system-ui`. CRUD-экраны остаются сгруппированы в `features/operations/Operations.tsx`; их дальнейшая декомпозиция по отдельным feature-модулям не выполнена.

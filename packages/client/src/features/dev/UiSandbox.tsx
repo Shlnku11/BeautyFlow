@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, Button, Card, Checkbox, Dialog, EmptyState, ErrorState, Input, Pagination, Radio, Select, Skeleton, Table, Tabs, Textarea, Toast } from '../components/ui';
+import { Badge, Button, Card, Checkbox, Dialog, EmptyState, ErrorState, Input, Pagination, Radio, Select, Skeleton, Table, Tabs, Textarea, Toast } from '@/components/ui';
 
 export function UiSandbox() {
   const [dialogOpen, setDialogOpen] = useState(true);
