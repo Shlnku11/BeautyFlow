@@ -1,2 +1,2 @@
 import type { HTMLAttributes, ReactNode } from 'react';
-export function Card({ children, ...props }: HTMLAttributes<HTMLElement> & { children: ReactNode }) { return <section {...props} className={`rounded-clay-card border border-white/80 bg-clay-raised p-5 shadow-clay transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-lg ${props.className ?? ''}`}>{children}</section>; }
+export function Card({ children, ...props }: HTMLAttributes<HTMLElement> & { children: ReactNode }) { return <section {...props} className={`clay-card rounded-clay-card border border-white/80 bg-clay-raised p-5 shadow-clay ${props.className ?? ''}`}>{children}</section>; }

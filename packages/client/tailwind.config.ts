@@ -16,10 +16,12 @@ export default {
     boxShadow: {
       clay: 'var(--shadow-clay-raised)',
       clayPressed: 'var(--shadow-clay-pressed)',
+      clayHover: 'var(--shadow-clay-hover)',
     },
     borderRadius: {
       'clay-card': 'var(--radius-clay-card)',
       'clay-control': 'var(--radius-clay-control)',
+      'clay-input': 'var(--radius-clay-input)',
     },
   } },
   plugins: [],

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { ru } from '@/shared/i18n/ru';
 import { useSession } from '@/hooks/use-session';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export function LandingPage() {
   const session = useSession();
@@ -30,7 +31,7 @@ export function LandingPage() {
       <nav aria-label="Навигация по странице" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-8">
         <a aria-label="BeautyFlow — начало страницы" className="text-xl font-bold tracking-tight text-primary-800" href="#top">BeautyFlow</a>
         <div className="hidden items-center gap-6 text-sm font-medium text-neutral-700 md:flex">{text.nav.map((label, index) => <a className="transition-colors hover:text-primary-700" href={['#features', '#how-it-works', '#benefits', '#demo'][index]} key={label}>{label}</a>)}</div>
-        <div className="flex items-center gap-2"><Link className="hidden rounded-clay-control px-3 py-2 text-sm font-semibold text-primary-800 sm:inline-flex" to="/login">{text.login}</Link><Link className="rounded-clay-control bg-primary-600 px-4 py-2 text-sm font-semibold text-neutral-0 shadow-clay transition hover:-translate-y-0.5 hover:bg-primary-700" to={signedIn ? appPath : '/register'}>{signedIn ? text.openApp : text.start}</Link></div>
+        <div className="flex items-center gap-2"><ThemeToggle/><Link className="hidden rounded-clay-control px-3 py-2 text-sm font-semibold text-primary-800 sm:inline-flex" to="/login">{text.login}</Link><Link className="rounded-clay-control bg-primary-600 px-4 py-2 text-sm font-semibold text-neutral-0 shadow-clay transition hover:-translate-y-0.5 hover:bg-primary-700" to={signedIn ? appPath : '/register'}>{signedIn ? text.openApp : text.start}</Link></div>
       </nav>
     </header>
 
