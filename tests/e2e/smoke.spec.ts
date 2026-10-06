@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('root redirects an unauthenticated browser to login and remains stable', async ({ page }) => {
+test('root opens the public landing page without a redirect loop', async ({ page }) => {
   const mainFrameNavigations: string[] = [];
   page.on('framenavigated', (frame) => {
     if (frame === page.mainFrame()) mainFrameNavigations.push(new URL(frame.url()).pathname);
@@ -9,13 +9,13 @@ test('root redirects an unauthenticated browser to login and remains stable', as
 
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole('heading', { name: 'Войти' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'Ваш салон. Ваш ритм. Всё под контролем.' })).toBeVisible();
   await page.waitForTimeout(500);
   const transitions = mainFrameNavigations.filter((path, index) => index === 0 || path !== mainFrameNavigations[index - 1]);
-  expect(transitions, mainFrameNavigations.join(' → ')).toEqual(['/', '/login']);
+  expect(transitions, mainFrameNavigations.join(' → ')).toEqual(['/']);
   expect(mainFrameNavigations.length).toBeLessThanOrEqual(4);
-  await page.screenshot({ path: 'test-results/runtime-login.png' });
+  await page.screenshot({ path: 'test-results/runtime-landing.png' });
 });
 
 test('login route loads and provides a labeled form', async ({ page }) => {

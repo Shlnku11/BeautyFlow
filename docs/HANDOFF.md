@@ -4,7 +4,7 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этап 12: E2E, безопасность, деплой. Статус: 12.2 реализован; deploy runbook и README готовы в 12.3. Реальный production deployment не выполнен, а 5 high dev-only advisories остаются открытым security risk.
+Этапы функциональности 1–12/12: реализованы. Статус проекта: функционально готов; claymorphism и тёмная тема реализованы, финальная дизайн-переделка в сторону более профессиональной среды Linear/Notion уровня ещё в работе и не начата. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
 
 ## Последний коммит этапа
 `9d3e274 feat(stage-12): AUTH-07/08/09 and security checklist`
@@ -26,6 +26,8 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; deploy runbook и README подготовлены. Реальный production/staging deployment не выполнен.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
+- Полная визуальная переделка UI в сдержанную профессиональную среду уровня Linear/Notion ещё НЕ начата. Приоритет следующего блока: календарная временная сетка, карточки записей, кнопки, шрифты и дизайн-токены, затем более сдержанный лендинг. Сохранять рабочие сценарии и clay/glass принципы, если они подходят новому направлению.
+- Email-подтверждение пользователей и Google OAuth не начаты.
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
 - Full `npm audit --audit-level=high` сообщает 5 high в dev-only Tailwind 3.4.19 dependency chain (chokidar/micromatch/braces); `npm audit --omit=dev` чист. По указанию не менять зависимости; Tailwind 4 post-MVP. Это остаётся открытым security release risk.
 - Content-Security-Policy — заголовок установлен и проверен API-тестом.
@@ -47,11 +49,11 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm test` — 28 файлов, 101 тест ✅
 - `npm run test:race` — 2 файла, 2 теста ✅
 - `npm run build` ✅ (есть предупреждения `"use client"` от зависимостей)
-- `npm run test:e2e` — 9 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite и auth/UI smoke.
+- `npm run test:e2e` — 11 тестов ✅, включая E2E-3/E2E-5/E2E-7, axe/responsive/keyboard suite, landing, registration, dashboard, booking/manage, payments и calendar UI. E2E следует запускать без уже работающих dev-серверов, чтобы Playwright поднял изолированное тестовое окружение.
 - `npm run test:unit`, `npm run test:integration` — включены в полный прогон; `npm run test:api` — 4 файла / 13 тестов ✅.
 - `npm run check:contrast` ✅
 - `npm run test:a11y` ✅ — 1 сценарий; 12 маршрутов без serious/critical нарушений.
-- Stage 12 current: `npm test` — 28/101 ✅; race 2/2 ✅; E2E 9/9 ✅; a11y 1/1 ✅; typecheck/lint/build/contrast ✅. Docker image build and production-mode HTTP/header smoke ✅. Gitleaks clean. Full npm audit remains ❌ for 5 dev-only high advisories; production-only audit ✅.
+- Итоговый прогон 2026-10-06: typecheck ✅, lint ✅, `npm test` 28 файлов/101 тест ✅, race 2/2 ✅, build ✅, E2E 11/11 ✅, contrast ✅, a11y 1/1 ✅. ConsoleEmailProvider доставил 1 очередь через worker. Build выдаёт предупреждения dependency `use client` и chunk >500kB.
 
 ## Команды запуска
 - Docker: использовать существующий контейнер `docs-master-architecture-md-1-3-mongo-1` (healthy, порт 27018). Новый не создавать.
@@ -60,6 +62,11 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - `npm run test:race`
 - `npm run build`
 - `npm run test:e2e`
+- `npm run check:contrast`
+- `npm run test:a11y`
+- `npm run seed` — повторно создаёт demo-данные idempotently; demo credentials см. README / PROGRESS.
+- `npm run dev` — запускает API и Vite клиент.
+- `npm run worker` — локальный notifications worker.
 - `cd packages/server && npm run dev`
 - `cd packages/client && npm run dev`
 
@@ -71,4 +78,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Этапы реализации завершены. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.
+По приоритету — начать полную переделку UI: профессиональная календарная сетка и карточки записей, типографика/кнопки/токены, затем сдержанный лендинг. Email-подтверждение и Google OAuth не начинать без отдельного scope. Перед production выпуском провести deploy по `docs/DEPLOY.md`, проверить replica set, TLS, секреты, backup restore, мониторинг и реальные email; получить решение по 5 high dev-only npm audit advisories. До появления VPS/domain/backup target эти действия остаются непроверенными. Сохранять ограничения проекта и проверять `PROGRESS.md`.

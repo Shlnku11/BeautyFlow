@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { RateLimit } from '../db/models';
 import { getEnv } from '../config/env';
+import { connectToDatabase } from '../db/connection';
 import { configureRateLimitAdapter, type RateLimitPolicy } from './rate-limit';
 
 interface PolicyWindow { maximum: number; durationMs: number; }
@@ -40,6 +41,7 @@ async function increment(key: string, window: PolicyWindow, now: Date): Promise<
 
 async function enforcePolicy(request: Request, policy: RateLimitPolicy) {
   if (policy === 'RL-JOB') return { allowed: true };
+  await connectToDatabase();
   const rule = windows[policy];
   const ip = request.headers.get('x-client-ip') ?? 'unknown';
   const route = new URL(request.url).pathname;
