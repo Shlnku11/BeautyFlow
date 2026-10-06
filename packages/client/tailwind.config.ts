@@ -15,6 +15,7 @@ export default {
     warning: { bg: 'var(--color-warning-bg)', fg: 'var(--color-warning-fg)', solid: 'var(--color-warning-solid)' },
     danger: { bg: 'var(--color-danger-bg)', fg: 'var(--color-danger-fg)', solid: 'var(--color-danger-solid)' },
     info: { bg: 'var(--color-info-bg)', fg: 'var(--color-info-fg)', solid: 'var(--color-info-solid)' },
+    staff: Object.fromEntries(['violet','teal','blue','green','amber','rose','orange','slate'].map((name) => [name, `rgb(var(--staff-${name}) / <alpha-value>)`])),
     clay: { DEFAULT: 'var(--surface-clay)', raised: 'var(--surface-clay-raised)', inset: 'var(--surface-clay-inset)' },
     },
     boxShadow: {
