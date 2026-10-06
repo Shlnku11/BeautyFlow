@@ -238,8 +238,9 @@ test('business registration through the browser form opens the owner dashboard',
   const staffName = `Runtime Master ${run}`;
   await page.goto('/app/staff');
   await page.getByRole('heading', { name: 'Сотрудники' }).waitFor();
+  await page.getByRole('button', { name: '＋ Сотрудник' }).first().click();
   await page.getByLabel('Имя').fill(staffName);
-  await page.getByRole('button', { name: '＋ Добавить' }).click();
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
   await expect(page.getByRole('link', { name: staffName })).toBeVisible();
   await page.getByRole('link', { name: staffName }).click();
   await page.getByRole('tab', { name: 'Расписание' }).click();
@@ -248,13 +249,14 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByLabel('Понедельник: начало').fill('09:00');
   await page.getByLabel('Понедельник: конец').fill('17:00');
   await page.getByRole('button', { name: 'Сохранить расписание' }).click();
-  await expect(page.getByRole('status')).toContainText('Расписание сохранено');
+  await expect(page.getByRole('status').filter({ hasText: 'Расписание сохранено' })).toBeVisible();
 
   const serviceName = `Runtime service ${run}`;
   await page.goto('/app/services');
+  await page.getByRole('button', { name: '＋ Услуга' }).first().click();
   await page.getByLabel('Название').fill(serviceName);
   await page.getByLabel('Длительность, мин').fill('30');
-  await page.getByLabel('Перерыв после, мин').fill('0');
+  await page.getByLabel('Перерыв, мин').fill('0');
   await page.getByLabel('Цена').fill('25');
   await page.getByRole('checkbox', { name: staffName }).check();
   await page.getByRole('button', { name: 'Создать услугу' }).click();

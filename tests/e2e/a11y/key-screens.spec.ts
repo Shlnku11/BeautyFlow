@@ -91,7 +91,12 @@ test('key owner and public screens pass axe and fit required viewports', async (
       await page.waitForLoadState('networkidle');
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth, `${path} overflows at ${width}px`).toBeLessThanOrEqual(width);
-      if (width < 768) await expect(page.getByRole('navigation', { name: 'Мобильная навигация' })).toBeVisible();
+      if (width < 768) {
+        await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeVisible();
+        await page.getByRole('button', { name: 'Открыть меню' }).click();
+        await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toBeVisible();
+        await page.getByRole('button', { name: 'Закрыть меню' }).click();
+      }
     }
   }
 
