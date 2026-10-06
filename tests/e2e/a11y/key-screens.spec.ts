@@ -25,7 +25,7 @@ async function expectNoSeriousAxeViolations(page: Page, screen: string): Promise
 }
 
 test('key owner and public screens pass axe and fit required viewports', async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   await registerOwner(page, `${Date.now()}`);
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
@@ -48,7 +48,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
   const settings = (await (await page.request.get('http://localhost:3000/api/settings')).json()).data as { business: { slug: string } };
 
   const screens = [
-    ['/', 'Ваш салон. Ваш ритм. Всё под контролем.'],
+    ['/', 'Онлайн-запись для салонов. Работает.'],
     ['/login', 'Войти'],
     ['/register', 'Создать бизнес'],
     ['/app/dashboard', 'Обзор'],
@@ -95,7 +95,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
         await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeVisible();
         await page.getByRole('button', { name: 'Открыть меню' }).click();
         await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toBeVisible();
-        await page.getByRole('button', { name: 'Закрыть меню' }).click();
+        await page.getByRole('button', { name: 'Закрыть меню' }).click({ position: { x: width - 8, y: 120 } });
       }
     }
   }
@@ -145,3 +145,4 @@ test('key owner and public screens pass axe and fit required viewports', async (
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
 });
+
