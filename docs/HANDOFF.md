@@ -4,10 +4,10 @@
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
 ## Текущий этап
-Этапы функциональности 1–12/12: реализованы. Email-подтверждение, optional Google OAuth и базовый redesign UI завершены. Текущий UI использует профессиональные нейтральные токены, системные light/dark темы, app layouts, календарные сетки day/week/month и реальный dashboard screenshot на landing. Реальный production deployment не выполнен; 5 high dev-only advisories остаются открытым security risk.
+Этапы функциональности 1–12/12 реализованы. Текущая работа — финальный UI/runtime audit после redesign-коммитов до `9d5f50d`; этот audit заменяет устаревшие статусные заметки ниже. Проект использует Inter Variable, нейтральные light/dark токены, feature-first frontend-разделение, календарные сетки day/week/month и реальные dashboard/calendar screenshots на landing. Production deployment не выполнен; остаются 5 high dev-only advisories.
 
 ## Последний коммит этапа
-`2c301a7 feat(ui): redesign frontend for professional workspace`
+`9d5f50d WIP: design polish (tokens, layout, calendar) - limit reached`
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
@@ -26,8 +26,8 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Этап 12: все 64 MVP route ID имеют concrete handlers; session role matrix + A/B probes добавлены. AUTH-07/08/09 подключены, Gitleaks и CSP checks проходят. Image build + production-mode HTTP header smoke проходят; deploy runbook и README подготовлены. Реальный production/staging deployment не выполнен.
 
 ## Что НЕ сделано (важно для следующего исполнителя)
-- Интерфейс приведён к нейтральному направлению, но `features/operations/Operations.tsx` всё ещё объединяет CRUD экраны staff/services/customers/settings; полное разбиение каждого feature на собственные `components/hooks/api/types.ts` осталось как структурный follow-up.
-- Inter Variable не поставлен: это требует отдельного разрешения на новую зависимость. Текущий stack — Inter/system-ui, с fallback системного шрифта.
+- Интерфейс приведён к нейтральному направлению; `features/operations/Operations.tsx` — только barrel exports, экраны живут в своих feature-папках. Файловая декомпозиция компонентов/hooks/api внутри каждого feature остаётся дальнейшей архитектурной полировкой.
+- Inter Variable установлен и используется; прежняя заметка о недостающем шрифте устарела.
 - Email-подтверждение пользователей: AUTH-11/12 готовы; Google OAuth: AUTH-13/14/15 optional маршруты готовы. Настроенная Google Cloud application и production sign-in не проверены.
 - Этап 11 закрыт. Автоматическая проверка ширин не заменяет ручной просмотр на реальных устройствах и скринридером.
 - Full `npm audit --audit-level=high` сообщает 5 high в dev-only Tailwind 3.4.19 dependency chain (chokidar/micromatch/braces); `npm audit --omit=dev` чист. По указанию не менять зависимости; Tailwind 4 post-MVP. Это остаётся открытым security release risk.
@@ -39,12 +39,19 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
+- На текущем ноутбуке Docker Desktop daemon недоступен, поэтому существующий контейнер MongoDB на 27018 не запущен. Новый контейнер не создавать. Вследствие этого реальные login/session/CRUD/API E2E проверить нельзя; API сейчас возвращает 500 при обращении к Mongo.
+- APT-02 backend flow визуально через календарь в текущем runtime не подтверждён из-за недоступной MongoDB. Сам handler/service не показал воспроизводимую ошибку в имеющихся изолированных тестах; повторить после запуска существующего DB контейнера.
+- `/app/appointments` переведён на отдельную сгруппированную таблицу с фильтрами; проверить её в авторизованном браузерном сценарии, когда Mongo доступна.
+- Уведомления в topbar пока имеют честный текст «Центр уведомлений скоро появится», а не очередь пользовательских уведомлений.
 - При последующих изменениях поддерживать route×role/A/B gate в соответствии с PERMISSIONS_MATRIX.md; staging security exercise ещё не проводился.
 - SMTP требует домен/настройки; ConsoleEmailProvider использовался для тестовой доставки.
 - Реальный production deployment не проверялся.
 - Build выводит предупреждения о директивах `"use client"` в зависимости React; сборка успешна.
 
 ## Зелёные тесты на момент остановки
+- Текущий audit (2026-10-07): `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅ (upstream directives и chunk >500kB warnings), `npm run check:contrast` ✅, `tests/integration/payments.test.ts` 6/6 ✅ после исправления тестового диапазона на динамическую дату.
+- Full `npm test -- --maxWorkers=1` ✅ 31 файл / 115 тестов; `npm run test:race` ✅ 2/2.
+- Focused Playwright run остановлен: webServer ждёт HTTP health/readiness, потому что Mongo недоступна. В браузере вручную открыты и визуально проверены `/` (landing) и `/login`; `/app/*` требует работающей Mongo/session. В `tests/e2e/smoke.spec.ts` добавлена регрессия на таблицу записей и закрытие appointment dialog; она пока не прогнана.
 - `npm run typecheck` ✅
 - `npm run lint` ✅
 - `npm test` — 28 файлов, 101 тест ✅

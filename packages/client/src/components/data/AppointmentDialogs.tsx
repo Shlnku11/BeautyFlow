@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { DateTime } from 'luxon';
 import { Link } from 'react-router';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ApiClientError, apiRequest } from '@/lib/api-client';
+import { Dialog as AppDialog } from '@/components/ui/Dialog';
 
 interface Reference { id: string; name: string; }
 interface StaffReference { id: string; displayName: string; }
@@ -19,9 +18,7 @@ const secondary = 'inline-flex h-9 min-h-9 items-center justify-center rounded-m
 function messageOf(error: unknown) { return error instanceof ApiClientError ? error.message : 'Не удалось выполнить запрос'; }
 
 function Modal({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => { if (dialog?.open) dialog.close(); }; }, []);
-  return <dialog ref={ref} aria-label={title} className="m-auto max-h-[90vh] w-[min(30rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0 p-0 text-neutral-900 shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="flex max-h-[90vh] flex-col"><header className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 px-5"><h2 className="text-[15px] font-semibold">{title}</h2><button className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100" aria-label="Закрыть диалог" onClick={onClose}><FontAwesomeIcon aria-hidden="true" className="size-4" icon={faXmark}/></button></header><div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>{footer ? <footer className="flex h-14 shrink-0 items-center justify-end gap-2 border-t border-neutral-200 px-5">{footer}</footer> : null}</section></dialog>;
+  return <AppDialog open title={title} onClose={onClose} footer={footer}>{children}</AppDialog>;
 }
 
 export function AppointmentCreateDialog({ date, startAt, timezone, staff: initialStaff, preselectedStaffId, onClose, onCreated }: { date: string; startAt: string; timezone: string; staff: StaffReference[]; preselectedStaffId?: string; onClose: () => void; onCreated: () => void }) {

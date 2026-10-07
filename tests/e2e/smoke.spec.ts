@@ -292,6 +292,17 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByRole('link', { name: 'Управлять записью' }).click();
   await expect(page.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
 
+  await page.goto('/app/appointments');
+  await expect(page.getByRole('heading', { name: 'Записи' })).toBeVisible();
+  const appointmentRow = page.getByRole('row').filter({ hasText: 'Runtime Client' });
+  await expect(appointmentRow).toBeVisible();
+  await expect(appointmentRow.getByText('Принять оплату')).toBeHidden();
+  await appointmentRow.getByRole('button', { name: 'Runtime Client' }).click();
+  const appointmentDialog = page.getByRole('dialog', { name: 'Запись' });
+  await expect(appointmentDialog).toBeVisible();
+  await appointmentDialog.getByRole('button', { name: 'Закрыть диалог' }).click();
+  await expect(appointmentDialog).toBeHidden();
+
   await page.goto('/app/payments');
   await expect(page.getByRole('heading', { name: 'Оплаты' })).toBeVisible();
   await page.getByRole('button', { name: '＋ Принять оплату' }).click();

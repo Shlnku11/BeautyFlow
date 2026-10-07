@@ -140,4 +140,15 @@
 - Dashboard KPI без анимированного счётчика; sidebar сворачивается с 240px до 56px. UI-kit кнопок, полей, карточек, диалогов, бейджей, табов и toast использует нейтральные стили.
 - Landing показывает реальный Playwright dashboard screenshot `packages/client/public/images/dashboard-preview.png`. Скриншоты проверки: `outputs/final-landing.png`, `outputs/final-landing-320.png`, `test-results/runtime-dashboard.png`.
 - Проверки после перестройки: typecheck ✅, lint ✅, `npm test` 31 файл / 115 тестов ✅, race 2/2 ✅, build ✅ (upstream warnings «use client» и chunk >500 kB), E2E 11/11 ✅, contrast ✅, a11y/responsive suite 1/1 ✅. Responsive E2E покрывает 320/375/768/1024/1440 px.
-- Ограничения: Inter Variable не установлен без разрешения на новую зависимость; используется font stack `Inter, system-ui`. CRUD-экраны остаются сгруппированы в `features/operations/Operations.tsx`; их дальнейшая декомпозиция по отдельным feature-модулям не выполнена.
+- Ограничения на дату этой записи: CRUD экраны разнесены по feature-папкам; `features/operations/Operations.tsx` — barrel exports. Внутренняя декомпозиция каждого feature на `components/hooks/api/types` остаётся follow-up.
+
+## Runtime/design audit continuation (2026-10-07)
+
+- `/app/appointments` больше не выводит calendar API как плоский список: добавлена отдельная сгруппированная по дате таблица с поиском и фильтрами статуса, мастера, источника и периода. Действия находятся в меню строки; оплата доступна там или из диалога записи, не размножается на каждой строке.
+- Диалог календарной записи переведён с нативного `<dialog>` на общий Headless UI `Dialog`, чтобы крестик, «Закрыть», Esc и клик по backdrop закрывали один React-controlled слой.
+- Topbar bell стал работающим и сообщает «Центр уведомлений скоро появится»; фиктивные уведомления не показываются. Landing dashboard image имеет лёгкий pointer parallax с `motion-reduce` отключением.
+- Интеграционный test range для PAY-01 переведён на текущую дату Asia/Bishkek вместо истёкшего фиксированного 2026-10-05…06. Тест падал 2026-10-07 из-за даты в тесте, а не из-за изменения runtime-фильтра.
+- Проверки: typecheck ✅, lint ✅, build ✅ (warning upstream React Router/Headless UI directives и JS bundle 778.77 kB), contrast ✅, full Vitest 31 файлов / 115 тестов ✅, race 2/2 ✅; payments integration входит в full прогон и отдельно 6/6 ✅.
+- Playwright E2E startup заблокирован недоступной MongoDB: Docker Desktop daemon не запущен, соединение `localhost:27018` отклоняется, `docker ps` не подключается к Docker API. Новый контейнер не создавался. В Chromium визуально открыты `/` и `/login`; API-dependent auth, APT-02, calendar, payments и закрытие диалога нужно проверить после запуска существующего `docs-master-architecture-md-1-3-mongo-1`.
+- APT-02 не подтверждён как отдельная ошибка: dev API отвечает 500 на зависимых от БД запросах вследствие недоступной Mongo. Код маршрута/сервиса не менялся без достоверного stack trace с рабочей БД.
+- Дизайн-полировка ещё не финализирована: авторизованные экраны, полноразмерная адаптивная проверка и материалы для защиты не проверены. Production deployment также не проверен.

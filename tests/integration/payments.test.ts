@@ -1,6 +1,7 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import express from 'express';
 import mongoose from 'mongoose';
+import { DateTime } from 'luxon';
 import type { Server } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectToDatabase, disconnectFromDatabase } from '../../packages/server/src/db/connection';
@@ -134,7 +135,9 @@ describe('payment API and ledger invariants', () => {
 
   it('applies local date/role filters and keeps totals scoped; master gets 403 on every PAY route', async () => {
     await request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'list-pay' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 875, method: 'cash' }) });
-    const list = await request('/api/payments?method=cash&status=paid&from=2026-10-05&to=2026-10-06&q=Client');
+    const today = DateTime.now().setZone('Asia/Bishkek').toISODate();
+    if (!today) throw new Error('Expected a local payment test date');
+    const list = await request(`/api/payments?method=cash&status=paid&from=${today}&to=${today}&q=Client`);
     expect(list.status).toBe(200);
     expect((list.payload.meta as { totals: { paidMinor: number } }).totals.paidMinor).toBe(875);
     const payment = list.payload.data as { id: string }[];

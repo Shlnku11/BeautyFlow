@@ -19,6 +19,7 @@ const iconByPath: Record<string, IconDefinition> = {
 export function AppLayout({ navItems, currentPath, title, brand, banner, children, userName, userEmail, userRole, onLogout }: { navItems: readonly NavigationLink[]; currentPath: string; title: string; brand: string; banner?: ReactNode; children: ReactNode; userName: string; userEmail: string; userRole: string; onLogout: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const available = new Set(navItems.map(([path]) => path));
   const groups = navigationGroups.map((group) => ({ ...group, links: group.links.filter(([path]) => available.has(path)) })).filter((group) => group.links.length);
   if (available.has('/app/my-day')) groups.unshift({ title: 'РАБОТА', links: [['/app/my-day', 'Мой день']] });
@@ -66,7 +67,7 @@ export function AppLayout({ navItems, currentPath, title, brand, banner, childre
         <button aria-label="Поиск" className="hidden h-8 w-full max-w-80 items-center gap-2 rounded-md border border-neutral-200 px-3 text-left text-xs text-neutral-400 hover:bg-neutral-50 md:flex"><FontAwesomeIcon className="size-3.5" icon={faMagnifyingGlass}/><span className="flex-1">Поиск…</span><kbd className="text-[10px]">⌘K</kbd></button>
         <div className="flex shrink-0 items-center gap-1.5">
           <Link className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary-600 px-3 text-[13px] font-medium text-white hover:bg-primary-700" to="/app/calendar?create=1"><FontAwesomeIcon className="size-3.5" icon={faPlus}/><span className="hidden sm:inline">Запись</span></Link>
-          <button aria-label="Уведомления" className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100"><FontAwesomeIcon className="size-4" icon={faBell}/></button>
+          <div className="relative"><button aria-label="Уведомления" aria-expanded={notificationsOpen} className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100" onClick={() => setNotificationsOpen((open) => !open)}><FontAwesomeIcon className="size-4" icon={faBell}/></button>{notificationsOpen ? <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" role="status"><p className="text-sm font-medium text-neutral-900">Уведомления</p><p className="mt-1 text-xs text-neutral-500">Центр уведомлений скоро появится.</p><button className="mt-3 text-xs font-medium text-neutral-600 underline" onClick={() => setNotificationsOpen(false)}>Закрыть</button></div> : null}</div>
           <details className="relative md:hidden"><summary aria-label="Меню профиля" className="grid size-8 cursor-pointer list-none place-items-center rounded-full bg-neutral-100 text-[10px] font-semibold">{initials}</summary><div className="absolute right-0 top-full z-50 mt-2 grid min-w-44 gap-1 rounded-lg border border-neutral-200 bg-neutral-0 p-2 shadow-sm"><span className="truncate px-2 text-xs text-neutral-500">{userEmail}</span><Link className="rounded px-2 py-1 text-sm hover:bg-neutral-50" to="/app/settings">Настройки</Link><button className="rounded px-2 py-1 text-left text-sm hover:bg-neutral-50" onClick={onLogout}>Выйти</button></div></details>
         </div>
       </header>

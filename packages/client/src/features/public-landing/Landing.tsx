@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, type PointerEvent } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faCalendarDays, faChartLine, faClipboardCheck, faScissors, faShieldHalved, faUsers, faWallet, faDisplay, faClock, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
@@ -11,6 +11,7 @@ const benefitIcons = [faShieldHalved, faClock, faDisplay, faBell];
 export function LandingPage() {
   const session = useSession();
   const text = ru.landing;
+  const [heroOffset, setHeroOffset] = useState('');
 
   useEffect(() => {
     const elements = document.querySelectorAll<HTMLElement>('[data-reveal]');
@@ -30,6 +31,12 @@ export function LandingPage() {
   const signedIn = Boolean(session.data);
   const appPath = session.data?.active.role === 'master' ? '/app/my-day' : '/app/dashboard';
   const primaryHref = signedIn ? appPath : '/register';
+  function moveHero(event: PointerEvent<HTMLElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const horizontal = event.clientX < bounds.left + bounds.width / 2 ? 'translate-x-1' : '-translate-x-1';
+    const vertical = event.clientY < bounds.top + bounds.height / 2 ? 'translate-y-1' : '-translate-y-1';
+    setHeroOffset(`${horizontal} ${vertical}`);
+  }
 
   return <main className="overflow-hidden text-neutral-900">
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur">
@@ -42,7 +49,7 @@ export function LandingPage() {
 
     <section className="mx-auto grid max-w-[1440px] items-center gap-10 px-5 py-14 sm:py-20 md:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.2fr)] md:px-8 md:py-24" id="top">
       <div data-reveal><h1 className="max-w-[620px] text-[42px] font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-[56px]">{text.headline}</h1><p className="mt-5 max-w-[540px] text-base leading-7 text-neutral-600 sm:text-lg">{text.subheadline}</p><div className="mt-7 flex flex-wrap gap-2"><Link className="inline-flex h-9 items-center rounded-md bg-primary-600 px-4 text-sm font-medium text-white transition-colors hover:bg-primary-700" to={primaryHref}>{signedIn ? text.openApp : text.start}</Link><Link className="inline-flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-0 px-4 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-50" to="/login">{text.login}</Link></div></div>
-      <figure className="landing-mockup w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0" data-reveal><img className="block h-auto w-full" src="/images/dashboard-preview.png" alt={text.dashboardAlt}/></figure>
+      <figure className="landing-mockup w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0" data-reveal onPointerMove={moveHero} onPointerLeave={() => setHeroOffset('')}><img className={`block h-auto w-full transition-transform duration-300 motion-reduce:transform-none motion-reduce:transition-none ${heroOffset}`} src="/images/dashboard-preview.png" alt={text.dashboardAlt}/></figure>
     </section>
 
     <section className="mx-auto max-w-[1440px] px-5 py-16 md:px-8 md:py-20" id="features"><div className="max-w-2xl" data-reveal><h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{text.featuresTitle}</h2></div><div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">{text.features.map((feature, index) => <article className="flex gap-4" data-reveal key={feature.title}><FontAwesomeIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-neutral-500" icon={featureIcons[index] ?? faScissors}/><div><h3 className="text-[15px] font-semibold">{feature.title}</h3><p className="mt-1.5 text-sm leading-6 text-neutral-600">{feature.description}</p></div></article>)}</div></section>
