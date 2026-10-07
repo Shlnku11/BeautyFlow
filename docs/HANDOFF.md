@@ -6,8 +6,10 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 ## Текущий этап
 Этапы функциональности 1–12/12 реализованы. Текущая работа — финальный UI/runtime audit после redesign-коммитов до `9d5f50d`; этот audit заменяет устаревшие статусные заметки ниже. Проект использует Inter Variable, нейтральные light/dark токены, feature-first frontend-разделение, календарные сетки day/week/month и реальные dashboard/calendar screenshots на landing. Production deployment не выполнен; остаются 5 high dev-only advisories.
 
-## Последний коммит этапа
-`9d5f50d WIP: design polish (tokens, layout, calendar) - limit reached`
+## Последний коммит кода
+`728884a fix(ui): improve appointment workflows and dialog behavior`
+
+Предыдущий redesign baseline: `9d5f50d WIP: design polish (tokens, layout, calendar) - limit reached`.
 
 ## Что сделано (по этапам)
 - Этап 1 (фундамент): ✅ базовый каркас; проверки typecheck/lint/build выполнялись.
