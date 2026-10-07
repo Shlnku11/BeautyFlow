@@ -39,6 +39,8 @@
   --color-info-fg: #52525b;
   --color-info-bg: #f4f4f5;
   --color-info-solid: #71717a;
+  --master-badge-bg: rgb(91 91 214 / 10%);
+  --master-badge-fg: #5b5bd6;
   --staff-violet: 91 91 214;
   --staff-teal: 13 148 136;
   --staff-blue: 37 99 235;
@@ -72,7 +74,7 @@
   --surface-glass-strong: #ffffff;
   --border-glass: #e4e4e7;
   --border-subtle: #e4e4e7;
-  --border-control: #d4d4d8;
+  --border-control: #e4e4e7;
   --text-primary: #09090b;
   --text-secondary: #52525b;
   --text-tertiary: #a1a1aa;
@@ -130,6 +132,8 @@ time, .tabular-nums, [data-numeric] { font-variant-numeric: tabular-nums; }
 .clay-kpi-revenue, .clay-kpi-appointments, .clay-kpi-cancellations, .clay-kpi-customers { border: 0; border-bottom: 1px solid var(--border-subtle); background: transparent; }
 .landing-glow, .landing-float { display: none; animation: none; }
 .landing-mockup { box-shadow: var(--shadow-sm); }
+.recharts-default-tooltip { border: 1px solid var(--border-subtle) !important; border-radius: 6px; background: var(--surface-solid) !important; padding: 8px 12px; color: var(--text-primary) !important; }
+.recharts-tooltip-label { color: var(--text-secondary) !important; }
 .reveal-pending { opacity: 0; transform: translateY(8px); transition: opacity 400ms ease-out, transform 400ms ease-out; }
 .reveal-pending.is-visible { opacity: 1; transform: translateY(0); }
 .skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-150%); border-radius: 6px; background: var(--surface-solid); padding: 8px 12px; color: var(--text-primary); box-shadow: var(--shadow-sm); }
@@ -177,6 +181,8 @@ dialog[open] { animation: dialog-enter 150ms ease-out both; }
     --color-danger-fg: #f87171;
     --color-danger-bg: #450a0a;
     --color-danger-solid: #f87171;
+    --master-badge-bg: rgb(124 124 232 / 15%);
+    --master-badge-fg: #9292f0;
     --surface-app: #09090b;
     --surface-solid: #18181b;
     --surface-clay: #18181b;
@@ -186,7 +192,7 @@ dialog[open] { animation: dialog-enter 150ms ease-out both; }
     --surface-glass-strong: #18181b;
     --border-glass: #27272a;
     --border-subtle: #27272a;
-    --border-control: #3f3f46;
+    --border-control: #27272a;
     --text-primary: #fafafa;
     --text-secondary: #a1a1aa;
     --text-tertiary: #71717a;

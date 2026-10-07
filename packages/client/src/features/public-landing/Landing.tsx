@@ -40,7 +40,7 @@ export function LandingPage() {
 
   return <main className="overflow-hidden text-neutral-900">
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur">
-      <nav aria-label="Навигация по странице" className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-5 md:px-8">
+      <nav aria-label="Навигация по странице" className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-5 md:px-8">
         <a aria-label="BeautyFlow — начало страницы" className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight" href="#top"><span aria-hidden="true" className="grid size-7 place-items-center rounded-md bg-primary-600 text-xs font-semibold text-on-accent">B</span>BeautyFlow</a>
         <div className="hidden items-center gap-6 text-[13px] text-neutral-600 md:flex">{text.nav.map((label, index) => <a className="transition-colors hover:text-neutral-900" href={['#features', '#how-it-works', '#benefits', '#demo'][index]} key={label}>{label}</a>)}</div>
         <div className="flex items-center gap-2"><Link className="hidden rounded-md px-3 py-1.5 text-[13px] font-medium text-neutral-600 hover:bg-neutral-50 sm:inline-flex" to="/login">{text.login}</Link><Link className="inline-flex h-8 items-center rounded-md bg-primary-600 px-3 text-[13px] font-medium text-on-accent transition-colors hover:bg-primary-700" to={primaryHref}>{signedIn ? text.openApp : text.start}</Link></div>

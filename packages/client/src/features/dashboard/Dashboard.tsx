@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowDown, faArrowUp, faCalendarDays, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ApiClientError, apiRequest } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { AppointmentDetailDialog } from '@/components/data/AppointmentDialogs';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 
 interface AppointmentRow { id: string; customer: { firstName: string; lastName?: string }; staff: { displayName: string }; service: { name: string }; serviceSnapshot?: { priceMinor: number }; startAt: string; status: string; }
 interface Summary { period: { from: string; to: string; timezone: string }; revenue: { grossMinor: number; refundedMinor: number; netMinor: number; currency: string }; appointments: { total: number; cancelled: number; noShow: number }; newCustomers: number; previous?: { revenue: { netMinor: number }; appointments: { total: number; cancelled: number; noShow: number }; newCustomers: number }; }
+interface RevenuePoint { month: string; netMinor: number; }
 interface MasterData { date: string; today: AppointmentRow[]; upcoming: AppointmentRow[]; counts: { todayTotal: number; completedThisMonth: number; noShowThisMonth: number }; load: { bookedMinutes: number; availableMinutes: number; loadPercent: number | null }; }
 
 const money = (minor: number, currency: string) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency, maximumFractionDigits: 0 }).format(minor / 100);
@@ -22,8 +23,8 @@ function Metric({ title, value, displayValue, previous, reverseTone = false }: {
   const percent = previous === undefined ? null : previous === 0 ? (value === 0 ? 0 : null) : Math.round(((value - previous) / previous) * 100);
   const positive = delta === null ? false : reverseTone ? delta < 0 : delta > 0;
   const negative = delta === null ? false : reverseTone ? delta > 0 : delta < 0;
-  return <article className="min-w-0 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm transition-shadow hover:shadow-md" aria-label={title}>
-    <h2 className="text-[13px] font-medium text-neutral-600">{title}</h2>
+  return <article className="min-w-0 rounded-lg border border-neutral-200 bg-neutral-0 px-5 py-4 shadow-sm transition-shadow hover:shadow-md" aria-label={title}>
+    <h2 className="text-xs font-medium uppercase tracking-[0.05em] text-neutral-500">{title}</h2>
     <p className="mt-2 whitespace-nowrap text-[28px] font-semibold leading-8 tracking-tight tabular-nums text-neutral-900">{displayValue ?? value.toLocaleString('ru-RU')}</p>
     <p className={`mt-1 flex items-center gap-1 text-xs ${positive ? 'text-success-fg' : negative ? 'text-danger-fg' : 'text-neutral-500'}`}>
       {delta !== null && delta !== 0 ? <FontAwesomeIcon aria-hidden="true" className="size-3" icon={positive ? faArrowUp : faArrowDown}/> : null}
@@ -36,6 +37,8 @@ export function DashboardPage() {
   const session = useSession();
   const [preset, setPreset] = useState<'today' | 'week' | 'month' | 'quarter'>('month');
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [revenueTrend, setRevenueTrend] = useState<RevenuePoint[]>([]);
+  const [trendLoading, setTrendLoading] = useState(true);
   const [upcoming, setUpcoming] = useState<AppointmentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +64,30 @@ export function DashboardPage() {
     return () => controller.abort();
   }, [preset, timezone, refresh]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const currentMonth = DateTime.now().setZone(timezone).startOf('month');
+    const months = Array.from({ length: 8 }, (_, index) => currentMonth.minus({ months: 7 - index }));
+    setTrendLoading(true);
+    void Promise.all(months.map((month) => {
+      const query = new URLSearchParams({
+        from: month.toISODate() ?? '',
+        to: month.endOf('month').toISODate() ?? '',
+      });
+      return apiRequest<Summary>(`/api/dashboard/summary?${query.toString()}`, { signal: controller.signal });
+    })).then((results) => {
+      setRevenueTrend(results.map((result, index) => ({
+        month: months[index]?.setLocale('ru').toFormat('LLL') ?? '',
+        netMinor: result.revenue.netMinor,
+      })));
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : 'Не удалось загрузить выручку по месяцам');
+    }).finally(() => {
+      if (!controller.signal.aborted) setTrendLoading(false);
+    });
+    return () => controller.abort();
+  }, [timezone, refresh]);
+
   const label = { today: 'Этот день', week: 'Неделя', month: 'Месяц', quarter: 'Квартал' }[preset];
   const periodLabel = summary ? `${DateTime.fromISO(summary.period.from, { zone: summary.period.timezone }).setLocale('ru').toFormat('d')} – ${DateTime.fromISO(summary.period.to, { zone: summary.period.timezone }).setLocale('ru').toFormat('d MMMM yyyy')}` : '';
   return <main className="mx-auto w-full max-w-[1440px] px-5 py-6 md:px-8">
@@ -75,16 +102,16 @@ export function DashboardPage() {
       <Metric title="Новые клиенты" value={summary.newCustomers} previous={summary.previous?.newCustomers}/>
     </section> : null}
     {summary ? <section className="mt-5 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" aria-label="График выручки">
-      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-semibold">Поступления и возвраты</h2><p className="mt-0.5 text-xs text-neutral-500">{periodLabel} · {label}</p></div><Badge>Нетто {money(summary.revenue.netMinor, summary.revenue.currency)}</Badge></div>
-      {summary.revenue.grossMinor || summary.revenue.refundedMinor ? <div className="mt-4 h-56 w-full" aria-label="Сравнение оплат и возвратов">
-        <ResponsiveContainer width="100%" height="100%"><BarChart data={[{ label: 'Оплачено', amountMinor: summary.revenue.grossMinor }, { label: 'Возвращено', amountMinor: summary.revenue.refundedMinor }]} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 4 }}>
-          <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" vertical={false}/><XAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={(value: number) => new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 }).format(value / 100)} type="number"/><YAxis axisLine={false} dataKey="label" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} tickLine={false} type="category" width={86}/><Tooltip formatter={(value) => money(Number(value), summary.revenue.currency)} cursor={{ fill: 'var(--color-neutral-50)' }}/><Bar dataKey="amountMinor" maxBarSize={28} radius={[0, 4, 4, 0]}>{[summary.revenue.grossMinor, summary.revenue.refundedMinor].map((_, index) => <Cell fill={index === 0 ? 'var(--color-primary-600)' : 'var(--color-neutral-400)'} key={index}/>)}</Bar>
-        </BarChart></ResponsiveContainer>
-      </div> : <div className="mt-4 grid h-56 place-items-center rounded-md bg-neutral-50 text-center"><div><FontAwesomeIcon aria-hidden="true" className="size-7 text-neutral-600" icon={faChartLine}/><p className="mt-2 text-sm text-neutral-600">Пока нет оплат или возвратов за период</p></div></div>}
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-semibold">Выручка</h2><p className="mt-0.5 text-xs text-neutral-500">Последние 8 месяцев</p></div><Badge>Нетто {money(summary.revenue.netMinor, summary.revenue.currency)}</Badge></div>
+      {trendLoading ? <div aria-label="Загрузка выручки по месяцам" className="mt-4 h-56 animate-pulse rounded-md bg-neutral-50"/> : revenueTrend.some((point) => point.netMinor !== 0) ? <div className="mt-4 h-56 w-full" aria-label="Выручка по месяцам">
+        <ResponsiveContainer width="100%" height="100%"><LineChart data={revenueTrend} margin={{ top: 8, right: 16, bottom: 4, left: 4 }}>
+          <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" vertical={false}/><XAxis axisLine={false} dataKey="month" tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickLine={false}/><YAxis axisLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }} tickFormatter={(value: number) => new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 }).format(value / 100)} tickLine={false} width={42}/><Tooltip formatter={(value) => money(Number(value), summary.revenue.currency)}/><Line activeDot={{ r: 3 }} dataKey="netMinor" dot={false} isAnimationActive={false} stroke="var(--color-primary-600)" strokeWidth={2} type="monotone"/>
+        </LineChart></ResponsiveContainer>
+      </div> : <div className="mt-4 grid h-56 place-items-center rounded-md bg-neutral-50 text-center"><div><FontAwesomeIcon aria-hidden="true" className="size-7 text-neutral-600" icon={faChartLine}/><p className="mt-2 text-sm text-neutral-600">Пока нет оплат за последние месяцы</p></div></div>}
     </section> : null}
     <section className="mt-5" aria-label="Ближайшие записи">
       <div className="flex items-center justify-between"><h2 className="text-base font-semibold">Ближайшие записи</h2>{upcoming.length ? <Link className="text-xs font-medium text-primary-700 hover:text-primary-800" to="/app/calendar">Открыть календарь</Link> : null}</div>
-      {upcoming.length ? <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0"><table className="w-full min-w-[680px] border-collapse text-left text-[13px]"><caption className="sr-only">Ближайшие записи</caption><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500"><th className="px-4" scope="col">Время</th><th className="px-4" scope="col">Клиент</th><th className="px-4" scope="col">Услуга</th><th className="px-4" scope="col">Мастер</th><th className="px-4 text-right" scope="col">Сумма</th></tr></thead><tbody>{upcoming.map((row) => <tr className="h-[52px] border-b border-neutral-100 last:border-0 hover:bg-neutral-50" key={row.id}><td className="px-4"><button className="font-medium tabular-nums text-neutral-900 hover:text-primary-700" onClick={() => setSelected(row.id)}><time dateTime={row.startAt}>{appointmentTime(row.startAt, timezone)}</time></button></td><td className="px-4 font-medium">{row.customer.firstName} {row.customer.lastName ?? ''}</td><td className="px-4 text-neutral-600">{row.service.name}</td><td className="px-4 text-neutral-600">{row.staff.displayName}</td><td className="px-4 text-right tabular-nums">{typeof row.serviceSnapshot?.priceMinor === 'number' ? money(row.serviceSnapshot.priceMinor, currency) : '—'}</td></tr>)}</tbody></table></div> : <div className="mt-3 grid min-h-40 place-items-center rounded-lg border border-neutral-200 bg-neutral-0 text-center"><div><FontAwesomeIcon aria-hidden="true" className="size-7 text-neutral-600" icon={faCalendarDays}/><p className="mt-2 text-sm text-neutral-600">Пока записей нет</p><Link className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md bg-primary-600 px-3 text-[13px] font-medium text-on-accent hover:bg-primary-700" to="/app/calendar?create=1">Создать запись</Link></div></div>}
+      {upcoming.length ? <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0"><table className="w-full min-w-[680px] border-collapse text-left text-[13px]"><caption className="sr-only">Ближайшие записи</caption><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-xs font-medium uppercase tracking-[0.05em] text-neutral-500"><th className="px-4" scope="col">Время</th><th className="px-4" scope="col">Клиент</th><th className="px-4" scope="col">Услуга</th><th className="px-4" scope="col">Мастер</th><th className="px-4 text-right" scope="col">Сумма</th></tr></thead><tbody>{upcoming.map((row) => <tr className="h-14 border-b border-neutral-100 last:border-0 hover:bg-neutral-50" key={row.id}><td className="px-4"><button className="font-medium tabular-nums text-neutral-900 hover:text-primary-700" onClick={() => setSelected(row.id)}><time dateTime={row.startAt}>{appointmentTime(row.startAt, timezone)}</time></button></td><td className="px-4"><span className="flex items-center gap-2 font-medium"><span aria-hidden="true" className="grid size-6 shrink-0 place-items-center rounded-full bg-neutral-100 text-[10px] font-semibold text-neutral-700">{`${row.customer.firstName.charAt(0)}${row.customer.lastName?.charAt(0) ?? ''}`}</span><span className="truncate">{row.customer.firstName} {row.customer.lastName ?? ''}</span></span></td><td className="px-4 text-neutral-600">{row.service.name}</td><td className="px-4"><span className="inline-flex rounded px-2 py-0.5 text-[11px] font-medium text-master-badge-fg bg-master-badge">{row.staff.displayName}</span></td><td className="px-4 text-right font-semibold tabular-nums">{typeof row.serviceSnapshot?.priceMinor === 'number' ? money(row.serviceSnapshot.priceMinor, currency) : '—'}</td></tr>)}</tbody></table></div> : <div className="mt-3 grid min-h-40 place-items-center rounded-lg border border-neutral-200 bg-neutral-0 text-center"><div><FontAwesomeIcon aria-hidden="true" className="size-7 text-neutral-600" icon={faCalendarDays}/><p className="mt-2 text-sm text-neutral-600">Пока записей нет</p><Link className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md bg-primary-600 px-3 text-[13px] font-medium text-on-accent hover:bg-primary-700" to="/app/calendar?create=1">Создать запись</Link></div></div>}
     </section>
     {selected && summary ? <AppointmentDetailDialog id={selected} timezone={timezone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelected(null)} onChanged={() => setRefresh((value) => value + 1)}/> : null}
   </main>;
