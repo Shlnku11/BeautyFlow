@@ -12,6 +12,7 @@ export default {
     primary: Object.fromEntries([50,100,200,300,400,500,600,700,800,900,950].map((shade) => [shade, `var(--color-primary-${shade})`])),
     neutral: Object.fromEntries([0,25,50,100,200,300,400,500,600,700,800,900].map((shade) => [shade, `var(--color-neutral-${shade})`])),
     'on-accent': 'var(--text-on-accent)',
+    'on-danger': 'var(--text-on-danger)',
     success: { bg: 'var(--color-success-bg)', fg: 'var(--color-success-fg)', solid: 'var(--color-success-solid)' },
     warning: { bg: 'var(--color-warning-bg)', fg: 'var(--color-warning-fg)', solid: 'var(--color-warning-solid)' },
     danger: { bg: 'var(--color-danger-bg)', fg: 'var(--color-danger-fg)', solid: 'var(--color-danger-solid)' },
