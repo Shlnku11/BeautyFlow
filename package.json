@@ -32,6 +32,7 @@
     "migrate": "node --env-file-if-exists=.env --import tsx packages/server/scripts/migrate.ts",
     "worker": "node --env-file-if-exists=.env --import tsx packages/server/scripts/worker.ts",
     "seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts",
+    "presentation:pdf": "node scripts/render-presentation.mjs",
     "check:contrast": "tsx scripts/check-contrast.ts"
   },
   "dependencies": {

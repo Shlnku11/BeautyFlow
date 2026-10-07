@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeautyFlow — защита проекта</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/print/pdf.css" media="print" />
+    <style>
+      :root { --r-background-color: #fafafa; --r-main-color: #09090b; --r-heading-color: #09090b; --r-link-color: #5b5bd6; }
+      .reveal { font-family: Inter, sans-serif; font-size: 28px; }
+      .reveal h1, .reveal h2 { letter-spacing: -0.03em; }
+      .reveal h1 { font-size: 2.2em; }
+      .reveal h2 { font-size: 1.4em; }
+      .reveal ul { display: block; }
+      .reveal li { margin: 0.45em 0; }
+      .reveal .eyebrow, .reveal .foot { color: #71717a; font-size: 0.5em; }
+      .reveal .eyebrow { letter-spacing: 0.12em; text-transform: uppercase; }
+      .reveal .metric { color: #5b5bd6; font-size: 1.5em; font-weight: 700; }
+      .reveal img { width: auto !important; max-width: 90%; height: 180px !important; max-height: none !important; border: 1px solid #e4e4e7; border-radius: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="reveal"><div class="slides">
+      <section><p class="eyebrow">CRM для салонов</p><h1>BeautyFlow</h1><p>Онлайн-запись и рабочее пространство команды</p><p class="foot">Vite · React 19 · Express 5 · MongoDB 8</p></section>
+      <section><p class="eyebrow">Проблема</p><h2>Расписание и данные разъезжаются по разным инструментам</h2><ul><li>Записи конфликтуют</li><li>История клиента теряется</li><li>Уведомления требуют ручной работы</li></ul></section>
+      <section><p class="eyebrow">Решение</p><h2>Один рабочий процесс для салона</h2><p>Публичная запись → календарь → визит → оплата → аналитика</p></section>
+      <section><p class="eyebrow">Возможности</p><h2>Запись и управление бизнесом</h2><ul><li>Онлайн-запись и управление визитом</li><li>Календарь команды и загрузка мастеров</li><li>Клиенты, оплаты и уведомления</li><li>Dashboard владельца и «Мой день» мастера</li></ul></section>
+      <section><p class="eyebrow">Технологии</p><h2>TypeScript monorepo</h2><p>React 19 · Express 5 · MongoDB 8 · Node 24</p><p>packages/client · packages/server · packages/shared</p></section>
+      <section><p class="eyebrow">Дизайн</p><h2>Нейтральная рабочая среда</h2><ul><li>Светлая и тёмная темы</li><li>Inter Variable и дизайн-токены</li><li>Адаптивный календарь день/неделя/месяц</li></ul></section>
+      <section><p class="eyebrow">Booking engine</p><h2>Слот учитывает реальные ограничения</h2><p>Услуга, рабочие часы, перерывы, исключения, мастер и часовой пояс</p><p>DST gap/fold проверяется отдельно</p></section>
+      <section><p class="eyebrow">Гонки бронирования</p><h2>occupiedKeys + unique multikey index</h2><p>Интервалы резервируются атомарно в транзакции</p><p class="metric">20 запросов → 1 запись</p></section>
+      <section><p class="eyebrow">Multi-tenancy</p><h2>Данные принадлежат одному бизнесу</h2><ul><li>Tenant context</li><li>Mongoose tenant plugin</li><li>Проверки связанных сущностей</li><li>A/B isolation tests</li></ul></section>
+      <section><p class="eyebrow">Payments</p><h2>Append-only журнал операций</h2><ul><li>Целые суммы в minor units</li><li>Идемпотентная регистрация оплаты</li><li>Полный и частичный возврат</li><li>Оплата и transaction в одной транзакции</li></ul></section>
+      <section><p class="eyebrow">Уведомления</p><h2>Очередь с повторными попытками</h2><p>MongoDB queue · dedupe · lease · retry/backoff · worker</p><p>ConsoleEmailProvider для разработки и тестов</p></section>
+      <section><p class="eyebrow">Качество и архитектура</p><h2>Route → Service → Repository → Model</h2><p class="metric">115</p><p>unit, integration и API тестов · плюс два race-теста</p></section>
+      <section><p class="eyebrow">Демо</p><h2>Dashboard BeautyFlow</h2><img src="../../packages/client/public/images/dashboard-preview.png" alt="Dashboard BeautyFlow"/><p class="foot">Локальный API сценарий требует работающей MongoDB.</p></section>
+      <section><p class="eyebrow">Ограничения и следующий шаг</p><h2>Production проверяется отдельно</h2><ul><li>Нужны production DNS, TLS, SMTP и backup restore</li><li>5 high advisories в dev-цепочке Tailwind 3</li><li>Дальше: staging, inbox, SMS/push и acquiring</li></ul></section>
+    </div></div>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+    <script>Reveal.initialize({ hash: true, slideNumber: true, transition: 'fade', controls: true, progress: true });</script>
+  </body>
+</html>
