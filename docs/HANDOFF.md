@@ -1,5 +1,40 @@
 # HANDOFF.md
 
+## Передача WIP на 2026-10-07 — shadcn/ui и P0/P1
+
+Эта секция новее предыдущих заметок ниже и задаёт фактическое состояние рабочего дерева на последнем WIP-коммите.
+
+### Текущая работа: shadcn/ui (частично, проверки не запускались)
+
+- CLI `shadcn@latest` запущен в `packages/client`; создан `packages/client/components.json` (preset `radix-nova`), Tailwind entry перенесён в `packages/client/src/index.css`, добавлены HSL theme variables для light/dark, цвета и aliases в Tailwind config.
+- Добавлены/перегенерированы shadcn-компоненты Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label и Sonner. Часть классов приведена к Tailwind 3, часть иконок — к Font Awesome. `tailwindcss` объявлен devDependency клиентского workspace.
+- В `features/*` механически заменены HTML-кнопки, поля, select, textarea и label на Button/Input/NativeSelect/Textarea/Label. Старые CRUD-экраны Staff/Services/Customers/Payments используют временный `DialogShell`-компонент, собранный поверх shadcn Dialog. AppLayout частично переведён на Sheet, DropdownMenu, Avatar и Button.
+- **Миграция не завершена и может не собираться.** После кодмода ещё не запускались typecheck/lint/build/tests; не исправлены возможные дубли/неиспользуемые импорты, не проверена чувствительность путей к регистру на Linux. Таблицы/карточки/вкладки не проведены последовательно по всем экранам; `UiSandbox` всё ещё ссылается на старый barrel API. Старые EmptyState/ErrorState/Radio/Toast файлы и barrel `src/components/ui/index.ts` не очищены. В `components.json` ещё стоит `iconLibrary: lucide`; проверить и убрать Lucide из кода/dependencies. Sonner Toaster пока не подключён в AppProviders. Подключение Form из shadcn не завершено.
+- Форматирование/контраст/визуальный результат shadcn после замены не подтверждены. Скриншоты этого WIP для dashboard/calendar/landing light+dark не создавались. Не считать дизайн Linear-ready.
+
+## P0/P1 для следующего аккаунта
+
+### P0 — блокеры
+
+- **Сессия не сохраняется между заходами браузера** — проверить настройки cookie (в частности Max-Age/Expires и режим persistent session) и воспроизвести повторный вход после закрытия браузера. Архитектуру cookie-сессий не менять без проверки контрактов.
+- **Google OAuth:** backend optional flow уже есть; кнопки входа через Google в UI нет. Без credentials должен оставаться безопасный fallback.
+- **Email-код при входе:** новая фича для password login, пока не реализована; код при регистрации не считать закрытием этой задачи.
+- **Shadcn/UI:** установка и миграция частичные. Компоненты и файлы перечислены выше; необходимо сначала исправить компиляцию/импорты, подключить primitives к реальным features (Table/Card/Tabs/Select/Dialog/Dropdown/Sheet/Avatar/Toast/Form), удалить старые UI-обёртки, убрать Lucide и проверить настоящие браузерные экраны.
+- **Дизайн не соответствует Linear-референсу.** Наличие shadcn dependency само по себе ничего не подтверждает. Проверить визуально и по коду, что компоненты реально используются в `features/*`; до этого дизайн не принимать.
+
+### P1 — после P0
+
+- Провести итоговый визуальный аудит с оценкой 0–10 каждого экрана: dashboard, calendar, customers, staff, services, payments, settings, landing, login, register, my-day, public booking и appointment modal; довести каждый экран до 10/10.
+- Сделать скриншоты всех перечисленных экранов в light и dark темах.
+- Записать walkthrough video.
+- Прогнать полный E2E и a11y на реальном Docker runtime/Mongo replica set; сейчас Docker в последней проверке был недоступен, новый контейнер не создавать.
+
+### Проверки и следующая команда
+
+- После WIP diff команды `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:race`, `npm run build`, `npm run test:e2e`, `npm run check:contrast`, `npm run test:a11y` **не запускались**. Использовать прежние зелёные результаты только как baseline до текущей незавершённой миграции.
+- Начать с `git status`, открыть WIP-коммит и исправить client compile errors; затем проверить реальные feature screens и выполнить весь набор.
+- Backend, API contracts, Mongo architecture and `.env` в этом WIP намеренно не менялись.
+
 ## Стек
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 

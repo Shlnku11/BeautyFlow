@@ -24,27 +24,17 @@ const links = [
   ['/app/staff', 'Сотрудники'], ['/app/services', 'Услуги'], ['/app/payments', 'Оплаты'],
   ['/app/settings', 'Настройки'], ['/app/my-day', 'Мой день'],
 ] as const;
-
 function PageFrame({ title }: { title: string }) {
   return <main className="mx-auto w-full max-w-7xl p-6"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-3 text-neutral-600">Подключение данных выполняется через защищённый API.</p></main>;
 }
-
 function SessionLoading() {
   return <main className="grid min-h-screen place-items-center p-6"><p role="status" aria-live="polite">Проверяем сессию…</p></main>;
-}
-
 function SessionFailure({ retry }: { retry: () => void }) {
   return <main className="grid min-h-screen place-items-center p-6"><section role="alert" className="grid gap-3"><p>Не удалось проверить сессию.</p><button className="rounded-lg border px-4 py-2" onClick={retry}>Повторить</button></section></main>;
-}
-
 function AccessDenied() {
   return <main className="mx-auto max-w-5xl p-6"><h1 className="text-2xl font-semibold">Недостаточно прав</h1></main>;
-}
-
 function RootRedirect() {
   return <LandingPage/>;
-}
-
 function AppointmentDirectPage() {
   const { id = '' } = useParams();
   const [error, setError] = useState('');
@@ -59,8 +49,6 @@ function AppointmentDirectPage() {
     return () => { active = false; };
   }, [id]);
   return <main className="mx-auto max-w-5xl p-6"><h1 className="text-2xl font-semibold">Запись</h1>{loading ? <p role="status">Загрузка…</p> : null}{error ? <p role="alert">{error}</p> : null}</main>;
-}
-
 function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -78,14 +66,10 @@ function AppShell() {
     }
   }
   async function logout() {
-    try {
       await apiRequest('/api/auth/logout', { method: 'POST' });
       await session.refetch();
       navigate('/login', { replace: true });
-    } catch (reason: unknown) {
       setVerificationError(reason instanceof ApiClientError ? reason.message : 'Не удалось выйти. Повторите попытку.');
-    }
-  }
   if (session.isLoading) return <SessionLoading/>;
   if (session.error instanceof ApiClientError && session.error.status === 401) return <Navigate to="/login" replace/>;
   if (!session.data) return <SessionFailure retry={() => { void session.refetch(); }}/>;
@@ -98,8 +82,5 @@ function AppShell() {
   const pageRoutes = <Routes>{links.map(([path,label]) => <Route key={path} path={path.slice('/app/'.length)} element={path === '/app/calendar' ? <CalendarPage/> : path === '/app/appointments' ? <AppointmentsPage/> : path === '/app/payments' ? permissions.includes('payments:read') ? <PaymentsPage/> : permissionFallback : path === '/app/dashboard' ? permissions.includes('dashboard:read') ? <DashboardPage/> : permissions.includes('dashboard:read_own') ? <Navigate to="/app/my-day" replace/> : <AccessDenied/> : path === '/app/my-day' ? permissions.includes('dashboard:read_own') ? <MyDayPage/> : permissions.includes('dashboard:read') ? <Navigate to="/app/dashboard" replace/> : <AccessDenied/> : path === '/app/settings' ? permissions.includes('settings:business_read') ? <SettingsPage/> : permissionFallback : path === '/app/staff' ? <StaffPage/> : path === '/app/services' ? <ServicesPage/> : path === '/app/customers' ? <CustomersPage/> : <PageFrame title={label}/>} />)}<Route path="customers/:id" element={<CustomerDetailPage/>}/><Route path="staff/:id" element={<StaffDetailPage/>}/><Route path="appointments/:id" element={<AppointmentDirectPage/>}/><Route path="*" element={home ? <Navigate to={home} replace/> : <AccessDenied/>}/></Routes>;
   const verificationBanner = !session.data.user.emailVerified ? <div className="border-b border-warning-solid/30 bg-warning-bg px-4 py-3 text-sm text-warning-fg md:px-6" role="status"><div className="flex flex-wrap items-center gap-3"><span>{ru.auth.emailVerificationBanner}, {session.data.user.name}.</span><button className="font-medium" onClick={() => { void resendVerification(); }}>{ru.auth.resendVerification}</button>{verificationNotice ? <span aria-live="polite">{verificationNotice}</span> : null}{verificationError ? <span role="alert">{verificationError}</span> : null}</div></div> : null;
   return <AppLayout navItems={visibleLinks} currentPath={location.pathname} title={active?.[1] ?? 'Приложение'} brand={ru.app.name} banner={verificationBanner} userName={session.data.user.name} userEmail={session.data.user.email} userRole={session.data.active.role === 'master' ? 'Мастер' : 'Владелец'} canCreateAppointment={permissions.includes('appointments:create')} onLogout={() => { void logout(); }}>{pageRoutes}</AppLayout>;
-}
-
 export function App() {
   return <Routes><Route path="/login" element={<AuthLayout><AuthPage/></AuthLayout>}/><Route path="/register" element={<AuthLayout><AuthPage register/></AuthLayout>}/><Route path="/b/:slug/manage/:token" element={<PublicLayout><PublicManage/></PublicLayout>}/><Route path="/b/:slug/*" element={<PublicLayout><PublicBooking/></PublicLayout>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<PublicLayout><RootRedirect/></PublicLayout>}/></Routes>;
-}

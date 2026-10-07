@@ -1,5 +1,19 @@
 # Progress
 
+## WIP 2026-10-07 — shadcn/ui migration paused
+
+- `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.
+- Кодмодом feature pages получили shadcn Button/Input/NativeSelect/Textarea/Label; несколько экранов используют shadcn Dialog через временный `DialogShell`. AppLayout частично использует shadcn Sheet/DropdownMenu/Avatar.
+- **WIP, незавершено:** compile/lint/tests не запускались после правок; таблицы/карточки/табы не мигрированы последовательно; `UiSandbox`, старый UI barrel и самописные EmptyState/ErrorState/Radio/Toast требуют завершения или удаления. Провести аудит путей с учётом регистра, удалить Lucide usage/dependency и `iconLibrary: lucide`, подключить Sonner Toaster и Form, заменить остатки raw/custom components. Скриншоты нового UI не сделаны. Не утверждать, что дизайн Linear-ready.
+- Текущие P0/P1 и подробная передача перечислены в `docs/HANDOFF.md` выше: persistent session cookie, Google OAuth UI, email-code login, полноценная shadcn feature migration и визуальная проверка — P0; поэкранная оценка 0–10, light/dark screenshots, walkthrough video и Docker E2E/a11y — P1.
+- Все проверки после shadcn правок не запускались; предыдущие тесты — только baseline до WIP. Backend/contracts/architecture/.env не менялись.
+
+### P0/P1 для следующего аккаунта
+
+**P0:** проверить persistent cookie сессии (включая Max-Age/Expires); добавить UI-кнопку Google OAuth (backend готов); реализовать email-код именно для входа; завершить shadcn migration и подтвердить реальное использование компонентов в `features/*` — текущий Linear redesign не готов.
+
+**P1:** оценить 0–10 и довести до 10/10 dashboard, calendar, customers, staff, services, payments, settings, landing, login, register, my-day, public booking и appointment modal; создать light+dark screenshots этих экранов; записать walkthrough video; прогнать полный E2E+a11y на реальном Docker/Mongo replica set.
+
 | Этап | Статус | Дата |
 |---|---|---|
 | 0 — Спайк `occupiedKeys` | Частично: уникальный multikey race на MongoDB прошёл 20 × 20; расширенный отчёт и остальные пункты §0.occupiedKeys ещё не выполнены | 2026-10-04 |

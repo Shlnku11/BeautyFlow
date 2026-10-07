@@ -4,7 +4,7 @@ import { App } from './app/App';
 import { AppProviders } from './app/providers';
 import '@fontsource-variable/inter';
 import './styles/tokens.css';
-import './tailwind.css';
+import './index.css';
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
 

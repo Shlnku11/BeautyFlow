@@ -9,7 +9,22 @@ export default {
   ],
   theme: { extend: {
     colors: {
-    primary: Object.fromEntries([50,100,200,300,400,500,600,700,800,900,950].map((shade) => [shade, `var(--color-primary-${shade})`])),
+    primary: {
+      DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+      foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
+      ...Object.fromEntries([50,100,200,300,400,500,600,700,800,900,950].map((shade) => [shade, `var(--color-primary-${shade})`])),
+    },
+    background: 'hsl(var(--background) / <alpha-value>)',
+    foreground: 'hsl(var(--foreground) / <alpha-value>)',
+    card: { DEFAULT: 'hsl(var(--card) / <alpha-value>)', foreground: 'hsl(var(--card-foreground) / <alpha-value>)' },
+    popover: { DEFAULT: 'hsl(var(--popover) / <alpha-value>)', foreground: 'hsl(var(--popover-foreground) / <alpha-value>)' },
+    secondary: { DEFAULT: 'hsl(var(--secondary) / <alpha-value>)', foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)' },
+    muted: { DEFAULT: 'hsl(var(--muted) / <alpha-value>)', foreground: 'hsl(var(--muted-foreground) / <alpha-value>)' },
+    accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--accent-foreground) / <alpha-value>)' },
+    destructive: { DEFAULT: 'hsl(var(--destructive) / <alpha-value>)', foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)' },
+    border: 'hsl(var(--border) / <alpha-value>)',
+    input: 'hsl(var(--input) / <alpha-value>)',
+    ring: 'hsl(var(--ring) / <alpha-value>)',
     neutral: Object.fromEntries([0,25,50,100,200,300,400,500,600,700,800,900].map((shade) => [shade, `var(--color-neutral-${shade})`])),
     'on-accent': 'var(--text-on-accent)',
     'on-danger': 'var(--text-on-danger)',

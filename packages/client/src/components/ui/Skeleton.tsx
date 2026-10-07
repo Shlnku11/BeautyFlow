@@ -1,1 +1,13 @@
-export function Skeleton({ label = 'Загрузка', className = '' }: { label?: string; className?: string }) { return <div aria-label={label} className={`animate-pulse rounded-lg bg-neutral-200 ${className}`} role="status"><span className="sr-only">{label}</span></div>; }
+import { cn } from "@/lib/utils";
+
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="skeleton"
+      className={cn("animate-pulse rounded-md bg-muted", className)}
+      {...props}
+    />
+  )
+}
+
+export { Skeleton }

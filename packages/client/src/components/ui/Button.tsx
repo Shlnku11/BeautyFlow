@@ -1,7 +1,39 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-export function Button({ children, variant = 'primary', size = 'regular', ...props }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'size'> & { children: ReactNode; variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'icon'; size?: 'small' | 'regular' | 'large' }) {
-  const styles = { primary: 'border border-primary-600 bg-primary-600 text-on-accent hover:bg-primary-700 active:bg-primary-800', secondary: 'border border-neutral-200 bg-neutral-0 text-neutral-900 hover:bg-neutral-50 active:bg-neutral-100', danger: 'border border-danger-solid bg-danger-solid text-on-danger hover:opacity-90 active:opacity-80', ghost: 'border border-transparent bg-transparent text-neutral-600 hover:bg-neutral-50 active:bg-neutral-100', icon: 'border border-transparent bg-transparent px-0 text-neutral-600 hover:bg-neutral-50 active:bg-neutral-100' };
-  const sizes = { small: 'h-8 min-h-8 px-3 text-[13px]', regular: 'h-9 min-h-9 px-3.5 text-[13px]', large: 'h-10 min-h-10 px-4 text-sm' };
-  const dimensions = variant === 'icon' ? `size-${size === 'small' ? '8' : size === 'large' ? '10' : '9'} min-h-0` : sizes[size];
-  return <button {...props} className={`inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50 ${dimensions} ${styles[variant]} ${props.className ?? ''}`}>{children}</button>;
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "radix-ui";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-transparent text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        small: "h-8 px-3 text-xs",
+        sm: "h-8 px-3 text-xs",
+        lg: "h-10 px-8",
+        icon: "h-9 w-9 p-0",
+        "icon-sm": "h-8 w-8 p-0",
+        "icon-lg": "h-10 w-10 p-0",
+      },
+    },
+    defaultVariants: { variant: "default", size: "default" },
+  },
+);
+
+function Button({ className, variant, size, asChild = false, ...props }: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
+  const Component = asChild ? Slot.Root : "button";
+  return <Component data-slot="button" className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
+
+export { Button, buttonVariants };
