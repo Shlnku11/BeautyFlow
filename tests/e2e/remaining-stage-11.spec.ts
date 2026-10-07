@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import mongoose from 'mongoose';
 import { verifyRegistrationEmail } from './email-verification';
+import { captureThemeScreenshots } from './screen-capture';
 
 const origin = 'http://localhost:5173';
 const ownerPassword = 'Strong-password-123';
@@ -158,11 +159,18 @@ test('E2E-5: invited master accepts AUTH-06, sees only own data, and is denied o
   await loginPage.getByLabel('Пароль').fill(ownerPassword);
   await loginPage.getByRole('button', { name: 'Войти' }).click();
   await expect(loginPage).toHaveURL(/\/app/);
-  const me = await loginPage.request.get(`${origin}/api/auth/me`).then((response) => response.json()) as { data: { active: { role: string; staffId?: string } } };
+  const me = await loginPage.request.get(`${origin}/api/auth/me`).then((response) => response.json()) as { data: { active: { role: string; staffId?: string }; permissions: string[] } };
   expect(me.data.active).toMatchObject({ role: 'master', staffId: staff.id });
   await loginPage.goto('/app/my-day');
   await expect(loginPage.getByRole('heading', { name: 'Мой день' })).toBeVisible();
+  await loginPage.setViewportSize({ width: 1440, height: 1000 });
+  await captureThemeScreenshots(loginPage, 'my-day');
   for (const label of ['Обзор', 'Оплаты', 'Настройки']) await expect(loginPage.getByRole('navigation').getByRole('link', { name: label })).toHaveCount(0);
+  await expect(loginPage.getByRole('link', { name: 'Запись' })).toHaveCount(me.data.permissions.includes('appointments:create') ? 1 : 0);
+  await loginPage.getByRole('button', { name: 'Открыть поиск' }).click();
+  await loginPage.getByRole('textbox', { name: 'Поиск по разделам' }).fill('Оплаты');
+  await expect(loginPage.getByText('Подходящих разделов не найдено.')).toBeVisible();
+  await loginPage.keyboard.press('Escape');
 
   for (const path of ['/api/dashboard/summary', '/api/payments', '/api/settings', '/api/members']) {
     const denied = await loginPage.request.get(`${origin}${path}`);

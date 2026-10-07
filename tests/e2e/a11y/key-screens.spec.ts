@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { verifyRegistrationEmail } from '../email-verification';
+import { captureThemeScreenshots, prepareFullPageScreenshot } from '../screen-capture';
 
 async function registerOwner(page: Page, run: string): Promise<void> {
   const ipOffset = Number(run.slice(-8)) % 65_536;
@@ -48,22 +49,23 @@ test('key owner and public screens pass axe and fit required viewports', async (
   const settings = (await (await page.request.get('http://localhost:3000/api/settings')).json()).data as { business: { slug: string } };
 
   const screens = [
-    ['/', 'Онлайн-запись для салонов. Работает.'],
-    ['/login', 'Войти'],
-    ['/register', 'Создать бизнес'],
-    ['/app/dashboard', 'Обзор'],
-    ['/app/calendar', 'Календарь'],
-    ['/app/staff', 'Сотрудники'],
-    [`/app/staff/${staff.id}`, 'A11y Master'],
-    ['/app/services', 'Услуги'],
-    ['/app/customers', 'Клиенты'],
-    [`/app/customers/${customer.id}`, 'A11y Customer'],
-    ['/app/settings', 'Настройки'],
-    ['/app/payments', 'Оплаты'],
-    [`/b/${settings.business.slug}`, 'A11y Studio'],
+    ['landing', '/', 'Онлайн-запись для салонов. Работает.'],
+    ['login', '/login', 'Войти'],
+    ['register', '/register', 'Создать бизнес'],
+    ['dashboard', '/app/dashboard', 'Обзор'],
+    ['calendar', '/app/calendar', 'Календарь'],
+    ['appointments', '/app/appointments', 'Записи'],
+    ['staff', '/app/staff', 'Сотрудники'],
+    ['staff-detail', `/app/staff/${staff.id}`, 'A11y Master'],
+    ['services', '/app/services', 'Услуги'],
+    ['customers', '/app/customers', 'Клиенты'],
+    ['customer-detail', `/app/customers/${customer.id}`, 'A11y Customer'],
+    ['settings', '/app/settings', 'Настройки'],
+    ['payments', '/app/payments', 'Оплаты'],
   ] as const;
 
-  for (const [path, heading] of screens) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  for (const [screenshotName, path, heading] of screens) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
     await page.waitForLoadState('networkidle');
@@ -73,7 +75,14 @@ test('key owner and public screens pass axe and fit required viewports', async (
       await page.keyboard.press('Enter');
       await expect(page.locator('#main-content')).toBeFocused();
     }
-    await expectNoSeriousAxeViolations(page, path);
+    await prepareFullPageScreenshot(page);
+    for (const theme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expectNoSeriousAxeViolations(page, `${path} (${theme})`);
+      await page.screenshot({ path: `docs/screenshots/${screenshotName}-${theme}.png`, fullPage: true, animations: 'disabled' });
+    }
+    await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
   }
 
   await page.goto('/__dev/ui');
@@ -93,9 +102,10 @@ test('key owner and public screens pass axe and fit required viewports', async (
       expect(documentWidth, `${path} overflows at ${width}px`).toBeLessThanOrEqual(width);
       if (width < 768) {
         await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Мобильная навигация' })).toBeVisible();
         await page.getByRole('button', { name: 'Открыть меню' }).click();
         await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toBeVisible();
-        await page.getByRole('button', { name: 'Закрыть меню' }).click({ position: { x: width - 8, y: 120 } });
+        await page.getByRole('button', { name: 'Закрыть меню' }).click();
       }
     }
   }
@@ -128,6 +138,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
   await page.keyboard.press('Enter');
   const slotButtons = page.getByRole('group', { name: 'Доступное время' }).getByRole('button');
   await expect(slotButtons.first()).toBeVisible();
+  await captureThemeScreenshots(page, 'public-booking');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Enter');
   for (let index = 1; index < await slotButtons.count(); index += 1) await page.keyboard.press('Tab');
@@ -144,5 +155,9 @@ test('key owner and public screens pass axe and fit required viewports', async (
   await expect(submitBooking).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
+  await captureThemeScreenshots(page, 'public-confirmation');
+  await page.getByRole('link', { name: 'Управлять записью' }).click();
+  await expect(page.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
+  await captureThemeScreenshots(page, 'public-manage');
 });
 

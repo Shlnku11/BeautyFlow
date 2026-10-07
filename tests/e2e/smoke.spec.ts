@@ -75,6 +75,12 @@ test('business owner can register and log back in using a server-side session', 
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
   await expect(page.getByTestId('dashboard-kpis').locator('article')).toHaveCount(4);
   await expect(page.getByRole('heading', { name: 'Ближайшие записи' })).toBeVisible();
+  await page.getByRole('button', { name: 'Открыть поиск' }).click();
+  await expect(page.getByRole('dialog', { name: 'Быстрый переход' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Поиск по разделам' }).fill('Клиенты');
+  await page.getByRole('dialog').getByRole('link', { name: 'Клиенты' }).click();
+  await expect(page).toHaveURL(/\/app\/customers$/);
+  await expect(page.getByRole('heading', { name: 'Клиенты' })).toBeVisible();
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: 'http://localhost:5173' },
@@ -167,7 +173,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.screenshot({ path: 'outputs/calendar-final-dark.png' });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.locator('button[title^="E2E Staff · E2E Client"]').click();
-  await expect(page.getByRole('heading', { name: 'Запись' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Запись', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Запись' })).toBeHidden();
 
