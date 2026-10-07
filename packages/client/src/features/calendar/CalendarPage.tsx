@@ -33,7 +33,7 @@ const staffClass: Record<string, string> = {
 };
 const staffDotClass: Record<string, string> = { violet: 'bg-staff-violet', teal: 'bg-staff-teal', blue: 'bg-staff-blue', green: 'bg-staff-green', amber: 'bg-staff-amber', rose: 'bg-staff-rose', orange: 'bg-staff-orange', slate: 'bg-staff-slate' };
 
-export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'appointments' }) {
+export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | 'week' | 'appointments' }) {
   const session = useSession();
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,13 +46,14 @@ export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'a
   const [refresh, setRefresh] = useState(0);
   const [createSlot, setCreateSlot] = useState<{ date: string; startAt: string; staffId: string } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
+  const businessTimezone = session.data?.active.business.timezone ?? 'UTC';
   const activeDate = date || (data ? DateTime.fromISO(data.range.from).setZone(data.range.timezone).toISODate() ?? '' : '');
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    const calendarDate = date || DateTime.now().toISODate() || '';
+    const calendarDate = date || DateTime.now().setZone(businessTimezone).toISODate() || '';
     const loadWeek = (weekDate: string) => {
       const params = new URLSearchParams({ view: view === 'month' || view === 'appointments' ? 'week' : view, date: weekDate });
       return apiRequest<CalendarPayload>(`/api/calendar?${params}`, { signal: controller.signal });
@@ -72,7 +73,7 @@ export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'a
       if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [date, view, refresh]);
+  }, [date, view, refresh, businessTimezone]);
 
   useEffect(() => {
     const mobile = window.matchMedia('(max-width: 767px)');
@@ -109,10 +110,10 @@ export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'a
   }, [data, canBook, location.search, zone, visibleStaff, activeDate, navigate]);
 
   return <main className="mx-auto w-full max-w-[1600px] p-4 md:p-6">
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Рабочее пространство</p><h1 className="mt-1 text-xl font-semibold tracking-tight">{view === 'appointments' ? 'Записи' : 'Календарь'}</h1></div>
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <h1 className="text-2xl font-semibold tracking-tight">{view === 'appointments' ? 'Записи' : 'Календарь'}</h1>
       <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-md border border-neutral-300 p-0.5" aria-label="Вид календаря"><button className="rounded px-3 py-1.5 text-sm" onClick={() => setView('day')} aria-pressed={view === 'day'}>День</button><button className="rounded px-3 py-1.5 text-sm" onClick={() => setView('week')} aria-pressed={view === 'week'}>Неделя</button><button className="rounded px-3 py-1.5 text-sm" onClick={() => setView('month')} aria-pressed={view === 'month'}>Месяц</button></div>
+      <div className="inline-flex rounded-md border border-neutral-200 bg-neutral-50 p-0.5" aria-label="Вид календаря"><button className={`h-8 min-h-8 rounded px-3 text-xs ${view === 'day' ? 'bg-neutral-0 font-medium text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`} onClick={() => setView('day')} aria-pressed={view === 'day'}>День</button><button className={`h-8 min-h-8 rounded px-3 text-xs ${view === 'week' ? 'bg-neutral-0 font-medium text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`} onClick={() => setView('week')} aria-pressed={view === 'week'}>Неделя</button><button className={`h-8 min-h-8 rounded px-3 text-xs ${view === 'month' ? 'bg-neutral-0 font-medium text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900'}`} onClick={() => setView('month')} aria-pressed={view === 'month'}>Месяц</button></div>
         <button className="grid size-8 place-items-center rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50" onClick={() => shiftDate(-1)} aria-label="Предыдущий период"><FontAwesomeIcon className="size-3.5" icon={faChevronLeft}/></button>
         <button className="h-8 min-h-8 rounded-md border border-neutral-200 px-2.5 text-xs font-medium hover:bg-neutral-50" onClick={() => { setDate(DateTime.now().setZone(zone).toISODate() ?? ''); }}>Сегодня</button>
         <label className="sr-only" htmlFor="calendar-date">Дата</label><input id="calendar-date" className="h-9 rounded-md border border-neutral-300 bg-neutral-0 px-2 text-sm" type="date" value={activeDate} onChange={(event) => setDate(event.target.value)} />
@@ -132,7 +133,7 @@ export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'a
         <div className="w-full min-w-[780px]">
           <div className={`grid ${columnsClass} border-b border-neutral-300`}>
             <div className="sticky top-0 z-10 bg-neutral-50 px-2 py-2 text-[10px] text-neutral-500">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
-            {days.map((calendarDay) => <div className="sticky top-0 z-10 flex flex-col bg-neutral-50 px-2 py-2 text-[13px]" key={calendarDay.toISODate()}><strong className="font-medium">{calendarDay.toFormat('ccc d', { locale: 'ru' })}</strong></div>)}
+            {days.map((calendarDay) => <div className={`sticky top-0 z-10 flex flex-col px-2 py-2 text-[13px] ${calendarDay.hasSame(DateTime.now().setZone(zone), 'day') ? 'bg-primary-50' : 'bg-neutral-50'}`} key={calendarDay.toISODate()}><strong className="font-medium">{calendarDay.toFormat('ccc d', { locale: 'ru' })}</strong></div>)}
           </div>
           <div className={`grid ${columnsClass}`}>
             <div className="grid grid-rows-[repeat(13,80px)]">{Array.from({ length: 13 }, (_, index) => <span className="-mt-2 border-b border-neutral-200 pr-2 text-right text-[11px] text-neutral-500" key={index}>{String(index + 8).padStart(2, '0')}:00</span>)}</div>
@@ -151,9 +152,9 @@ export function CalendarPage({ initialView = 'day' }: { initialView?: 'day' | 'a
                   const availableStaff = visibleStaff.find((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const working = visibleStaff.some((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const borderClass = index % 4 === 0 ? 'border-t border-neutral-300' : index % 2 === 0 ? 'border-t border-neutral-200' : 'border-t border-neutral-100';
-                  const slotClass = `flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
+                  const slotClass = `flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${blocked ? 'bg-neutral-100' : working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
                   return <div className={`${slotClass} row-start-[${index + 1}]`} key={minute}>
-                    {busy || blocked ? <span className="truncate px-1 text-[10px] text-neutral-400">{blocked ? 'Занято' : 'Запись'}</span> : canBook && availableStaff ? <button className="h-4 min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
+                    {!busy && !blocked && canBook && availableStaff ? <button className="h-4 min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
                   </div>;
                 })}
                 {dateAppointments.map((appointment) => {
