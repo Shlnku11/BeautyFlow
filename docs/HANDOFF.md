@@ -1,15 +1,22 @@
 # HANDOFF.md
 
+## Обновление 2026-10-08 — стабилизация после WIP
+
+- Предыдущий shadcn WIP-коммит содержал повреждённые исходники UI. `packages/client/src/app`, `src/features`, `src/components/data` и `main.tsx` восстановлены из последней компилируемой базы `d3f9021`, затем исправлены lowercase imports/Case-only пути компонентов, DialogShell и CSS entry.
+- Проверки после восстановления: миграции уже применены; typecheck ✅, lint ✅, полный Vitest ✅ (31 файл / 115 тестов), race ✅ (2/2), build ✅; Playwright Chromium root redirect smoke ✅. Build сообщает о клиентском бандле 1.26 MB и upstream `use client` warnings.
+- `npm run dev` поднимал Vite и API; прямые Chromium переходы на landing/login/register и перечисленные app/public URL открывали document shell; без сессии защищённые app routes ведут на `/login`. Authenticated CRUD walkthrough не запускался в этом smoke.
+- Shadcn migration всё ещё частичная и visual-ready не считается: legacy EmptyState/ErrorState/Radio/Toast остаются, AppLayout и часть экранов ещё используют native/custom UI, все 24 эскиза и light/dark скриншоты отсутствуют.
+
 ## Передача WIP на 2026-10-07 — shadcn/ui и P0/P1
 
 Эта секция новее предыдущих заметок ниже и задаёт фактическое состояние рабочего дерева на последнем WIP-коммите.
 
-### Текущая работа: shadcn/ui (частично, проверки не запускались)
+### Текущая работа: shadcn/ui (частично, сборка стабилизирована 2026-10-08)
 
 - CLI `shadcn@latest` запущен в `packages/client`; создан `packages/client/components.json` (preset `radix-nova`), Tailwind entry перенесён в `packages/client/src/index.css`, добавлены HSL theme variables для light/dark, цвета и aliases в Tailwind config.
 - Добавлены/перегенерированы shadcn-компоненты Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label и Sonner. Часть классов приведена к Tailwind 3, часть иконок — к Font Awesome. `tailwindcss` объявлен devDependency клиентского workspace.
 - В `features/*` механически заменены HTML-кнопки, поля, select, textarea и label на Button/Input/NativeSelect/Textarea/Label. Старые CRUD-экраны Staff/Services/Customers/Payments используют временный `DialogShell`-компонент, собранный поверх shadcn Dialog. AppLayout частично переведён на Sheet, DropdownMenu, Avatar и Button.
-- **Миграция не завершена и может не собираться.** После кодмода ещё не запускались typecheck/lint/build/tests; не исправлены возможные дубли/неиспользуемые импорты, не проверена чувствительность путей к регистру на Linux. Таблицы/карточки/вкладки не проведены последовательно по всем экранам; `UiSandbox` всё ещё ссылается на старый barrel API. Старые EmptyState/ErrorState/Radio/Toast файлы и barrel `src/components/ui/index.ts` не очищены. В `components.json` ещё стоит `iconLibrary: lucide`; проверить и убрать Lucide из кода/dependencies. Sonner Toaster пока не подключён в AppProviders. Подключение Form из shadcn не завершено.
+- **Стабилизация завершена, полный shadcn переход — нет.** Typecheck/lint/build проходят; unit/integration/API — 31 файл / 115 тестов, race — 2/2; root Chromium redirect smoke прошёл. Таблицы/карточки/табы ещё не проведены последовательно по экранам. `UiSandbox` использует прямые shadcn imports; старые EmptyState/ErrorState/Radio/Toast остаются. `components.json` указывает `iconLibrary: lucide`, `pagination.tsx` ещё импортирует Lucide. Sonner Toaster и shadcn Form требуют отдельной проверки/интеграции.
 - Форматирование/контраст/визуальный результат shadcn после замены не подтверждены. Скриншоты этого WIP для dashboard/calendar/landing light+dark не создавались. Не считать дизайн Linear-ready.
 
 ## P0/P1 для следующего аккаунта

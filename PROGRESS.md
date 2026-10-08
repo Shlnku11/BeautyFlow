@@ -1,5 +1,13 @@
 # Progress
 
+## 2026-10-08 — Runtime/UI stabilization after partial shadcn WIP
+
+- Recovered the client application sources from the last known compiling baseline (`d3f9021`) after the prior WIP commit contained corrupted JSX/TypeScript. Re-applied the necessary shadcn lowercase path, Dialog compatibility, and entry CSS fixes without touching backend contracts, architecture, or `.env`.
+- `npm run migrate` ✅ (`000_init` and `001_google_identity` already applied); `npm run typecheck` ✅; `npm run lint` ✅; `npm test` ✅ (31 files / 115 tests); `npm run test:race` ✅ (2/2); `npm run build` ✅. Build still warns that client JS is 1.26 MB minified and includes upstream `use client` directive notices.
+- Real Chromium smoke: `/` stayed at the public landing route with no redirect loop; root landing test ✅. Direct Playwright navigation to the requested public/auth/app URLs returned 200 for the document shell; protected `/app/*` routes correctly redirect anonymous users to `/login`.
+- This is stabilization only. Shadcn integration remains partial: the legacy EmptyState/ErrorState/Radio/Toast files remain, some features use native/custom elements, the top-level layout is not fully migrated, and generated component coverage/screenshots are not yet audited. Do not mark the design migration complete.
+- Docker state at this continuation: the existing MongoDB container on 27018 was healthy; no new container was created. The E2E-managed smoke used the existing app configuration and did not edit `.env`.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.

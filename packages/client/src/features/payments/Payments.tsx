@@ -1,5 +1,3 @@
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -18,19 +16,26 @@ interface PaymentRow {
 interface AppointmentRow {
   id: string; customer: { id: string; firstName: string; lastName?: string }; staff: { id: string; displayName: string };
   service: { name: string }; startAt: string; status: string; payment?: { balanceMinor: number };
+}
 interface PaymentsEnvelope { data: PaymentRow[]; meta: { total: number; page: number; limit: number; totals: { paidMinor: number; refundedMinor: number } } }
 type Operation = 'create' | 'refund' | null;
+
 const methodNames = { cash: 'Наличные', card: 'Карта', transfer: 'Перевод', online: 'Онлайн' };
 const statusNames = { pending: 'Ожидает оплаты', paid: 'Оплачено', refunded: 'Возвращено', cancelled: 'Отменено' };
 const statusTone = { pending: 'warning', paid: 'success', refunded: 'neutral', cancelled: 'danger' } as const;
+
 function majorToMinor(value: string): number {
   const match = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(value.trim());
   if (!match) throw new RangeError('Введите сумму с точностью до копеек');
   const minor = BigInt(match[1] ?? '0') * 100n + BigInt((match[2] ?? '').padEnd(2, '0') || '0');
   if (minor <= 0n || minor > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('Сумма вне допустимого диапазона');
   return Number(minor);
+}
+
 function minorToMajor(value: number): string {
   return `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
+}
+
 async function fetchPayments(url: string): Promise<PaymentsEnvelope> {
   const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
   const payload: unknown = await response.json().catch(() => null);
@@ -40,6 +45,8 @@ async function fetchPayments(url: string): Promise<PaymentsEnvelope> {
   }
   if (typeof payload !== 'object' || payload === null || !('data' in payload) || !Array.isArray(payload.data) || !('meta' in payload)) throw new Error('Некорректный ответ API оплат');
   return payload as PaymentsEnvelope;
+}
+
 export function PaymentsPage() {
   const location = useLocation();
   const presetAppointmentId = useMemo(() => new URLSearchParams(location.search).get('appointmentId') ?? '', [location.search]);
@@ -54,6 +61,7 @@ export function PaymentsPage() {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(presetAppointmentId);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
   async function reload() {
     const params = new URLSearchParams({ page: '1', limit: '100' });
     for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
@@ -68,25 +76,31 @@ export function PaymentsPage() {
       }));
       setDetails(Object.fromEntries(resolved.filter((item): item is readonly [string, AppointmentRow] => item !== null)));
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : 'Не удалось загрузить оплаты'); }
+  }
+
   useEffect(() => { void reload(); }, [filters.from, filters.to, filters.method, filters.status, filters.staffId, filters.customerId, filters.q]);
   useEffect(() => {
     void apiRequest<AppointmentRow[]>('/api/appointments?page=1&limit=100').then(setAppointments).catch(() => setAppointments([]));
     void apiRequest<{ business: { currency: string } }>('/api/settings').then((settings) => setCurrency(settings.business.currency)).catch(() => undefined);
   }, []);
+  useEffect(() => {
     setSelectedAppointmentId(presetAppointmentId);
     if (presetAppointmentId) {
       setOperation('create');
       void apiRequest<AppointmentRow>(`/api/appointments/${presetAppointmentId}`).then((appointment) => setAppointments((rows) => rows.some((row) => row.id === appointment.id) ? rows : [appointment, ...rows])).catch(() => undefined);
     }
   }, [presetAppointmentId]);
+
   const staffOptions = [...new Map(appointments.map((appointment) => [appointment.staff.id, appointment.staff])).values()];
   const customerOptions = [...new Map(appointments.map((appointment) => [appointment.customer.id, appointment.customer])).values()];
   const selectedAppointment = appointments.find((appointment) => appointment.id === selectedAppointmentId);
+
   async function submitOperation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
     setBusy(true);
     setError(null);
+    try {
       if (operation === 'create') {
         await apiRequest('/api/payments', { method: 'POST', idempotencyKey: crypto.randomUUID(), body: {
           appointmentId: selectedAppointmentId,
@@ -101,21 +115,27 @@ export function PaymentsPage() {
       setOperation(null); setActivePayment(null); await reload();
     } catch (reason: unknown) { setError(reason instanceof Error ? reason.message : 'Не удалось выполнить операцию'); }
     finally { setBusy(false); }
+  }
+
   async function act(payment: PaymentRow, action: 'mark-paid' | 'cancel') {
     setBusy(true); setError(null);
     try { await apiRequest(`/api/payments/${payment.id}/${action}`, { method: 'POST', body: {} }); await reload(); }
     catch (reason: unknown) { setError(reason instanceof Error ? reason.message : 'Не удалось выполнить операцию'); }
+    finally { setBusy(false); }
+  }
+
   function beginCreate() { setSelectedAppointmentId(''); setActivePayment(null); setOperation('create'); }
+
   return <main className="mx-auto w-full max-w-[1440px] px-5 py-6 md:px-8">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Оплаты</h1><p className="mt-1 text-[13px] text-neutral-500">Ручной учёт оплат и возвратов</p></div><Button size="small" onClick={beginCreate}>＋ Принять оплату</Button></div>
     <form className="mt-5 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" onSubmit={(event) => { event.preventDefault(); void reload(); }}>
-      <Label className="grid gap-1 text-sm">С даты<Input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })}/></Label>
-      <Label className="grid gap-1 text-sm">По дату<Input type="date" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })}/></Label>
-      <Label className="grid gap-1 text-sm">Метод<NativeSelect value={filters.method} onChange={(event) => setFilters({ ...filters, method: event.target.value })}><option value="">Все методы</option>{Object.entries(methodNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</NativeSelect></Label>
-      <Label className="grid gap-1 text-sm">Статус<NativeSelect value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">Все статусы</option>{Object.entries(statusNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</NativeSelect></Label>
-      <Label className="grid gap-1 text-sm">Мастер<NativeSelect value={filters.staffId} onChange={(event) => setFilters({ ...filters, staffId: event.target.value })}><option value="">Все мастера</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayName}</option>)}</NativeSelect></Label>
-      <Label className="grid gap-1 text-sm">Клиент<NativeSelect value={filters.customerId} onChange={(event) => setFilters({ ...filters, customerId: event.target.value })}><option value="">Все клиенты</option>{customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName ?? ''}</option>)}</NativeSelect></Label>
-      <Label className="grid gap-1 text-sm sm:col-span-2">Поиск клиента<Input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Имя или телефон"/></Label>
+      <label className="grid gap-1 text-sm">С даты<Input type="date" value={filters.from} onChange={(event) => setFilters({ ...filters, from: event.target.value })}/></label>
+      <label className="grid gap-1 text-sm">По дату<Input type="date" value={filters.to} onChange={(event) => setFilters({ ...filters, to: event.target.value })}/></label>
+      <label className="grid gap-1 text-sm">Метод<Select value={filters.method} onChange={(event) => setFilters({ ...filters, method: event.target.value })}><option value="">Все методы</option>{Object.entries(methodNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</Select></label>
+      <label className="grid gap-1 text-sm">Статус<Select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">Все статусы</option>{Object.entries(statusNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</Select></label>
+      <label className="grid gap-1 text-sm">Мастер<Select value={filters.staffId} onChange={(event) => setFilters({ ...filters, staffId: event.target.value })}><option value="">Все мастера</option>{staffOptions.map((staff) => <option key={staff.id} value={staff.id}>{staff.displayName}</option>)}</Select></label>
+      <label className="grid gap-1 text-sm">Клиент<Select value={filters.customerId} onChange={(event) => setFilters({ ...filters, customerId: event.target.value })}><option value="">Все клиенты</option>{customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.firstName} {customer.lastName ?? ''}</option>)}</Select></label>
+      <label className="grid gap-1 text-sm sm:col-span-2">Поиск клиента<Input value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} placeholder="Имя или телефон"/></label>
     </form>
     {meta ? <section aria-label="Итоги оплат" className="mt-4 grid gap-3 sm:grid-cols-2"><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-xs text-neutral-500">Оплачено по выборке</p><p className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(meta.totals.paidMinor, currency)}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-xs text-neutral-500">Возвращено по выборке</p><p className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(meta.totals.refundedMinor, currency)}</p></article></section> : null}
     {error ? <p className="mt-4 text-danger-fg" role="alert">{error}</p> : null}
@@ -134,14 +154,16 @@ export function PaymentsPage() {
     {meta ? <p className="mt-3 text-sm text-neutral-600">Показано {payments.length} из {meta.total}</p> : null}
     <Dialog open={operation !== null} title={operation === 'refund' ? 'Вернуть оплату' : 'Принять оплату'} onClose={() => { if (!busy) { setOperation(null); setActivePayment(null); } }}>
       {operation === 'create' ? <form className="grid gap-3" onSubmit={(event) => { void submitOperation(event); }}>
-        <Label className="grid gap-1 text-sm">Запись<NativeSelect required value={selectedAppointmentId} onChange={(event) => { setSelectedAppointmentId(event.target.value); }}><option value="">Выберите запись</option>{appointments.filter((item) => item.status !== 'cancelled').map((item) => <option key={item.id} value={item.id}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name} · {formatDateTime(item.startAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}</option>)}</NativeSelect></Label>
-        <Label className="grid gap-1 text-sm">Сумма ({currency})<Input name="amount" type="text" inputMode="decimal" placeholder="0.00" required key={`${selectedAppointmentId}-${selectedAppointment?.payment?.balanceMinor ?? 0}`} defaultValue={selectedAppointment?.payment?.balanceMinor && selectedAppointment.payment.balanceMinor > 0 ? minorToMajor(selectedAppointment.payment.balanceMinor) : ''}/></Label>
-        <Label className="grid gap-1 text-sm">Метод<NativeSelect name="method" defaultValue="cash">{Object.entries(methodNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</NativeSelect></Label>
-        <Label className="grid gap-1 text-sm">Статус<NativeSelect name="status" defaultValue="paid"><option value="paid">Оплачено</option><option value="pending">Ожидает оплаты</option></NativeSelect></Label>
-        <Label className="grid gap-1 text-sm">Заметка<Input name="notes" maxLength={500}/></Label>
+        <label className="grid gap-1 text-sm">Запись<Select required value={selectedAppointmentId} onChange={(event) => { setSelectedAppointmentId(event.target.value); }}><option value="">Выберите запись</option>{appointments.filter((item) => item.status !== 'cancelled').map((item) => <option key={item.id} value={item.id}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name} · {formatDateTime(item.startAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}</option>)}</Select></label>
+        <label className="grid gap-1 text-sm">Сумма ({currency})<Input name="amount" type="text" inputMode="decimal" placeholder="0.00" required key={`${selectedAppointmentId}-${selectedAppointment?.payment?.balanceMinor ?? 0}`} defaultValue={selectedAppointment?.payment?.balanceMinor && selectedAppointment.payment.balanceMinor > 0 ? minorToMajor(selectedAppointment.payment.balanceMinor) : ''}/></label>
+        <label className="grid gap-1 text-sm">Метод<Select name="method" defaultValue="cash">{Object.entries(methodNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</Select></label>
+        <label className="grid gap-1 text-sm">Статус<Select name="status" defaultValue="paid"><option value="paid">Оплачено</option><option value="pending">Ожидает оплаты</option></Select></label>
+        <label className="grid gap-1 text-sm">Заметка<Input name="notes" maxLength={500}/></label>
         {selectedAppointment ? <p className="text-sm text-neutral-600">Остаток по записи: {formatMoney(selectedAppointment.payment?.balanceMinor ?? 0, currency)}</p> : null}
         <Button disabled={busy || !selectedAppointmentId} type="submit">{busy ? 'Сохранение…' : 'Сохранить оплату'}</Button>
       </form> : null}
-      {operation === 'refund' && activePayment ? <form className="grid gap-3" onSubmit={(event) => { void submitOperation(event); }}><p>Доступно к возврату: {formatMoney(activePayment.amountMinor - activePayment.refundedMinor, activePayment.currency)}</p><Label className="grid gap-1 text-sm">Сумма возврата ({activePayment.currency})<Input name="amount" type="text" inputMode="decimal" placeholder="0.00" required defaultValue={minorToMajor(activePayment.amountMinor - activePayment.refundedMinor)}/></Label><Label className="grid gap-1 text-sm">Причина возврата<Input name="note" minLength={1} maxLength={500} required/></Label><Button disabled={busy} type="submit" variant="danger">{busy ? 'Сохранение…' : 'Оформить возврат'}</Button></form> : null}
+      {operation === 'refund' && activePayment ? <form className="grid gap-3" onSubmit={(event) => { void submitOperation(event); }}><p>Доступно к возврату: {formatMoney(activePayment.amountMinor - activePayment.refundedMinor, activePayment.currency)}</p><label className="grid gap-1 text-sm">Сумма возврата ({activePayment.currency})<Input name="amount" type="text" inputMode="decimal" placeholder="0.00" required defaultValue={minorToMajor(activePayment.amountMinor - activePayment.refundedMinor)}/></label><label className="grid gap-1 text-sm">Причина возврата<Input name="note" minLength={1} maxLength={500} required/></label><Button disabled={busy} type="submit" variant="danger">{busy ? 'Сохранение…' : 'Оформить возврат'}</Button></form> : null}
     </Dialog>
   </main>;
+}
+

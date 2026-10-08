@@ -44,9 +44,9 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   return <DialogPrimitive.Description data-slot="dialog-description" className={cn("text-sm text-muted-foreground", className)} {...props} />;
 }
 
-type DialogShellProps = { open: boolean; title: string; onClose: () => void; children: React.ReactNode; className?: string };
-function DialogShell({ open, title, onClose, children, className }: DialogShellProps) {
-  return <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}><DialogContent className={className}><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>{children}</DialogContent></Dialog>;
+type DialogShellProps = { open: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode; className?: string };
+function DialogShell({ open, title, onClose, children, footer, className }: DialogShellProps) {
+  return <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}><DialogContent className={className}><DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>{children}{footer ? <div className="flex justify-end gap-2 border-t pt-4">{footer}</div> : null}</DialogContent></Dialog>;
 }
 
 export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger, DialogShell };
