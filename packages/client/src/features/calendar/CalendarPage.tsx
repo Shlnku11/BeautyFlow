@@ -159,7 +159,7 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const [createSlot, setCreateSlot] = useState<{ date: string; startAt: string; staffId: string } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
   const businessTimezone = session.data?.active.business.timezone ?? 'UTC';
-  const activeDate = date || (data ? DateTime.fromISO(data.range.from).setZone(data.range.timezone).toISODate() ?? '' : '');
+  const activeDate = date || DateTime.now().setZone(businessTimezone).toISODate() || '';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -186,11 +186,6 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [date, view, refresh, businessTimezone]);
-
-  useEffect(() => {
-    const mobile = window.matchMedia('(max-width: 767px)');
-    if (mobile.matches && (view === 'week' || view === 'month')) setView('day');
-  }, [view]);
 
   function shiftDate(amount: number) {
     const zone = data?.range.timezone ?? 'UTC';

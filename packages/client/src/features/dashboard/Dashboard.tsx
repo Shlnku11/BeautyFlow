@@ -18,7 +18,7 @@ const money = (minor: number, currency: string) => new Intl.NumberFormat('ru-RU'
 const appointmentTime = (value: string, timezone: string) => new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date(value));
 const statusLabels: Record<string, string> = { pending: 'Ожидает', confirmed: 'Подтверждена', completed: 'Завершена', cancelled: 'Отменена', no_show: 'Неявка' };
 
-function Metric({ title, value, displayValue, previous, reverseTone = false }: { title: string; value: number; displayValue?: string; previous?: number | undefined; reverseTone?: boolean }) {
+function Metric({ title, value, displayValue, compactDisplayValue, previous, reverseTone = false }: { title: string; value: number; displayValue?: string; compactDisplayValue?: string; previous?: number | undefined; reverseTone?: boolean }) {
   const delta = previous === undefined ? null : value - previous;
   const percent = previous === undefined ? null : previous === 0 ? (value === 0 ? 0 : null) : Math.round(((value - previous) / previous) * 100);
   const positive = delta === null ? false : reverseTone ? delta < 0 : delta > 0;
@@ -26,7 +26,9 @@ function Metric({ title, value, displayValue, previous, reverseTone = false }: {
   const icon = title.toLocaleLowerCase('ru-RU').includes('выруч') ? faWallet : title.toLocaleLowerCase('ru-RU').includes('клиент') ? faUsers : title.toLocaleLowerCase('ru-RU').includes('отмен') || title.toLocaleLowerCase('ru-RU').includes('неяв') ? faArrowDown : title.toLocaleLowerCase('ru-RU').includes('загруз') ? faChartLine : faCalendarDays;
   return <article className="metric-card min-w-0 rounded-xl border border-neutral-200 bg-neutral-0 px-5 py-4" aria-label={title}>
     <div className="flex items-center justify-between gap-3"><h2 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-neutral-500">{title}</h2><span aria-hidden="true" className="metric-icon"><FontAwesomeIcon className="size-3.5" icon={icon}/></span></div>
-    <p className="mt-2 whitespace-nowrap text-[28px] font-semibold leading-8 tracking-tight tabular-nums text-neutral-900">{displayValue ?? value.toLocaleString('ru-RU')}</p>
+    <p aria-label={displayValue ?? value.toLocaleString('ru-RU')} className="mt-2 min-w-0 whitespace-nowrap text-[22px] font-semibold leading-7 tracking-tight tabular-nums text-neutral-900 sm:text-[28px] sm:leading-8" title={displayValue}>
+      {compactDisplayValue ? <><span className="sm:hidden">{compactDisplayValue}</span><span className="hidden sm:inline">{displayValue ?? value.toLocaleString('ru-RU')}</span></> : displayValue ?? value.toLocaleString('ru-RU')}
+    </p>
     <p className={`mt-1 flex items-center gap-1 text-xs ${positive ? 'text-success-fg' : negative ? 'text-danger-fg' : 'text-neutral-500'}`}>
       {delta !== null && delta !== 0 ? <FontAwesomeIcon aria-hidden="true" className="size-3" icon={positive ? faArrowUp : faArrowDown}/> : null}
       {percent === null ? null : `${percent > 0 ? '+' : ''}${percent}% к прошлому`}
@@ -97,7 +99,7 @@ export function DashboardPage() {
     {loading ? <div aria-label="Загрузка показателей" className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div className="h-24 animate-pulse rounded-lg border border-neutral-200 bg-neutral-0" key={index}/>)}</div> : null}
     {error ? <p className="mt-5 text-sm text-danger-fg" role="alert">{error}</p> : null}
     {summary ? <section aria-label="Ключевые показатели" className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4" data-testid="dashboard-kpis">
-      <Metric title="Выручка" value={summary.revenue.netMinor} displayValue={money(summary.revenue.netMinor, summary.revenue.currency)} previous={summary.previous?.revenue.netMinor}/>
+      <Metric title="Выручка" value={summary.revenue.netMinor} displayValue={money(summary.revenue.netMinor, summary.revenue.currency)} compactDisplayValue={new Intl.NumberFormat('ru-RU', { style: 'currency', currency: summary.revenue.currency, currencyDisplay: 'code', notation: 'compact', maximumFractionDigits: 1 }).format(summary.revenue.netMinor / 100)} previous={summary.previous?.revenue.netMinor}/>
       <Metric title="Записи" value={summary.appointments.total} previous={summary.previous?.appointments.total}/>
       <Metric title="Отмены" value={summary.appointments.cancelled + summary.appointments.noShow} previous={summary.previous ? summary.previous.appointments.cancelled + summary.previous.appointments.noShow : undefined} reverseTone/>
       <Metric title="Новые клиенты" value={summary.newCustomers} previous={summary.previous?.newCustomers}/>
