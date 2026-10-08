@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-08 — Передача: этап 4 (радикальная доработка)
+
+Текущий статус: этап 4 закрыт на 7 из 13 экранов. Подтверждённый последний коммит кода — `a880043` (`fix(services): add responsive service cards`); перед обновлением этого файла дерево было чистым. Routing/404 не начинались и остаются без изменений.
+
+Закрытые изменения:
+
+- `12a44c7` — календарь: overlap + мобильная сетка.
+- `a032027` — карточка клиента: локализация, timezone, валюта.
+- `4c942e2` — календарный E2E locator, полный E2E 13/13.
+- `8402bd8` — адаптивный список клиентов.
+- `d296de8` — удалён демо-баннер email.
+- `73cd4d3` — адаптивные оплаты до 1536px.
+- `8ba183a` — адаптивные записи до 1280px.
+- `a880043` — адаптивные услуги до 1120px.
+
+Осталось для следующего исполнителя:
+
+- Этап 4: Staff, Dashboard, Landing, Login, Register, Settings, My-day, Public-booking, 404/routing.
+- Этап 5: Motion + GSAP анимации (скиллы установлены, но не применены).
+- Этап 6: эскизы 24 страниц.
+- Этап 7: презентация, walkthrough, финальные скриншоты.
+
+Команды: существующий MongoDB контейнер `docs-master-architecture-md-1-3-mongo-1` на `27018` (при необходимости `docker start docs-master-architecture-md-1-3-mongo-1`; новый не создавать), затем `npm run migrate`, `npm run seed`, `npm run dev`. Проверки: `npm run typecheck && npm run lint && npm test`, `npm run test:race`, `npm run test:e2e`, `npm run test:a11y`, `npm run check:contrast`, `npm run build`. Демо-вход: `owner@demo.local` / `demo-password-123`.
+
 ## 2026-10-08 — Runtime/UI stabilization after partial shadcn WIP
 
 - Recovered the client application sources from the last known compiling baseline (`d3f9021`) after the prior WIP commit contained corrupted JSX/TypeScript. Re-applied the necessary shadcn lowercase path, Dialog compatibility, and entry CSS fixes without touching backend contracts, architecture, or `.env`.
