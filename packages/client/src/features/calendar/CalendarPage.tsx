@@ -21,6 +21,8 @@ interface CalendarPayload {
 const slotMinutes = 15;
 const slotCount = 52;
 const dayStartMinute = 8 * 60;
+const appointmentStatusLabel: Record<string, string> = { pending: 'Ожидает подтверждения', confirmed: 'Подтверждена', completed: 'Завершена', cancelled: 'Отменена', no_show: 'Неявка' };
+const appointmentStatusDot: Record<string, string> = { pending: 'bg-warning-solid', confirmed: 'bg-success-solid', completed: 'bg-neutral-400', cancelled: 'bg-danger-solid', no_show: 'bg-danger-solid' };
 const rowStartClasses = [
   'row-start-1',
   'row-start-2',
@@ -240,11 +242,11 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
       {view !== 'month' && view !== 'appointments' ? <section className="calendar-grid mt-5 overflow-x-auto rounded-xl border border-neutral-300" aria-label="Календарная сетка">
         <div className={calendarContentWidth}>
           <div className={`grid ${columnsClass} border-b border-neutral-300`}>
-            <div className="sticky top-0 z-10 bg-neutral-50 px-1 py-2 text-[10px] text-neutral-500 sm:px-2">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
+            <div className="sticky left-0 top-0 z-20 bg-neutral-50 px-1 py-2 text-[10px] text-neutral-500 sm:px-2">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
             {days.map((calendarDay) => <div className={`sticky top-0 z-10 flex flex-col px-2 py-2 text-[13px] ${calendarDay.hasSame(DateTime.now().setZone(zone), 'day') ? 'bg-primary-50' : 'bg-neutral-50'}`} key={calendarDay.toISODate()}><strong className="font-medium">{calendarDay.toFormat('ccc d', { locale: 'ru' })}</strong></div>)}
           </div>
           <div className={`grid ${columnsClass}`}>
-            <div className="grid grid-rows-[repeat(13,80px)]">{Array.from({ length: 13 }, (_, index) => <span className={`${index === 0 ? '' : '-mt-2'} border-b border-neutral-200 pr-2 text-right text-[11px] text-neutral-500`} key={index}>{String(index + 8).padStart(2, '0')}:00</span>)}</div>
+            <div className="sticky left-0 z-10 grid grid-rows-[repeat(13,80px)] bg-neutral-50">{Array.from({ length: 13 }, (_, index) => <span className={`${index === 0 ? '' : '-mt-2'} border-b border-neutral-200 pr-2 text-right text-[11px] text-neutral-500`} key={index}>{String(index + 8).padStart(2, '0')}:00</span>)}</div>
             {days.map((calendarDay) => {
               const dayIso = calendarDay.toISODate() ?? '';
               const dateAppointments = data.appointments.filter((item) => DateTime.fromISO(item.startAt).setZone(zone).toISODate() === dayIso && (selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)));
@@ -255,22 +257,32 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
               const now = DateTime.now().setZone(zone);
               const nowSlotIndex = Math.floor((now.hour * 60 + now.minute - dayStartMinute) / slotMinutes);
               const showCurrentTime = dayIso === now.toISODate() && nowSlotIndex >= 0 && nowSlotIndex < slotCount;
-              return <div className={`grid ${laneGridClass} grid-rows-[repeat(52,20px)] border-l border-neutral-200`} key={dayIso}>
-                {Array.from({ length: slotCount }, (_, index) => {
+              const slotAvailability = Array.from({ length: slotCount }, (_, index) => {
                   const minute = dayStartMinute + index * slotMinutes;
                   const slotAt = calendarDay.startOf('day').plus({ minutes: minute });
                   const slotStart = slotAt.toMillis();
                   const slotEnd = slotStart + slotMinutes * 60_000;
-                  const busy = dateAppointments.some((item) => ['pending', 'confirmed', 'completed'].includes(item.status) && DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.blockedUntilAt).toMillis() > slotStart);
-                  const blocked = dateBlocks.some((item) => DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.endAt).toMillis() > slotStart);
-                  const availableStaff = visibleStaff.find((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
-                  const working = visibleStaff.some((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
+                  const workingStaff = visibleStaff.filter((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
+                  const availableStaff = workingStaff.find((member) => {
+                    const hasAppointment = dateAppointments.some((item) => item.staff.id === member.id && ['pending', 'confirmed', 'completed'].includes(item.status) && DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.blockedUntilAt).toMillis() > slotStart);
+                    const hasBlock = dateBlocks.some((item) => item.staffId === member.id && DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.endAt).toMillis() > slotStart);
+                    return !hasAppointment && !hasBlock;
+                  });
+                  const working = workingStaff.length > 0;
+                  const blocked = working && workingStaff.every((member) => dateBlocks.some((item) => item.staffId === member.id && DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.endAt).toMillis() > slotStart));
+                  const overlapsAppointment = dateAppointments.some((item) => DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.endAt).toMillis() > slotStart);
+                  return { minute, slotAt, working, blocked, availableStaff, overlapsAppointment };
+              });
+              return <div className={`relative grid min-w-0 ${laneGridClass} grid-rows-[repeat(52,20px)] border-l border-neutral-200`} key={dayIso}>
+                <div className="pointer-events-none absolute inset-0 z-0 grid grid-rows-[repeat(52,20px)]">
+                {slotAvailability.map(({ minute, slotAt, working, blocked, availableStaff, overlapsAppointment }, index) => {
                   const borderClass = index % 4 === 0 ? 'calendar-hour-line' : index % 2 === 0 ? 'calendar-half-hour-line' : 'calendar-quarter-line';
-                  const slotClass = `calendar-slot col-span-full flex min-w-0 items-start gap-1 px-0.5 border-t ${borderClass}`;
-                  return <div className={slotClass} data-working={working} data-blocked={blocked} key={minute}>
-                    {!busy && !blocked && canBook && availableStaff ? <button className="h-full min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
+                  const slotClass = `calendar-slot flex min-w-0 items-start gap-1 border-t px-0.5 ${borderClass}`;
+                  return <div className={slotClass} data-working={working} data-blocked={blocked} data-overlaps-appointment={overlapsAppointment} key={minute}>
+                    {canBook && availableStaff && !overlapsAppointment ? <button className="pointer-events-auto h-full min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700 focus-visible:z-10 focus-visible:outline" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)} · ${availableStaff.displayName}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
                   </div>;
                 })}
+                </div>
                 {dateAppointments.map((appointment) => {
                   const startAt = DateTime.fromISO(appointment.startAt).setZone(zone);
                   const localMinute = startAt.hour * 60 + startAt.minute;
@@ -286,9 +298,11 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const laneSpanIndex = lane?.laneCount === 1 ? laneColumnCount - 1 : 0;
                   const laneSpanClass = laneSpanClasses[laneSpanIndex] ?? laneSpanClasses[0];
                   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}`.trim();
-                  const appointmentLabel = `${timeLabel(startAt)} · ${customerName} · ${appointment.service.name} · ${appointment.staff.displayName}`;
-                  return <button aria-label={appointmentLabel} className={`z-10 ${laneStartClass} ${laneSpanClass} flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-3 ${colorClass} ${rowStartClass} ${rowSpanClass}`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={appointmentLabel}><strong className="truncate tabular-nums">{timeLabel(startAt)} · {appointment.customer.firstName}</strong><span className="truncate">{appointment.service.name}</span>{span >= 3 ? <span className="truncate text-neutral-600">{appointment.staff.displayName}</span> : <span className="sr-only">{appointment.staff.displayName}</span>}</button>;
+                  const statusLabel = appointmentStatusLabel[appointment.status] ?? appointment.status;
+                  const appointmentLabel = `${timeLabel(startAt)} · ${customerName} · ${appointment.service.name} · ${appointment.staff.displayName} · ${statusLabel}`;
+                  return <button aria-label={appointmentLabel} className={`z-10 ${laneStartClass} ${laneSpanClass} flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-3 ${colorClass} ${rowStartClass} ${rowSpanClass}`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={appointmentLabel}><strong className="flex min-w-0 items-center gap-1 truncate tabular-nums"><span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${appointmentStatusDot[appointment.status] ?? 'bg-neutral-400'}`} title={statusLabel}/>{timeLabel(startAt)} · {appointment.customer.firstName}</strong><span className="truncate">{appointment.service.name}</span>{span >= 3 ? <span className="truncate text-neutral-600">{appointment.staff.displayName}</span> : <span className="sr-only">{appointment.staff.displayName}</span>}</button>;
                 })}
+                {canBook ? slotAvailability.map(({ minute, slotAt, availableStaff, overlapsAppointment }, index) => availableStaff && overlapsAppointment ? <button aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)} · ${availableStaff.displayName}`} className="absolute right-0 z-20 grid h-5 w-6 place-items-center rounded-l-md bg-neutral-0/90 text-primary-700 opacity-0 shadow-sm ring-1 ring-neutral-300 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline" key={minute} onClick={() => createAt(dayIso, availableStaff.id, minute)} style={{ top: index * 20 }} title={`Создать параллельную запись · ${availableStaff.displayName}`}><span aria-hidden="true" className="text-sm leading-none">+</span></button> : null) : null}
                 {showCurrentTime ? <span aria-hidden="true" className={`pointer-events-none z-20 col-span-full h-px self-start bg-danger-solid ${rowStartClasses[nowSlotIndex] ?? 'row-start-1'}`} /> : null}
               </div>;
             })}
