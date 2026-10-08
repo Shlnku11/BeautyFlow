@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { verifyRegistrationEmail } from '../email-verification';
 import { captureThemeScreenshots, prepareFullPageScreenshot } from '../screen-capture';
+import { appOrigin } from '../test-origin';
 
 async function registerOwner(page: Page, run: string): Promise<void> {
   const ipOffset = Number(run.slice(-8)) % 65_536;
@@ -30,18 +31,18 @@ test('key owner and public screens pass axe and fit required viewports', async (
   await registerOwner(page, `${Date.now()}`);
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { displayName: 'A11y Master', color: 'teal', acceptsOnlineBooking: true },
   });
   expect(staffResponse.status()).toBe(201);
   const staff = (await staffResponse.json()).data as { id: string };
   const serviceResponse = await page.request.post('http://localhost:3000/api/services', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { name: 'A11y Service', durationMinutes: 30, priceMinor: 1000, staffIds: [staff.id] },
   });
   expect(serviceResponse.status()).toBe(201);
   const customerResponse = await page.request.post('http://localhost:3000/api/customers', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { firstName: 'A11y Customer', phone: `+996555${String(Date.now()).slice(-6)}` },
   });
   expect(customerResponse.status()).toBe(201);
@@ -49,7 +50,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
   const settings = (await (await page.request.get('http://localhost:3000/api/settings')).json()).data as { business: { slug: string } };
 
   const screens = [
-    ['landing', '/', 'Онлайн-запись для салонов. Работает.'],
+    ['landing', '/', 'Онлайн-запись для салонов красоты'],
     ['login', '/login', 'Войти'],
     ['register', '/register', 'Создать бизнес'],
     ['dashboard', '/app/dashboard', 'Обзор'],
@@ -128,12 +129,12 @@ test('key owner and public screens pass axe and fit required viewports', async (
   const bookingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const weekday = new Date(`${bookingDate}T12:00:00Z`).getUTCDay() || 7;
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${staff.id}/schedule`, {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { weekly: [{ isoWeekday: weekday, intervals: [{ start: '09:00', end: '17:00' }], breaks: [] }] },
   });
   expect(scheduleResponse.status()).toBe(200);
   const privacyResponse = await page.request.patch('http://localhost:3000/api/settings/business', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { privacy: { requireConsent: false } },
   });
   expect(privacyResponse.status()).toBe(200);

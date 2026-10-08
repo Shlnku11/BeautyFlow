@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { expect, test } from '@playwright/test';
+import { appOrigin } from './test-origin';
 
 interface PublicService {
   id: string;
@@ -66,7 +67,7 @@ test('calendar renders simultaneous bookings in separate visible lanes', async (
   try {
     for (const [index, member] of [firstStaff, secondStaff].entries()) {
       const bookingResponse = await page.request.post(`http://localhost:3000/api/public/b/${settings.business.slug}/appointments`, {
-        headers: { Origin: 'http://localhost:5173', 'Idempotency-Key': `calendar-overlap-${run}-${index}` },
+        headers: { Origin: appOrigin, 'Idempotency-Key': `calendar-overlap-${run}-${index}` },
         data: {
           serviceId: service.id,
           staffId: member.id,
@@ -103,6 +104,6 @@ test('calendar renders simultaneous bookings in separate visible lanes', async (
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.screenshot({ path: 'docs/screenshots/calendar-overlap-dark.png', fullPage: true, animations: 'disabled' });
   } finally {
-    await Promise.all(createdTokens.map((token) => page.request.post(`http://localhost:3000/api/public/manage/${token}/cancel`, { headers: { Origin: 'http://localhost:5173' }, data: {} })));
+    await Promise.all(createdTokens.map((token) => page.request.post(`http://localhost:3000/api/public/manage/${token}/cancel`, { headers: { Origin: appOrigin }, data: {} })));
   }
 });

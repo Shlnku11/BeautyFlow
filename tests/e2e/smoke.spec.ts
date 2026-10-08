@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { verifyRegistrationEmail } from './email-verification';
+import { prepareFullPageScreenshot } from './screen-capture';
+import { appOrigin } from './test-origin';
 
 test('root opens the public landing page without a redirect loop', async ({ page }) => {
   const mainFrameNavigations: string[] = [];
@@ -11,12 +13,45 @@ test('root opens the public landing page without a redirect loop', async ({ page
   await page.goto('/');
   await page.waitForLoadState('networkidle');
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'Онлайн-запись для салонов. Работает.' })).toBeVisible();
+  await expect(page.locator('h1')).toHaveText(/Онлайн-запись для\s+салонов красоты/);
+  await expect(page.getByRole('link', { name: 'Начать бесплатно' }).first()).toBeVisible();
   await page.waitForTimeout(500);
   const transitions = mainFrameNavigations.filter((path, index) => index === 0 || path !== mainFrameNavigations[index - 1]);
   expect(transitions, mainFrameNavigations.join(' → ')).toEqual(['/']);
   expect(mainFrameNavigations.length).toBeLessThanOrEqual(4);
   await page.screenshot({ path: 'test-results/runtime-landing.png' });
+});
+
+test('landing dashboard preview follows the active color scheme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const preview = page.locator('#top picture img');
+  await expect(preview).toHaveAttribute('alt', /Обзор BeautyFlow/);
+  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => new URL(image.currentSrc).pathname)).toBe('/images/dashboard-light.png');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => new URL(image.currentSrc).pathname)).toBe('/images/dashboard-dark.png');
+});
+
+test('landing has no serious or critical accessibility violations in either theme', async ({ page }) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/');
+    await page.locator('h1').waitFor({ state: 'visible' });
+    await prepareFullPageScreenshot(page);
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+    expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+  }
+});
+
+test('landing stays within narrow and desktop viewport widths', async ({ page }) => {
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    const dimensions = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth, heading: document.querySelector('h1')?.scrollWidth, headingClient: document.querySelector('h1')?.clientWidth }));
+    expect(dimensions.document, `document overflow at ${width}px`).toBeLessThanOrEqual(width);
+    expect(dimensions.heading, `heading overflow at ${width}px`).toBeLessThanOrEqual(dimensions.headingClient ?? 0);
+  }
 });
 
 test('login route loads and provides a labeled form', async ({ page }) => {
@@ -83,7 +118,7 @@ test('business owner can register and log back in using a server-side session', 
   await expect(page.getByRole('heading', { name: 'Клиенты' })).toBeVisible();
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { displayName: 'E2E Staff', color: 'teal', acceptsOnlineBooking: true },
   });
   expect(staffResponse.status()).toBe(201);
@@ -96,7 +131,7 @@ test('business owner can register and log back in using a server-side session', 
   for (const tab of ['Расписание', 'Исключения', 'Услуги', 'Доступ']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
 
   const serviceResponse = await page.request.post('http://localhost:3000/api/services', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] },
   });
   expect(serviceResponse.status()).toBe(201);
@@ -107,7 +142,7 @@ test('business owner can register and log back in using a server-side session', 
   await expect(page.getByRole('cell', { name: 'E2E haircut', exact: true })).toBeVisible();
 
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { weekly: [{ isoWeekday: 1, intervals: [{ start: '09:00', end: '17:00' }], breaks: [{ start: '12:00', end: '12:30' }] }] },
   });
   expect(scheduleResponse.status()).toBe(200);
@@ -115,13 +150,13 @@ test('business owner can register and log back in using a server-side session', 
 
   const exceptionDate = '2030-06-10';
   const exceptionResponse = await page.request.post(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions`, {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { date: exceptionDate, kind: 'day_off', intervals: [], breaks: [] },
   });
   expect(exceptionResponse.status()).toBe(200);
   const exceptionsResponse = await page.request.get(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions?from=${exceptionDate}&to=${exceptionDate}`);
   expect((await exceptionsResponse.json()).data).toHaveLength(1);
-  const deleteExceptionResponse = await page.request.delete(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions/${exceptionDate}`, { headers: { Origin: 'http://localhost:5173' } });
+  const deleteExceptionResponse = await page.request.delete(`http://localhost:3000/api/staff/${createdStaff.id}/exceptions/${exceptionDate}`, { headers: { Origin: appOrigin } });
   expect(deleteExceptionResponse.status()).toBe(204);
   const availabilityResponse = await page.request.get(`http://localhost:3000/api/availability?serviceId=${createdService.id}&staffId=${createdStaff.id}&date=${exceptionDate}`);
   expect(availabilityResponse.status()).toBe(200);
@@ -129,7 +164,7 @@ test('business owner can register and log back in using a server-side session', 
 
   const phone = `+996555${(Number(run) % 1_000_000).toString().padStart(6, '0')}`;
   const customerResponse = await page.request.post('http://localhost:3000/api/customers', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { firstName: 'E2E Client', phone, contacts: [{ type: 'telegram', value: 'e2e-client' }] },
   });
   expect(customerResponse.status()).toBe(201);
@@ -141,7 +176,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByRole('link', { name: 'E2E Client' }).click();
   await expect(page.getByRole('heading', { name: 'E2E Client' })).toBeVisible();
   const duplicateCustomerResponse = await page.request.post('http://localhost:3000/api/customers', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { firstName: 'Duplicate', phone },
   });
   expect(duplicateCustomerResponse.status()).toBe(409);
@@ -150,14 +185,14 @@ test('business owner can register and log back in using a server-side session', 
 
   const appointmentRequest = { customerId: customerData.id, serviceId: createdService.id, staffId: createdStaff.id, startAt: '2030-06-10T03:00:00.000Z' };
   const firstAppointmentResponse = await page.request.post('http://localhost:3000/api/appointments', {
-    headers: { Origin: 'http://localhost:5173', 'Idempotency-Key': `e2e-${run}` },
+    headers: { Origin: appOrigin, 'Idempotency-Key': `e2e-${run}` },
     data: appointmentRequest,
   });
   expect(firstAppointmentResponse.status()).toBe(201);
   const firstAppointment = (await firstAppointmentResponse.json()).data;
   expect(firstAppointment).toMatchObject({ startAt: appointmentRequest.startAt, staff: { id: createdStaff.id }, service: { id: createdService.id }, customer: { id: customerData.id } });
   const idempotentReplay = await page.request.post('http://localhost:3000/api/appointments', {
-    headers: { Origin: 'http://localhost:5173', 'Idempotency-Key': `e2e-${run}` },
+    headers: { Origin: appOrigin, 'Idempotency-Key': `e2e-${run}` },
     data: appointmentRequest,
   });
   expect(idempotentReplay.status()).toBe(200);
@@ -178,7 +213,7 @@ test('business owner can register and log back in using a server-side session', 
   await expect(page.getByRole('dialog', { name: 'Запись' })).toBeHidden();
 
   const raceRequests = await Promise.all(Array.from({ length: 20 }, (_, competitor) => page.request.post('http://localhost:3000/api/appointments', {
-    headers: { Origin: 'http://localhost:5173', 'Idempotency-Key': `e2e-race-${run}-${competitor}` },
+    headers: { Origin: appOrigin, 'Idempotency-Key': `e2e-race-${run}-${competitor}` },
     data: { ...appointmentRequest, startAt: '2030-06-10T03:30:00.000Z' },
   })));
   expect(raceRequests.map((response) => response.status()).sort((a, b) => a - b)).toEqual([201, ...Array.from({ length: 19 }, () => 409)]);
@@ -189,18 +224,18 @@ test('business owner can register and log back in using a server-side session', 
   await page.goto('/app/settings');
   for (const tab of ['Бизнес', 'Запись', 'Команда']) await expect(page.getByRole('tab', { name: tab })).toBeVisible();
   const bookingSettingsResponse = await page.request.patch('http://localhost:3000/api/settings/booking', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { minNoticeMinutes: 45 },
   });
   expect((await bookingSettingsResponse.json()).data.booking.minNoticeMinutes).toBe(45);
   const invalidTimezoneResponse = await page.request.patch('http://localhost:3000/api/settings/business', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { timezone: 'Invalid/Zone' },
   });
   expect(invalidTimezoneResponse.status()).toBe(422);
 
   const rejectedTenantOverride = await page.request.post('http://localhost:3000/api/staff', {
-    headers: { Origin: 'http://localhost:5173' },
+    headers: { Origin: appOrigin },
     data: { displayName: 'Injected tenant', color: 'teal', acceptsOnlineBooking: true, businessId: '000000000000000000000000' },
   });
   expect(rejectedTenantOverride.status()).toBe(422);
@@ -223,7 +258,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByRole('button', { name: 'Подтвердить запись' }).click();
   await expect(page.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
   const managePath = new URL(await page.getByRole('link', { name: 'Управлять записью' }).getAttribute('href') ?? '').pathname;
-  await page.goto(`http://localhost:5173${managePath}`);
+  await page.goto(`${appOrigin}${managePath}`);
   await expect(page.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
   await page.getByRole('button', { name: 'Отменить запись' }).click();
 });

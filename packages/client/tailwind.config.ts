@@ -8,6 +8,7 @@ export default {
     ...Array.from({ length: 52 }, (_, index) => `row-span-[${index + 1}]`),
   ],
   theme: { extend: {
+    fontFamily: { landing: ['Inter Variable', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
     colors: {
     primary: {
       DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
@@ -28,6 +29,7 @@ export default {
     neutral: Object.fromEntries([0,25,50,100,200,300,400,500,600,700,800,900].map((shade) => [shade, `var(--color-neutral-${shade})`])),
     'on-accent': 'var(--text-on-accent)',
     'on-danger': 'var(--text-on-danger)',
+    'landing-cta': { DEFAULT: 'var(--landing-cta-bg)', foreground: 'var(--landing-cta-foreground)', muted: 'var(--landing-cta-muted)' },
     'master-badge': { DEFAULT: 'var(--master-badge-bg)', fg: 'var(--master-badge-fg)' },
     success: { bg: 'var(--color-success-bg)', fg: 'var(--color-success-fg)', solid: 'var(--color-success-solid)' },
     warning: { bg: 'var(--color-warning-bg)', fg: 'var(--color-warning-fg)', solid: 'var(--color-warning-solid)' },

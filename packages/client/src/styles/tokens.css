@@ -80,6 +80,9 @@
   --text-tertiary: #a1a1aa;
   --text-on-accent: #ffffff;
   --text-on-danger: #ffffff;
+  --landing-cta-bg: #09090b;
+  --landing-cta-foreground: #fafafa;
+  --landing-cta-muted: #a1a1aa;
   --focus-ring: #5b5bd6;
   --blur-glass: 0px;
   --blur-glass-mobile: 0px;
@@ -220,6 +223,7 @@ dialog[open] { animation: dialog-enter 150ms ease-out both; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   dialog[open] { animation: none; }
+  .reveal-pending { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

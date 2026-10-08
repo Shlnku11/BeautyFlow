@@ -5,6 +5,8 @@ import { existsSync } from 'node:fs';
 if (!process.env.MONGODB_URI && existsSync('.env')) process.loadEnvFile('.env');
 
 const e2eTokenPepper = `e2e-${Date.now()}-abcdefghijklmnopqrstuvwxyz0123456789`;
+const appOrigin = process.env.E2E_APP_ORIGIN ?? 'http://localhost:5173';
+const appPort = new URL(appOrigin).port || '5173';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -14,12 +16,12 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: appOrigin,
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
   },
   webServer: [
-    { command: 'npm run dev:server', url: 'http://localhost:3000/api/health', reuseExistingServer: !process.env.CI, timeout: 120_000, env: { TOKEN_PEPPER: e2eTokenPepper, TRUSTED_PROXY_HOPS: '1' } },
-    { command: 'npm run dev:client', url: 'http://localhost:5173', reuseExistingServer: !process.env.CI, timeout: 120_000 },
+    { command: 'npm run dev:server', url: 'http://localhost:3000/api/health', reuseExistingServer: !process.env.CI, timeout: 120_000, env: { TOKEN_PEPPER: e2eTokenPepper, TRUSTED_PROXY_HOPS: '1', DEV_APP_BASE_URL: appOrigin } },
+    { command: `npm run dev:client -- --port ${appPort} --strictPort`, url: appOrigin, reuseExistingServer: !process.env.CI, timeout: 120_000 },
   ],
 });

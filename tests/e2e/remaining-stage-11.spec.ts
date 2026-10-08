@@ -2,8 +2,9 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import mongoose from 'mongoose';
 import { verifyRegistrationEmail } from './email-verification';
 import { captureThemeScreenshots } from './screen-capture';
+import { appOrigin } from './test-origin';
 
-const origin = 'http://localhost:5173';
+const origin = appOrigin;
 const ownerPassword = 'Strong-password-123';
 
 function futureMonday(weeksAhead = 1): string {

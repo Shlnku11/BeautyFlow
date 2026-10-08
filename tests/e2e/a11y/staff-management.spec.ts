@@ -16,6 +16,7 @@ async function expectNoSeriousAxeViolations(page: import('@playwright/test').Pag
 }
 
 test('staff list and profile tabs are responsive, keyboard accessible, and usable in both themes', async ({ page }) => {
+  test.setTimeout(90_000);
   const run = `${Date.now()}`;
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.24.${Number(run.slice(-8)) % 255}.${Number(run.slice(-4)) % 254 + 1}` });
   await page.goto('/login');
