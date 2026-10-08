@@ -6,7 +6,7 @@ Reference URLs: [Linear](https://linear.app/), [Linear login](https://linear.app
 
 Desktop captures use a 1440px-wide viewport; mobile captures use 390×844. Public routes include both light and dark themes. Desktop CRM routes include both themes. Mobile CRM, owner modals, and master My Day include both themes; mobile public captures cover landing, auth, and public booking.
 
-Generated 83 comparisons.
+Generated 87 comparisons.
 
 ## Pair index
 
@@ -15,6 +15,8 @@ Generated 83 comparisons.
 - [mobile-master-my-day-light--vs--linear-mobile](mobile-master-my-day-light--vs--linear-mobile.jpg)
 - [mobile-owner-appointment-create-modal-dark--vs--linear-mobile](mobile-owner-appointment-create-modal-dark--vs--linear-mobile.jpg)
 - [mobile-owner-appointment-create-modal-light--vs--linear-mobile](mobile-owner-appointment-create-modal-light--vs--linear-mobile.jpg)
+- [mobile-owner-appointment-detail-reschedule-dark--vs--linear-mobile](mobile-owner-appointment-detail-reschedule-dark--vs--linear-mobile.jpg)
+- [mobile-owner-appointment-detail-reschedule-light--vs--linear-mobile](mobile-owner-appointment-detail-reschedule-light--vs--linear-mobile.jpg)
 - [mobile-owner-appointments-dark--vs--linear-mobile](mobile-owner-appointments-dark--vs--linear-mobile.jpg)
 - [mobile-owner-appointments-light--vs--linear-mobile](mobile-owner-appointments-light--vs--linear-mobile.jpg)
 - [mobile-owner-calendar-day-dark--vs--linear-mobile](mobile-owner-calendar-day-dark--vs--linear-mobile.jpg)
@@ -55,6 +57,8 @@ Generated 83 comparisons.
 - [mobile-public-verify-email-light--vs--linear-login-mobile](mobile-public-verify-email-light--vs--linear-login-mobile.jpg)
 - [owner-appointment-create-modal-dark--vs--linear](owner-appointment-create-modal-dark--vs--linear.jpg)
 - [owner-appointment-create-modal-light--vs--linear](owner-appointment-create-modal-light--vs--linear.jpg)
+- [owner-appointment-detail-reschedule-dark--vs--linear](owner-appointment-detail-reschedule-dark--vs--linear.jpg)
+- [owner-appointment-detail-reschedule-light--vs--linear](owner-appointment-detail-reschedule-light--vs--linear.jpg)
 - [owner-appointments-dark--vs--linear](owner-appointments-dark--vs--linear.jpg)
 - [owner-appointments-light--vs--linear](owner-appointments-light--vs--linear.jpg)
 - [owner-calendar-day-dark--vs--linear](owner-calendar-day-dark--vs--linear.jpg)
