@@ -20,6 +20,114 @@ interface CalendarPayload {
 const slotMinutes = 15;
 const slotCount = 52;
 const dayStartMinute = 8 * 60;
+const rowStartClasses = [
+  'row-start-1',
+  'row-start-2',
+  'row-start-3',
+  'row-start-4',
+  'row-start-5',
+  'row-start-6',
+  'row-start-7',
+  'row-start-8',
+  'row-start-9',
+  'row-start-10',
+  'row-start-11',
+  'row-start-12',
+  'row-start-13',
+  'row-start-14',
+  'row-start-15',
+  'row-start-16',
+  'row-start-17',
+  'row-start-18',
+  'row-start-19',
+  'row-start-20',
+  'row-start-21',
+  'row-start-22',
+  'row-start-23',
+  'row-start-24',
+  'row-start-25',
+  'row-start-26',
+  'row-start-27',
+  'row-start-28',
+  'row-start-29',
+  'row-start-30',
+  'row-start-31',
+  'row-start-32',
+  'row-start-33',
+  'row-start-34',
+  'row-start-35',
+  'row-start-36',
+  'row-start-37',
+  'row-start-38',
+  'row-start-39',
+  'row-start-40',
+  'row-start-41',
+  'row-start-42',
+  'row-start-43',
+  'row-start-44',
+  'row-start-45',
+  'row-start-46',
+  'row-start-47',
+  'row-start-48',
+  'row-start-49',
+  'row-start-50',
+  'row-start-51',
+  'row-start-52'
+] as const;
+const rowSpanClasses = [
+  'row-span-1',
+  'row-span-2',
+  'row-span-3',
+  'row-span-4',
+  'row-span-5',
+  'row-span-6',
+  'row-span-7',
+  'row-span-8',
+  'row-span-9',
+  'row-span-10',
+  'row-span-11',
+  'row-span-12',
+  'row-span-13',
+  'row-span-14',
+  'row-span-15',
+  'row-span-16',
+  'row-span-17',
+  'row-span-18',
+  'row-span-19',
+  'row-span-20',
+  'row-span-21',
+  'row-span-22',
+  'row-span-23',
+  'row-span-24',
+  'row-span-25',
+  'row-span-26',
+  'row-span-27',
+  'row-span-28',
+  'row-span-29',
+  'row-span-30',
+  'row-span-31',
+  'row-span-32',
+  'row-span-33',
+  'row-span-34',
+  'row-span-35',
+  'row-span-36',
+  'row-span-37',
+  'row-span-38',
+  'row-span-39',
+  'row-span-40',
+  'row-span-41',
+  'row-span-42',
+  'row-span-43',
+  'row-span-44',
+  'row-span-45',
+  'row-span-46',
+  'row-span-47',
+  'row-span-48',
+  'row-span-49',
+  'row-span-50',
+  'row-span-51',
+  'row-span-52'
+] as const;
 const timeLabel = (date: DateTime) => date.toFormat('HH:mm');
 const staffClass: Record<string, string> = {
   violet: 'border-staff-violet bg-staff-violet/10 text-neutral-900 hover:bg-staff-violet/20 dark:bg-staff-violet/15 dark:hover:bg-staff-violet/25',
@@ -141,6 +249,9 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
               const dayIso = calendarDay.toISODate() ?? '';
               const dateAppointments = data.appointments.filter((item) => DateTime.fromISO(item.startAt).setZone(zone).toISODate() === dayIso && (selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)));
               const dateBlocks = data.blockedPeriods.filter((item) => DateTime.fromISO(item.startAt).setZone(zone).toISODate() === dayIso && (selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staffId)));
+              const now = DateTime.now().setZone(zone);
+              const nowSlotIndex = Math.floor((now.hour * 60 + now.minute - dayStartMinute) / slotMinutes);
+              const showCurrentTime = dayIso === now.toISODate() && nowSlotIndex >= 0 && nowSlotIndex < slotCount;
               return <div className="grid grid-rows-[repeat(52,20px)] border-l border-neutral-200" key={dayIso}>
                 {Array.from({ length: slotCount }, (_, index) => {
                   const minute = dayStartMinute + index * slotMinutes;
@@ -153,7 +264,7 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const working = visibleStaff.some((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const borderClass = index % 4 === 0 ? 'border-t border-neutral-300' : index % 2 === 0 ? 'border-t border-neutral-200' : 'border-t border-neutral-100';
                   const slotClass = `flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${blocked ? 'bg-neutral-100' : working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
-                  return <div className={`${slotClass} row-start-[${index + 1}]`} key={minute}>
+                  return <div className={slotClass} key={minute}>
                     {!busy && !blocked && canBook && availableStaff ? <button className="h-4 min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
                   </div>;
                 })}
@@ -164,9 +275,13 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const span = Math.max(1, Math.min(slotCount - startIndex, Math.ceil(DateTime.fromISO(appointment.endAt).diff(startAt, 'minutes').minutes / slotMinutes)));
                   if (startIndex < 0 || startIndex >= slotCount) return null;
                   const colorClass = staffClass[appointment.staff.color] ?? staffClass.slate;
-                  return <button className={`z-10 col-start-1 flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-4 ${colorClass} row-start-[${startIndex + 1}] row-span-[${span}]`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={`${appointment.staff.displayName} · ${appointment.customer.firstName} · ${appointment.service.name}`}><strong className="truncate tabular-nums">{timeLabel(startAt)} · {appointment.staff.displayName}</strong><span className="truncate">{appointment.customer.firstName} {appointment.customer.lastName ?? ''}</span><span className="truncate text-neutral-600">{appointment.service.name}</span></button>;
+                  const rowStartClass = rowStartClasses[startIndex] ?? 'row-start-1';
+                  const rowSpanClass = rowSpanClasses[span - 1] ?? 'row-span-1';
+                  const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}`.trim();
+                  const appointmentLabel = `${timeLabel(startAt)} · ${customerName} · ${appointment.service.name} · ${appointment.staff.displayName}`;
+                  return <button aria-label={appointmentLabel} className={`z-10 col-start-1 flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-3 ${colorClass} ${rowStartClass} ${rowSpanClass}`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={appointmentLabel}><strong className="truncate tabular-nums">{timeLabel(startAt)} · {appointment.customer.firstName}</strong><span className="truncate">{appointment.service.name}</span>{span >= 3 ? <span className="truncate text-neutral-600">{appointment.staff.displayName}</span> : <span className="sr-only">{appointment.staff.displayName}</span>}</button>;
                 })}
-                {dayIso === DateTime.now().setZone(zone).toISODate() && DateTime.now().setZone(zone).hour * 60 + DateTime.now().setZone(zone).minute >= dayStartMinute && DateTime.now().setZone(zone).hour * 60 + DateTime.now().setZone(zone).minute < dayStartMinute + slotCount * slotMinutes ? <span aria-hidden="true" className={`pointer-events-none z-20 h-px self-start bg-danger-solid col-start-1 row-start-[${Math.floor((DateTime.now().setZone(zone).hour * 60 + DateTime.now().setZone(zone).minute - dayStartMinute) / slotMinutes) + 1}]`}/> : null}
+                {showCurrentTime ? <span aria-hidden="true" className={`pointer-events-none z-20 h-px self-start bg-danger-solid col-start-1 ${rowStartClasses[nowSlotIndex] ?? 'row-start-1'}`} /> : null}
               </div>;
             })}
           </div>

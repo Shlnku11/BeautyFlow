@@ -52,6 +52,14 @@ export default {
       'clay-control': 'var(--radius-clay-control)',
       'clay-input': 'var(--radius-clay-input)',
     },
+    gridRow: Object.fromEntries(Array.from({ length: 52 }, (_, index) => {
+      const span = index + 1;
+      return [`span-${span}`, `span ${span} / span ${span}`];
+    })),
+    gridRowStart: Object.fromEntries(Array.from({ length: 52 }, (_, index) => {
+      const line = index + 1;
+      return [String(line), String(line)];
+    })),
   } },
   plugins: [],
 } satisfies Config;

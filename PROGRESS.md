@@ -23,6 +23,12 @@
 - Stage 3 test evidence: typecheck ✅, lint ✅, Vitest 31 files / 115 tests ✅, race 2/2 ✅, build ✅, migrate ✅, full Chromium E2E 11/11 ✅, a11y suite 1/1 ✅, contrast ✅. Axe checked 13 key routes in light/dark; responsive checks covered 320/375/768/1024/1440, mobile navigation, skip-link, Escape and keyboard-only public booking. Full E2E uncovered and then verified fixes for sandbox Skeleton ARIA, inactive tab contrast (4.39:1 → darker muted foreground), and ambiguous dialog-close locator. Initial client bundle remains 1,257.12 kB minified / 365.26 kB gzip; FPS/production trace not measured.
 - Stage 4 must fix the audit P0s before motion work. External app setup uses real seeded demo rows in the local development database; no hardcoded mock was added to runtime.
 
+## 2026-10-08 — Stage 4 calendar P0
+
+- Fixed week/day appointment-card placement. Tailwind row-start and row-span utilities are statically enumerated through row 52, with matching `gridRow`/`gridRowStart` theme values; the production CSS was checked for rows 25 and 52. Removed runtime-generated arbitrary classes.
+- Calendar card now fits a 30-minute booking, exposes full appointment context to assistive tech, and shows the master when duration allows. Real Chromium regression completed registration, staff/service/schedule setup and public booking, then asserted a visible 40px grid card.
+- Captured after images: `docs/screenshots/calendar-after-light.png` and `calendar-after-dark.png`. Targeted E2E ✅ (1/1), typecheck ✅, lint ✅, build ✅. Audit marks calendar’s class-generation blocker fixed; responsive internal grid and overlapping appointments remain open.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.

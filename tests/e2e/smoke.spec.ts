@@ -248,7 +248,7 @@ test('business registration through the browser form opens the owner dashboard',
   await expect(page.getByTestId('dashboard-kpis').locator('article')).toHaveCount(4);
   await page.screenshot({ path: 'test-results/runtime-dashboard.png' });
 
-  const staffName = `Runtime Master ${run}`;
+  const staffName = 'Алия';
   await page.goto('/app/staff');
   await page.getByRole('heading', { name: 'Сотрудники' }).waitFor();
   await page.getByRole('button', { name: '＋ Сотрудник' }).first().click();
@@ -264,7 +264,7 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByRole('button', { name: 'Сохранить расписание' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Расписание сохранено' })).toBeVisible();
 
-  const serviceName = `Runtime service ${run}`;
+  const serviceName = 'Стрижка';
   await page.goto('/app/services');
   await page.getByRole('button', { name: '＋ Услуга' }).first().click();
   await page.getByLabel('Название').fill(serviceName);
@@ -327,6 +327,18 @@ test('business registration through the browser form opens the owner dashboard',
   await expect(page.getByRole('button', { name: 'Отменить запись' })).toBeVisible();
   await page.goto('/app/calendar');
   await expect(page.getByRole('heading', { name: 'Календарь' })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByLabel('Дата').fill(publicDate);
+  const calendarAppointment = page.getByRole('region', { name: 'Календарная сетка' }).getByRole('button', { name: /Runtime Client/ });
+  await expect(calendarAppointment).toBeVisible();
+  const calendarAppointmentBounds = await calendarAppointment.boundingBox();
+  expect(calendarAppointmentBounds?.height ?? 0).toBeGreaterThanOrEqual(39);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.screenshot({ path: 'docs/screenshots/calendar-after-light.png', fullPage: true });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.screenshot({ path: 'docs/screenshots/calendar-after-dark.png', fullPage: true });
   await page.goto('/app/dashboard');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
 });

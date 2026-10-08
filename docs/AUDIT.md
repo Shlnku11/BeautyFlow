@@ -9,7 +9,7 @@
 - Основные сравнения — предоставленные эталонные изображения dashboard/calendar и публичные интерфейсы [Linear](https://linear.app/), [Vercel](https://vercel.com/) и [Stripe](https://stripe.com/). У эталонов плотная, хорошо отсканированная сетка; видимые действия рядом с записью; чёткие заголовки и статусы; содержимое таблиц не распадается на сырые значения.
 - Выполнены `npm run typecheck`, `npm run lint`, `npm test` (31 файл / 115 тестов), `npm run test:race` (2/2), `npm run build`, `npm run migrate`, полный Chromium `npm run test:e2e` (11/11) и `npm run test:a11y` (1/1). A11y suite проверила 13 ключевых маршрутов в light/dark без serious/critical, responsive widths 320/375/768/1024/1440, мобильную навигацию, skip-link, Escape и keyboard-only публичную запись. Первый полный E2E нашёл два sandbox axe дефекта (недопустимый `aria-label` у skeleton и контраст текста вкладки 4.39:1) и неоднозначный локатор закрытия appointment dialog; все исправлены и полный набор повторно прошёл.
 
-## Оценки экранов
+## Оценки экранов до доработки
 
 Порядок оценок: дизайн / структура / типографика / состояния / адаптив / dark / a11y. Каждый балл ниже 10 имеет конкретное наблюдение в столбце «Что мешает».
 
@@ -29,6 +29,14 @@
 | My day | 7 | 8 | 8 | 7 | 8 | 7 | 7 | У master нет денег и доступна своя выборка, но нулевой день визуально теряется рядом с ближайшими 7 днями; demo master показывает email-баннер; время и расписание требуют полного прохода на реальном дне. |
 | Public booking + manage | 5 | 5 | 7 | 4 | 7 | 6 | 6 | Весь выбор — услуга/мастер, дата, контакты — одновременно показан как три больших блока, вместо ясного пошагового прогресса и резюме выбора; после «Показать время» пустой список не объясняет ближайшую доступную дату; тёмный вариант выглядит в основном инверсией токенов. Manage-ссылка работает, но экран имеет избыточное пустое поле справа на desktop. |
 | Appointment modal | 6 | 7 | 6 | 5 | 7 | 7 | 6 | Много разделов (статусы, заметки, перенос) в одном диалоге; generic «Не удалось выполнить запрос» не объясняет, какое действие провалилось; на demo-прошедшей записи модалка показывает этот error при попытке переноса. Фокус/возврат фокуса/доступное описание не проверены. |
+
+## Stage 4 — экран календаря (2026-10-08)
+
+- Исправлено runtime-позиционирование appointment cards: Tailwind utilities перечислены статически для grid rows 1–52; `gridRow` и `gridRowStart` расширены теми же диапазонами. Удалены интерполированные `row-start-[${...}]` / `row-span-[${...}]`, из-за которых карточки исчезали/схлопывались после purge.
+- 30-минутная запись теперь занимает 40px и остаётся читаемой: время с клиентом и услуга видны, имя мастера доступно в `aria-label` и tooltip; при более длинной записи имя мастера также видно строкой. В полном контексте карточки сохранены действия открытия записи и цвет мастера.
+- Реальный Chromium E2E создал запись через публичную форму, открыл неделю с выбранной датой, проверил карточку внутри `Календарная сетка` и её высоту ≥39px. `npm run typecheck`, lint и build прошли.
+- До: [`calendar-week-light.png`](screenshots/audit-before/calendar-week-light.png), [`calendar-week-dark.png`](screenshots/audit-before/calendar-week-dark.png). После: [`calendar-after-light.png`](screenshots/calendar-after-light.png), [`calendar-after-dark.png`](screenshots/calendar-after-dark.png).
+- Предварительная оценка после этой одной правки: D7 / S7 / T7 / St7 / R4 / Dark8 / A11y8. Остаются мобильная ширина внутренней сетки, плотность/перекрытие нескольких записей и states для пустого дня. Остальные экраны не менялись.
 
 ### Причины ключевых оценок
 
@@ -70,7 +78,7 @@
 
 ### Радикальные — P0
 
-1. Исправить календарные placement-свойства через CSS Grid inline-independent utilities или `style`-free class mapping; запретить динамически собирать Tailwind arbitrary classes. Сравнить week view с предоставленным эталоном: событие должно показывать время, клиента, услугу и мастера.
+1. ✅ Исправить календарные placement-свойства через статический class map; диапазон row start/span 1–52 подтверждён production CSS. До перехода к следующему экрану календарю ещё нужны мобильная ширина и проверка пересечений нескольких записей.
 2. Переписать customer card presentation mapping: русские label, KGS formatting, local dates в business timezone; значения не менять в API/модели.
 3. Добавить корректный outer 404/error route и единые loading/error/empty состояния; проверить существующие кнопки/модалки браузерными сценариями.
 4. Перевести payments/appointments/customers/services таблицы на responsive карточки на ширине `<768px`, оставив плотную таблицу на desktop.
@@ -92,4 +100,4 @@
 
 ## Приоритет
 
-P0: calendar event grid → customer details formatting → demo verification state → 404/errors → responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
+P0: календарные карточки отображаются; оставшиеся calendar mobile/overlap checks → customer details formatting → demo verification state → 404/errors → responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
