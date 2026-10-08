@@ -7,6 +7,7 @@ import { NativeSelect as Select } from '@/components/ui/native-select';
 import { Badge } from '@/components/ui/badge';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { formatDateTime, formatMoney } from '@/lib/format';
+import { useSession } from '@/hooks/use-session';
 
 interface PaymentRow {
   id: string; appointmentId: string; customerId: string; staffId: string; amountMinor: number; refundedMinor: number;
@@ -49,6 +50,8 @@ async function fetchPayments(url: string): Promise<PaymentsEnvelope> {
 
 export function PaymentsPage() {
   const location = useLocation();
+  const session = useSession();
+  const timezone = session.data?.active.business.timezone ?? 'UTC';
   const presetAppointmentId = useMemo(() => new URLSearchParams(location.search).get('appointmentId') ?? '', [location.search]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [details, setDetails] = useState<Record<string, AppointmentRow>>({});
@@ -139,22 +142,48 @@ export function PaymentsPage() {
     </form>
     {meta ? <section aria-label="Итоги оплат" className="mt-4 grid gap-3 sm:grid-cols-2"><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-xs text-neutral-500">Оплачено по выборке</p><p className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(meta.totals.paidMinor, currency)}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-xs text-neutral-500">Возвращено по выборке</p><p className="mt-1 text-2xl font-semibold tabular-nums">{formatMoney(meta.totals.refundedMinor, currency)}</p></article></section> : null}
     {error ? <p className="mt-4 text-danger-fg" role="alert">{error}</p> : null}
-    <div aria-label="Таблица оплат" className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0 md:block" role="region" tabIndex={0}><table className="w-full min-w-[1120px] border-collapse text-left text-[13px]"><caption className="sr-only">История платежей</caption><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">{['Дата', 'Клиент', 'Запись', 'Метод', 'Сумма', 'Возвращено', 'Статус', 'Принял', 'Действия'].map((label) => <th className="px-3" key={label} scope="col">{label}</th>)}</tr></thead><tbody>
+    <div aria-label="Таблица оплат" className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0 min-[1536px]:block" role="region" tabIndex={0}><table className="w-full min-w-[1120px] border-collapse text-left text-[13px]"><caption className="sr-only">История платежей</caption><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">{['Дата', 'Клиент', 'Запись', 'Метод', 'Сумма', 'Возвращено', 'Статус', 'Принял', 'Действия'].map((label) => <th className="px-3" key={label} scope="col">{label}</th>)}</tr></thead><tbody>
       {payments.map((payment) => { const appointment = details[payment.appointmentId]; const date = payment.paidAt ?? payment.createdAt; return <tr className="h-[52px] border-b border-neutral-100 text-[13px] transition-colors hover:bg-neutral-50" key={payment.id}>
-        <td className="whitespace-nowrap px-2 tabular-nums text-neutral-600">{formatDateTime(date, Intl.DateTimeFormat().resolvedOptions().timeZone)}</td>
-        <td className="px-2 font-medium">{appointment ? `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}` : payment.customerId}</td>
-        <td className="px-2 text-neutral-600">{appointment ? `${appointment.service.name} · ${formatDateTime(appointment.startAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}` : payment.appointmentId}</td>
+        <td className="whitespace-nowrap px-2 tabular-nums text-neutral-600">{formatDateTime(date, timezone)}</td>
+        <td className="px-2 font-medium">{appointment ? `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}` : 'Клиент'}</td>
+        <td className="px-2 text-neutral-600">{appointment ? `${appointment.service.name} · ${formatDateTime(appointment.startAt, timezone)}` : 'Запись недоступна'}</td>
         <td className="px-3 text-neutral-600">{methodNames[payment.method]}</td><td className="whitespace-nowrap px-3 font-medium tabular-nums">{formatMoney(payment.amountMinor, payment.currency)}</td>
         <td className="whitespace-nowrap px-3 tabular-nums text-neutral-600">{formatMoney(payment.refundedMinor, payment.currency)}</td><td className="px-3"><Badge tone={statusTone[payment.status]}>{statusNames[payment.status]}</Badge></td><td className="px-3 text-neutral-600">{payment.createdBy.name}</td>
         <td className="px-3 py-2"><div className="flex flex-wrap gap-1">{payment.status === 'pending' ? <><Button size="small" disabled={busy} onClick={() => { void act(payment, 'mark-paid'); }} variant="secondary">Оплатить</Button><Button size="small" disabled={busy} onClick={() => { void act(payment, 'cancel'); }} variant="danger">Отменить</Button></> : null}{payment.status === 'paid' ? <Button size="small" disabled={busy} onClick={() => { setActivePayment(payment); setOperation('refund'); }} variant="secondary">Вернуть</Button> : null}</div></td>
       </tr>; })}
       {payments.length === 0 ? <tr><td className="px-3 py-8 text-center text-neutral-600" colSpan={9}>Платежей по выбранным фильтрам нет.</td></tr> : null}
     </tbody></table></div>
-    <ul className="mt-4 grid gap-2 md:hidden">{payments.map((payment) => { const appointment = details[payment.appointmentId]; return <li className="grid gap-1 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" key={payment.id}><strong>{appointment ? `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}` : payment.customerId}</strong><span>{appointment?.service.name ?? 'Запись'} · {formatDateTime(payment.paidAt ?? payment.createdAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}</span><span>{methodNames[payment.method]} · {statusNames[payment.status]}</span><span>{formatMoney(payment.amountMinor, payment.currency)} · возвращено {formatMoney(payment.refundedMinor, payment.currency)}</span><div className="flex flex-wrap gap-2">{payment.status === 'pending' ? <><Button disabled={busy} onClick={() => { void act(payment, 'mark-paid'); }} variant="secondary">Отметить оплаченной</Button><Button disabled={busy} onClick={() => { void act(payment, 'cancel'); }} variant="danger">Отменить</Button></> : null}{payment.status === 'paid' ? <Button disabled={busy} onClick={() => { setActivePayment(payment); setOperation('refund'); }} variant="secondary">Вернуть</Button> : null}</div></li>; })}</ul>
+    <ul aria-label="Карточки оплат" className="mt-4 grid gap-2 min-[1536px]:hidden">
+      {payments.map((payment) => {
+        const appointment = details[payment.appointmentId];
+        const paymentDate = payment.paidAt ?? payment.createdAt;
+        return <li className="grid min-w-0 gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-3 shadow-sm sm:p-4" key={payment.id}>
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0">
+              <strong className="block truncate text-sm">{appointment ? `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}` : 'Клиент'}</strong>
+              <p className="mt-1 break-words text-xs text-neutral-600">{appointment ? `${appointment.service.name} · ${formatDateTime(appointment.startAt, timezone)}` : 'Запись недоступна'}</p>
+            </div>
+            <Badge tone={statusTone[payment.status]}>{statusNames[payment.status]}</Badge>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-y border-neutral-100 py-3 text-xs">
+            <div><dt className="text-neutral-500">Дата оплаты</dt><dd className="mt-0.5 tabular-nums">{formatDateTime(paymentDate, timezone)}</dd></div>
+            <div><dt className="text-neutral-500">Метод</dt><dd className="mt-0.5">{methodNames[payment.method]}</dd></div>
+            <div><dt className="text-neutral-500">Сумма</dt><dd className="mt-0.5 font-semibold tabular-nums">{formatMoney(payment.amountMinor, payment.currency)}</dd></div>
+            <div><dt className="text-neutral-500">Возвращено</dt><dd className="mt-0.5 tabular-nums">{formatMoney(payment.refundedMinor, payment.currency)}</dd></div>
+            <div className="col-span-2"><dt className="text-neutral-500">Принял оплату</dt><dd className="mt-0.5">{payment.createdBy.name}</dd></div>
+          </dl>
+          <div className="flex flex-wrap gap-2">
+            {payment.status === 'pending' ? <><Button size="small" disabled={busy} onClick={() => { void act(payment, 'mark-paid'); }} variant="secondary">Оплатить</Button><Button size="small" disabled={busy} onClick={() => { void act(payment, 'cancel'); }} variant="danger">Отменить</Button></> : null}
+            {payment.status === 'paid' ? <Button size="small" disabled={busy} onClick={() => { setActivePayment(payment); setOperation('refund'); }} variant="secondary">Вернуть</Button> : null}
+          </div>
+        </li>;
+      })}
+      {payments.length === 0 ? <li className="rounded-lg border border-neutral-200 bg-neutral-0 px-4 py-8 text-center text-sm text-neutral-600">Платежей по выбранным фильтрам нет.</li> : null}
+    </ul>
     {meta ? <p className="mt-3 text-sm text-neutral-600">Показано {payments.length} из {meta.total}</p> : null}
     <Dialog open={operation !== null} title={operation === 'refund' ? 'Вернуть оплату' : 'Принять оплату'} onClose={() => { if (!busy) { setOperation(null); setActivePayment(null); } }}>
       {operation === 'create' ? <form className="grid gap-3" onSubmit={(event) => { void submitOperation(event); }}>
-        <label className="grid gap-1 text-sm">Запись<Select required value={selectedAppointmentId} onChange={(event) => { setSelectedAppointmentId(event.target.value); }}><option value="">Выберите запись</option>{appointments.filter((item) => item.status !== 'cancelled').map((item) => <option key={item.id} value={item.id}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name} · {formatDateTime(item.startAt, Intl.DateTimeFormat().resolvedOptions().timeZone)}</option>)}</Select></label>
+        <label className="grid gap-1 text-sm">Запись<Select required value={selectedAppointmentId} onChange={(event) => { setSelectedAppointmentId(event.target.value); }}><option value="">Выберите запись</option>{appointments.filter((item) => item.status !== 'cancelled').map((item) => <option key={item.id} value={item.id}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name} · {formatDateTime(item.startAt, timezone)}</option>)}</Select></label>
         <label className="grid gap-1 text-sm">Сумма ({currency})<Input name="amount" type="text" inputMode="decimal" placeholder="0.00" required key={`${selectedAppointmentId}-${selectedAppointment?.payment?.balanceMinor ?? 0}`} defaultValue={selectedAppointment?.payment?.balanceMinor && selectedAppointment.payment.balanceMinor > 0 ? minorToMajor(selectedAppointment.payment.balanceMinor) : ''}/></label>
         <label className="grid gap-1 text-sm">Метод<Select name="method" defaultValue="cash">{Object.entries(methodNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</Select></label>
         <label className="grid gap-1 text-sm">Статус<Select name="status" defaultValue="paid"><option value="paid">Оплачено</option><option value="pending">Ожидает оплаты</option></Select></label>

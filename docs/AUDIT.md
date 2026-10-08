@@ -25,7 +25,7 @@
 | Customer detail (после Stage 4) | 8 | 8 | 8 | 8 | 8 | 8 | 9 | Backend summary преобразован в русские подписи; дата/время форматируются в поясе бизнеса, деньги — через локализованный currency formatter, history/payment rows имеют компактную вертикальную компоновку на mobile. Real Chromium проверяет A/B-safe API view, отсутствие raw keys, обе темы, axe и ширины 320/375/768/1024/1440. Состояния API failure и master без financial permission требуют отдельного теста. |
 | Staff list + card | 6 | 7 | 7 | 6 | 5 | 7 | 6 | Карточка и табы работают, но форма с профилем выглядит изолированной узкой панелью в широком shell; списки и поля на мобильном требуют проверки преобразования таблиц, а клавиатурный обход вкладок не пройден. |
 | Services | 6 | 7 | 7 | 6 | 4 | 7 | 6 | Таблица хорошо структурирована на широком экране, но длинное описание соседствует с именем и действиями; у таблицы нет узкого карточного представления; состояния загрузки/ошибки нужно увидеть отдельно. |
-| Payments | 6 | 7 | 7 | 7 | 3 | 6 | 6 | Фильтры и итоги различимы, но таблица из девяти колонок ломает строки (клиент/запись/принял переносятся посимвольно) уже на 1440 с sidebar; на телефоне нужна карточка оплаты. В dark-контраст статусов и сумм отдельно не подтверждён. |
+| Payments (после Stage 4) | 8 | 8 | 8 | 8 | 9 | 8 | 9 | На ширинах менее 1536px строка оплаты превращается в карточку со статусом, обеими датами, методом, суммой/возвратом, автором и допустимыми действиями. Полная 9-колоночная таблица показывается, когда в shell есть место; Chromium подтвердил отсутствие внутреннего overflow при 1536px и axe в light/dark. Отдельные API error/loading и длинный фильтрованный empty-state ещё не проверены.
 | Settings | 7 | 8 | 8 | 7 | 7 | 7 | 7 | Бизнес-форма аккуратна; не проверены все вкладки Команда/Запись, подтверждения и destructive-состояния; topbar баннер/email и настройки темы не имеют завершённой демонстрационной логики. |
 | My day | 7 | 8 | 8 | 7 | 8 | 7 | 7 | У master нет денег и доступна своя выборка, но нулевой день визуально теряется рядом с ближайшими 7 днями; demo master показывает email-баннер; время и расписание требуют полного прохода на реальном дне. |
 | Public booking + manage | 5 | 5 | 7 | 4 | 7 | 6 | 6 | Весь выбор — услуга/мастер, дата, контакты — одновременно показан как три больших блока, вместо ясного пошагового прогресса и резюме выбора; после «Показать время» пустой список не объясняет ближайшую доступную дату; тёмный вариант выглядит в основном инверсией токенов. Manage-ссылка работает, но экран имеет избыточное пустое поле справа на desktop. |
@@ -60,6 +60,12 @@
 - Причина persistent banner «Подтвердите email»: `scripts/seed.ts` создавал owner/master с default `emailVerified: false`. Seed теперь помечает только эти development demo users подтверждёнными и очищает сохранённые verification hash/expiry при повторном запуске. Production auth flow и модель не менялись.
 - Повторный `npm run seed` обновил существующий demo tenant; Chromium E2E проверяет отсутствие баннера после входа как owner. Seed завершился с 3 мастерами, 5 услугами, 19 клиентами, 41 записью, 11 оплатами. Логин остаётся `owner@demo.local` / `demo-password-123`.
 - Проверки: targeted customer-list E2E ✅ 1/1, typecheck ✅, lint ✅.
+
+## Stage 4 — оплаты: адаптивный список (2026-10-08)
+
+- На ширинах менее 1536px каждая оплата показывается карточкой с локальным статусом, клиентом и услугой, business-timezone датами оплаты/визита, методом, суммой, возвратом, автором и доступным действием. Пустая выборка теперь имеет сообщение и на mobile. Технические IDs больше не используются вместо имени клиента/записи при временно недоступной связи.
+- Девятиколоночная таблица остаётся для viewport от 1536px, где реальный Chromium подтвердил отсутствие внутренней прокрутки. На 320 / 375 / 768 / 1024 / 1439 / 1440 / 1535 / 1536px проверено отсутствие горизонтального page overflow и верное переключение между карточками/таблицей; axe light/dark на 375px — без serious/critical.
+- Скриншоты: [`payments-after-mobile-light.png`](screenshots/payments-after-mobile-light.png), [`payments-after-mobile-dark.png`](screenshots/payments-after-mobile-dark.png), [`payments-after-wide-light.png`](screenshots/payments-after-wide-light.png), [`payments-after-wide-dark.png`](screenshots/payments-after-wide-dark.png). `tests/e2e/a11y/payments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅.
 
 ### Причины ключевых оценок
 
@@ -104,8 +110,8 @@
 1. ✅ Исправить календарные placement-свойства; диапазон row start/span 1–52 подтверждён production CSS. День на 320/375px не переполняется, перекрывающиеся записи разных мастеров занимают отдельные дорожки; keyboard-only slot workflow остаётся отдельной проверкой.
 2. ✅ Переписать customer card presentation mapping: русские подписи, currency formatting, local dates в business timezone; контракт и модель не менялись. Отдельно преобразовать customer list в responsive карточки.
 3. Добавить корректный outer 404/error route и единые loading/error/empty состояния; проверить существующие кнопки/модалки браузерными сценариями.
-4. Перевести payments/appointments/customers/services таблицы на responsive карточки на ширине `<768px`, оставив плотную таблицу на desktop.
-5. Убрать email verification banner у demo users (`emailVerified=true` в development seed) и проверить состояние аккаунта после регистрации.
+4. ✅ Перевести payments и customers на responsive карточки; ещё перевести appointments/services таблицы на карточки в узкой области, сохранив плотную таблицу при достаточной ширине.
+5. ✅ Убрать email verification banner у demo users (`emailVerified=true` в development seed); проверено после seed и входа.
 6. Восстановить route-level code splitting и снизить initial client chunk; замерить 375px и desktop после build.
 
 ### Средние
@@ -123,4 +129,4 @@
 
 ## Приоритет
 
-P0: календарная сетка/мобильный день/пересечения закрыты → customer list responsive cards закрыты → demo verification state → 404/errors → payments/appointments/services responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
+P0: календарная сетка/мобильный день/пересечения закрыты → customer list/demo verification state закрыты → payments responsive view закрыт → 404/errors → appointments/services responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.

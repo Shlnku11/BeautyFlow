@@ -56,6 +56,13 @@
 - `npm run seed` ✅ against the existing MongoDB container (3 staff, 5 services, 19 customers, 41 appointments, 11 payments). The customer-list Chromium E2E asserts the banner is absent for the demo owner.
 - Checks: targeted customer-list E2E ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅.
 
+## 2026-10-08 — Stage 4 payments responsive layout
+
+- Replaced the narrow-shell payment rows with responsive cards through 1535px; retained the nine-column table once the content shell can fit it at 1536px. Cards label transaction date, appointment time, method, amount, refunded total, staff member, customer and service, plus the existing permitted actions and a mobile empty state.
+- All payment dates now use the active business timezone. Replaced raw customer/appointment database IDs in temporary missing-detail fallbacks with readable labels.
+- Real Chromium test checks seeded payment actions/content, no page overflow at 320/375/768/1024/1439/1440/1535/1536px, no table-region overflow at desktop width, and axe in both themes. Evidence screenshots: `docs/screenshots/payments-after-mobile-{light,dark}.png` and `payments-after-wide-{light,dark}.png`.
+- `tests/e2e/a11y/payments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Appointment and service lists still need responsive table treatment.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.
