@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faCalendarCheck, faEye, faEyeSlash, faLock, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { ru } from '@/shared/i18n/ru';
 import { GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
-import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES } from '@/shared/constants';
+import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES, DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -163,11 +163,32 @@ function VerificationPage() {
   const [cooldown, setCooldown] = useState(60);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cells = useRef<Array<HTMLInputElement | null>>([]);
+  const autoVerifyStarted = useRef(false);
+  const autoVerifyDemoLogin = import.meta.env.DEV
+    && import.meta.env.VITE_DEMO_OTP_AUTO_VERIFY !== 'false'
+    && flow === 'login'
+    && DEV_DEMO_LOGIN_EMAILS.some((demoEmail) => demoEmail === email.toLowerCase());
 
   useEffect(() => {
     const interval = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!autoVerifyDemoLogin || !loginToken || autoVerifyStarted.current) return;
+    autoVerifyStarted.current = true;
+    setCode(DEV_DEMO_LOGIN_CODE);
+    setNotice(ru.auth.devDemoOtpNotice);
+    setIsSubmitting(true);
+    void apiRequest('/api/auth/login/verify', { method: 'POST', body: { loginToken, code: DEV_DEMO_LOGIN_CODE }, redirectOnUnauthorized: false })
+      .then(async () => {
+        sessionStorage.removeItem('beautyflow-login-token');
+        await queryClient.resetQueries({ queryKey: ['session'] });
+        navigate('/app', { replace: true });
+      })
+      .catch((reason: unknown) => setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL))
+      .finally(() => setIsSubmitting(false));
+  }, [autoVerifyDemoLogin, loginToken, navigate, queryClient]);
 
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);

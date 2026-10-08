@@ -20,7 +20,7 @@ async function main(): Promise<void> {
       const now = new Date();
       try {
         const summary = await runNotificationBatch({ limit: env.WORKER_BATCH_LIMIT, now, workerId: randomUUID() });
-        logger.info(summary, 'notification batch completed');
+        if (summary.claimed > 0) logger.info(summary, 'notification batch completed');
       } catch (error: unknown) {
         logger.error({ err: error }, 'notification batch failed');
       }

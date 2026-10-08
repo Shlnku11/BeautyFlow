@@ -18,6 +18,8 @@ BeautyFlow — CRM для салонов красоты: онлайн-запис
 
 Для локального демо наполните базу командой `npm run seed` (работает только при `NODE_ENV=development`). Войти: `owner@demo.local` / `demo-password-123`; мастер: `master@demo.local` / `demo-password-123`. Публичная форма: `/b/demo-salon`.
 
+`npm run dev` запускает API, клиент на `http://localhost:5174` и локальный worker уведомлений. При `EMAIL_PROVIDER=console` письма и их содержимое (включая коды подтверждения) выводятся в терминал процесса `notifications`. Для двух seeded demo-аккаунтов локальный код `000000` подтверждается автоматически в dev-клиенте; установите `VITE_DEMO_OTP_AUTO_VERIFY=false`, если нужно вручную проверить экран OTP. Этот код и автоподтверждение работают только для этих аккаунтов вне production.
+
 В `.env.example` используется `directConnection=true`: это позволяет локальному приложению подключаться к replica set, имя узла которого внутри Docker-сети — `mongo`. Для контейнерного приложения используйте адрес MongoDB `mongo:27017` без `directConnection=true`.
 
 Проверка доступности приложения и базы: `GET http://localhost:3000/api/health`.
@@ -44,7 +46,7 @@ BeautyFlow — CRM для салонов красоты: онлайн-запис
 Google — дополнительный способ входа и регистрации. Без credentials кнопка показывает «Вход через Google скоро появится», а вход по email и паролю и подтверждение email работают как обычно.
 
 1. Создайте проект в [Google Cloud Console](https://console.cloud.google.com/), откройте **APIs & Services → Credentials** и создайте **OAuth 2.0 Client ID** типа **Web application**.
-2. Добавьте `http://localhost:5173` и URL production-приложения в **Authorized JavaScript origins**. Для redirect flow также укажите эти URL в **Authorized redirect URIs**.
+2. Добавьте `http://localhost:5174` и URL production-приложения в **Authorized JavaScript origins**. Для redirect flow также укажите эти URL в **Authorized redirect URIs**.
 3. Скопируйте Client ID и Client Secret в `.env` как `GOOGLE_CLIENT_ID` и `GOOGLE_CLIENT_SECRET`, перезапустите сервер. Секрет используется только сервером и не попадает в клиентскую сборку.
 4. Разрешённые origin/redirect URI должны совпадать с адресами, на которых открывается приложение. Тесты проверяют OAuth с мокированным Google token verifier и не требуют настоящих credentials.
 

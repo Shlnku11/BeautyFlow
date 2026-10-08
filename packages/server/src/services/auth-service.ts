@@ -9,6 +9,7 @@ import { getEnv } from '../config/env';
 import { AppError, ConflictError, RateLimitError } from '../http/errors';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { PERMISSION_SCOPES } from '../domain/permissions';
+import { DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
 import type { BusinessRole } from '@/shared/constants';
 import type { RegisterBusinessRequestDto } from '@/shared/types/dto';
 import { buildDedupeKey } from '../notifications/dedupe-key';
@@ -42,6 +43,12 @@ function userDto(user: { _id: Types.ObjectId; name: string; email: string; email
 }
 
 function createEmailVerificationCode(): string { return randomInt(0, 1_000_000).toString().padStart(6, '0'); }
+
+function createLoginVerificationCode(email: string): string {
+  const env = getEnv();
+  if (env.NODE_ENV === 'development' && DEV_DEMO_LOGIN_EMAILS.some((demoEmail) => demoEmail === email.toLowerCase())) return DEV_DEMO_LOGIN_CODE;
+  return createEmailVerificationCode();
+}
 
 function hashEmailVerificationCode(code: string): string { return createHmac('sha256', getEnv().TOKEN_PEPPER).update(code).digest('hex'); }
 
@@ -329,7 +336,7 @@ export class AuthService {
     const business = await repository.findBusinessById(memberships.businessId);
     if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
     const challenge = createLoginChallenge(user._id.toString());
-    const code = createEmailVerificationCode();
+    const code = createLoginVerificationCode(user.email);
     await withTransaction((session) => this.queueLoginVerification(user, business._id, challenge, code, session));
     return { data: { requiresEmailCode: true, loginToken: challenge.loginToken } };
   }
@@ -397,7 +404,7 @@ export class AuthService {
     const business = await repository.findBusinessById(businessId);
     if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
     const challenge = createLoginChallenge(userId.toString());
-    await withTransaction((session) => this.queueLoginVerification(user, businessId, challenge, createEmailVerificationCode(), session, state.loginVerificationCodeHash));
+    await withTransaction((session) => this.queueLoginVerification(user, businessId, challenge, createLoginVerificationCode(user.email), session, state.loginVerificationCodeHash));
     return { loginToken: challenge.loginToken };
   }
 

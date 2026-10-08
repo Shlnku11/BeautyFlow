@@ -90,7 +90,8 @@ export function registerAuthRoutes(app: Express): void {
     },
   }));
   app.post('/api/auth/login/verify', defineExpressRoute({
-    id: 'AUTH-16', method: 'POST', path: '/api/auth/login/verify', auth: 'none', contextSource: 'NONE', bodySchema: LoginVerificationSchema, rateLimit: 'RL-RESET',
+    id: 'AUTH-16', method: 'POST', path: '/api/auth/login/verify', auth: 'none', contextSource: 'NONE', bodySchema: LoginVerificationSchema,
+    ...(getEnv().NODE_ENV === 'development' ? {} : { rateLimit: 'RL-RESET' as const }),
     handler: async ({ body, request }) => {
       const result = await authService.verifyLogin(body.loginToken, body.code, request);
       return Response.json({ data: result.data }, { headers: { 'Set-Cookie': result.cookie } });

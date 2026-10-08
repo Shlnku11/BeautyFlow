@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const entry = resolve(projectRoot, 'packages/server/src/index.ts');
 // Local browser mutations and generated public/manage URLs must share Vite's origin.
-const env = { ...process.env, APP_BASE_URL: process.env.DEV_APP_BASE_URL ?? 'http://localhost:5173' };
+const env = { ...process.env, APP_BASE_URL: process.env.DEV_APP_BASE_URL ?? 'http://localhost:5174' };
 const child = spawn(process.execPath, ['--import', 'tsx', '--watch', entry], {
   cwd: projectRoot,
   env,

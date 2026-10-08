@@ -78,6 +78,7 @@ export const ru = {
     verifyLoginSubmit: 'Подтвердить и войти',
     resendIn: (seconds: number) => `Отправить повторно через ${seconds}с`,
     resendLogin: 'Отправить новый код',
+    devDemoOtpNotice: 'Подтверждаем вход в локальный demo-аккаунт…',
     resendLoginHint: 'Новый код заменит предыдущий.',
     resendLoginError: 'Не удалось отправить новый код. Вернитесь ко входу и попробуйте ещё раз.',
     resendVerification: 'Отправить код повторно',

@@ -15,7 +15,7 @@ export class ConsoleEmailProvider implements NotificationChannelProvider {
     if (getEnv().NODE_ENV === 'production') throw new Error('ConsoleEmailProvider is disabled in production');
     const providerMessageId = `console-${randomUUID()}`;
     this.messages.push({ ...message, providerMessageId });
-    logger.info({ providerMessageId }, 'email captured by console provider');
+    logger.info({ providerMessageId, to: message.to, subject: message.subject, text: message.text }, 'email captured by console provider');
     return { status: 'sent', providerMessageId };
   }
 }

@@ -4,6 +4,10 @@ export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 export const SLOT_GRANULARITY_MINUTES = 5;
 
+/** Local credentials for the seeded development accounts; the server only accepts this code outside production. */
+export const DEV_DEMO_LOGIN_CODE = '000000';
+export const DEV_DEMO_LOGIN_EMAILS = ['owner@demo.local', 'master@demo.local'] as const;
+
 export const BUSINESS_ROLES = ['owner', 'admin', 'master'] as const;
 export type BusinessRole = (typeof BUSINESS_ROLES)[number];
 
