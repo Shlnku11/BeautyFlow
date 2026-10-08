@@ -9,6 +9,12 @@
 - Docker state at this continuation: the existing MongoDB container on 27018 was healthy; no new container was created. The E2E-managed smoke used the existing app configuration and did not edit `.env`.
 - Demo seed initially hit an existing `occupiedKeys` claim. `scripts/seed.ts` now writes appointments sequentially and tries only free starts inside the seeded business hours; two consecutive `npm run seed` runs passed with the same 3 staff / 5 services / 10 customers / 32 appointments / 11 payments counts.
 
+## 2026-10-08 — Animation skill setup
+
+- Installed project-local `.agents/skills/motion` and `.agents/skills/awwwards-animations`; both follow the requested Motion-first, performance-aware workflow. The Awwwards skill's source CLI reported High Risk; manual content scan found instructional Markdown/references only, with no install hooks or executable scripts.
+- The requested `emilkowal-animations` name is absent in the named repository. Installed that author's official `emil-design-eng` and `animate` skills as the matching animation/design guidance. The specified `DevMar/awwwards-animations` URL could not be cloned; installed the public `devmartinese/awwwards-animations-skill` repository instead.
+- The skills and `skills-lock.json` are project-local and pending their Stage 2 documentation/commit. No animation packages have been installed yet; that is Stage 5 and remains explicitly scoped to `motion`, `gsap`, and `lenis`.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.
