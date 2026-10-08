@@ -72,7 +72,8 @@ describe('AUTH-02/16/17 password login verification', () => {
     const loginToken = result.payload.data?.loginToken;
     if (typeof loginToken !== 'string') throw new Error('Login challenge token was not returned');
     const notification = await Notification.findOne({ businessId, kind: 'login_verification', status: 'scheduled' }).lean().exec();
-    const code = (notification?.templateData as { loginCode?: string } | undefined)?.loginCode;
+    if (!notification) throw new Error('Login code was not queued');
+    const code = (notification.templateData as { loginCode?: string } | undefined)?.loginCode;
     if (!code) throw new Error('Login code was not queued');
     return { loginToken, code, notification };
   }
