@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowDown, faArrowUp, faCalendarDays, faChartLine } from '@fortawesome/free-solid-svg-icons';
+import { faArrowDown, faArrowUp, faCalendarDays, faChartLine, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ApiClientError, apiRequest } from '@/lib/api-client';
@@ -23,8 +23,9 @@ function Metric({ title, value, displayValue, previous, reverseTone = false }: {
   const percent = previous === undefined ? null : previous === 0 ? (value === 0 ? 0 : null) : Math.round(((value - previous) / previous) * 100);
   const positive = delta === null ? false : reverseTone ? delta < 0 : delta > 0;
   const negative = delta === null ? false : reverseTone ? delta > 0 : delta < 0;
-  return <article className="min-w-0 rounded-lg border border-neutral-200 bg-neutral-0 px-5 py-4 shadow-sm transition-shadow hover:shadow-md" aria-label={title}>
-    <h2 className="text-xs font-medium uppercase tracking-[0.05em] text-neutral-500">{title}</h2>
+  const icon = title.toLocaleLowerCase('ru-RU').includes('выруч') ? faWallet : title.toLocaleLowerCase('ru-RU').includes('клиент') ? faUsers : title.toLocaleLowerCase('ru-RU').includes('отмен') || title.toLocaleLowerCase('ru-RU').includes('неяв') ? faArrowDown : title.toLocaleLowerCase('ru-RU').includes('загруз') ? faChartLine : faCalendarDays;
+  return <article className="metric-card min-w-0 rounded-xl border border-neutral-200 bg-neutral-0 px-5 py-4" aria-label={title}>
+    <div className="flex items-center justify-between gap-3"><h2 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-neutral-500">{title}</h2><span aria-hidden="true" className="metric-icon"><FontAwesomeIcon className="size-3.5" icon={icon}/></span></div>
     <p className="mt-2 whitespace-nowrap text-[28px] font-semibold leading-8 tracking-tight tabular-nums text-neutral-900">{displayValue ?? value.toLocaleString('ru-RU')}</p>
     <p className={`mt-1 flex items-center gap-1 text-xs ${positive ? 'text-success-fg' : negative ? 'text-danger-fg' : 'text-neutral-500'}`}>
       {delta !== null && delta !== 0 ? <FontAwesomeIcon aria-hidden="true" className="size-3" icon={positive ? faArrowUp : faArrowDown}/> : null}

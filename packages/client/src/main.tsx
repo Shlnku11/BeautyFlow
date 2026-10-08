@@ -5,6 +5,7 @@ import { AppProviders } from './app/providers';
 import '@fontsource-variable/inter';
 import './styles/tokens.css';
 import './index.css';
+import './styles/redesign.css';
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root');
 

@@ -83,7 +83,7 @@ export const ru = {
     resendVerification: 'Отправить код повторно',
     resendVerificationSent: 'Если аккаунт требует подтверждения, мы отправили письмо.',
     emailVerificationBanner: 'Подтвердите email',
-    googleComingSoon: 'Вход через Google скоро появится',
+    googleComingSoon: 'Google OAuth не настроен для этого окружения',
     googleRegisterDetailsRequired: 'Заполните название бизнеса, страну, валюту и часовой пояс и примите условия.',
     googleRegistrationRequired: 'Сначала создайте аккаунт или войдите по email и паролю.',
     googleSignInFailed: 'Не удалось выполнить вход через Google. Попробуйте ещё раз.',

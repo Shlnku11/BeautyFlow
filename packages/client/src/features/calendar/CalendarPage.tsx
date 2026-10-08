@@ -242,7 +242,7 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
     {error ? <p className="mt-5 rounded-md border border-danger-solid/30 bg-danger-bg p-3 text-sm text-danger-fg" role="alert">{error}</p> : null}
     {data ? <>
       {view === 'month' ? <MonthCalendar days={days} appointments={data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id))} timezone={zone} onDaySelect={(iso) => { setDate(iso); setView('day'); }} onAppointmentSelect={setSelectedAppointment} /> : null}
-      {view !== 'month' && view !== 'appointments' ? <section className="mt-5 overflow-x-auto rounded-lg border border-neutral-300 bg-neutral-0" aria-label="Календарная сетка">
+      {view !== 'month' && view !== 'appointments' ? <section className="calendar-grid mt-5 overflow-x-auto rounded-xl border border-neutral-300" aria-label="Календарная сетка">
         <div className={calendarContentWidth}>
           <div className={`grid ${columnsClass} border-b border-neutral-300`}>
             <div className="sticky top-0 z-10 bg-neutral-50 px-1 py-2 text-[10px] text-neutral-500 sm:px-2">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
@@ -270,9 +270,9 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const blocked = dateBlocks.some((item) => DateTime.fromISO(item.startAt).toMillis() < slotEnd && DateTime.fromISO(item.endAt).toMillis() > slotStart);
                   const availableStaff = visibleStaff.find((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const working = visibleStaff.some((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
-                  const borderClass = index % 4 === 0 ? 'border-t border-neutral-300' : index % 2 === 0 ? 'border-t border-neutral-200' : 'border-t border-neutral-100';
-                  const slotClass = `col-span-full flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${blocked ? 'bg-neutral-100' : working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
-                  return <div className={slotClass} key={minute}>
+                  const borderClass = index % 4 === 0 ? 'calendar-hour-line' : index % 2 === 0 ? 'calendar-half-hour-line' : 'calendar-quarter-line';
+                  const slotClass = `calendar-slot col-span-full flex min-w-0 items-start gap-1 px-0.5 border-t ${borderClass}`;
+                  return <div className={slotClass} data-working={working} data-blocked={blocked} key={minute}>
                     {!busy && !blocked && canBook && availableStaff ? <button className="h-full min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
                   </div>;
                 })}
@@ -311,12 +311,12 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
 function MonthCalendar({ days, appointments, timezone, onDaySelect, onAppointmentSelect }: { days: DateTime[]; appointments: CalendarPayload['appointments']; timezone: string; onDaySelect: (date: string) => void; onAppointmentSelect: (id: string) => void }) {
   const weekdays = days.slice(0, 7);
   const displayedMonth = days[10]?.month;
-  return <section className="mt-5 overflow-x-auto rounded-lg border border-neutral-300 bg-neutral-0" aria-label="Календарь на месяц">
+  return <section className="calendar-grid mt-5 overflow-x-auto rounded-xl border border-neutral-300" aria-label="Календарь на месяц">
     <div className="grid min-w-[840px] grid-cols-7 border-b border-neutral-200 bg-neutral-50">{weekdays.map((date) => <div className="px-3 py-2 text-xs font-medium text-neutral-500" key={date.toISODate()}>{date.toFormat('ccc', { locale: 'ru' })}</div>)}</div>
     <div className="grid min-w-[840px] grid-cols-7">{days.map((date) => {
       const iso = date.toISODate() ?? '';
       const rows = appointments.filter((item) => DateTime.fromISO(item.startAt).setZone(timezone).toISODate() === iso);
-      return <div className={`min-h-32 border-b border-r border-neutral-200 p-2 ${date.month === displayedMonth ? '' : 'bg-neutral-50 text-neutral-400'}`} key={iso}>
+      return <div className={`calendar-month-cell min-h-32 border-b border-r border-neutral-200 p-2 ${date.month === displayedMonth ? '' : 'text-neutral-400'}`} data-outside={date.month !== displayedMonth} key={iso}>
         <button className="h-7 min-h-0 rounded px-2 text-xs font-medium hover:bg-neutral-100" onClick={() => onDaySelect(iso)} aria-label={`Открыть ${date.toFormat('d MMMM', { locale: 'ru' })}`}>{date.toFormat('d')}</button>
         <ul className="mt-1 grid gap-1">{rows.slice(0, 3).map((appointment) => <li key={appointment.id}><button className={`h-auto min-h-0 w-full truncate rounded border-l-2 px-1.5 py-1 text-left text-[11px] leading-4 ${staffClass[appointment.staff.color] ?? staffClass.slate}`} onClick={() => onAppointmentSelect(appointment.id)}><time className="mr-1 tabular-nums">{DateTime.fromISO(appointment.startAt).setZone(timezone).toFormat('HH:mm')}</time>{appointment.customer.firstName} · {appointment.service.name}</button></li>)}</ul>
         {rows.length > 3 ? <button className="mt-1 h-auto min-h-0 px-1 text-[11px] text-neutral-500" onClick={() => onDaySelect(iso)}>+{rows.length - 3} ещё</button> : null}

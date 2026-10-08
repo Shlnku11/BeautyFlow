@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { ru } from '@/shared/i18n/ru';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { UiSandbox } from '@/features/dev/UiSandbox';
@@ -13,7 +13,6 @@ import { ServicesPage } from '@/features/services/Services';
 import { SettingsPage } from '@/features/settings/Settings';
 import { StaffDetailPage, StaffPage } from '@/features/staff/Staff';
 import { useSession } from '@/hooks/use-session';
-import { LandingPage } from '@/features/public-landing/Landing';
 import { AppointmentsPage } from '@/features/appointments/Appointments';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { AuthLayout } from '@/app/layouts/AuthLayout';
@@ -24,6 +23,8 @@ const links = [
   ['/app/staff', 'Сотрудники'], ['/app/services', 'Услуги'], ['/app/payments', 'Оплаты'],
   ['/app/settings', 'Настройки'], ['/app/my-day', 'Мой день'],
 ] as const;
+
+const LandingPage = lazy(() => import('@/features/public-landing/Landing').then((module) => ({ default: module.LandingPage })));
 
 function PageFrame({ title }: { title: string }) {
   return <main className="mx-auto w-full max-w-7xl p-6"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-3 text-neutral-600">Подключение данных выполняется через защищённый API.</p></main>;
@@ -42,7 +43,7 @@ function AccessDenied() {
 }
 
 function RootRedirect() {
-  return <LandingPage/>;
+  return <Suspense fallback={<main className="grid min-h-[60svh] place-items-center p-6"><p className="text-sm text-neutral-500" role="status">Загружаем страницу…</p></main>}><LandingPage/></Suspense>;
 }
 
 function AppointmentDirectPage() {

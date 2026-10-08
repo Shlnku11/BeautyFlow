@@ -1,75 +1,96 @@
-import { useEffect } from 'react';
+import { useRef } from 'react';
+import { Link } from 'react-router';
+import { motion, useReducedMotion } from 'motion/react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faBell, faCalendarDays, faChartLine, faClipboardCheck, faClock, faDisplay, faScissors, faShieldHalved, faUsers, faWallet } from '@fortawesome/free-solid-svg-icons';
-import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { ru } from '@/shared/i18n/ru';
 import { useSession } from '@/hooks/use-session';
 
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
 const featureIcons = [faCalendarDays, faClipboardCheck, faUsers, faWallet, faBell, faChartLine];
 const benefitIcons = [faShieldHalved, faClock, faDisplay, faBell];
 
-function ThemePreview({ light, dark, alt, eager = false }: { light: string; dark: string; alt: string; eager?: boolean }) {
-  return <picture>
-    <source media="(prefers-color-scheme: dark)" srcSet={dark}/>
-    <img alt={alt} className="block h-auto w-full" decoding="async" height={900} loading={eager ? 'eager' : 'lazy'} src={light} width={1440}/>
-  </picture>;
+function DashboardPreview() {
+  return <div aria-label="Предварительный вид календаря BeautyFlow" className="landing-preview" role="img">
+    <div className="landing-preview-sidebar"><span className="landing-preview-mark">B</span><span className="landing-preview-brand">BeautyFlow</span><span className="landing-preview-nav active"><i/>Обзор</span><span className="landing-preview-nav"><i/>Календарь</span><span className="landing-preview-nav"><i/>Клиенты</span><span className="landing-preview-nav"><i/>Оплаты</span><span className="landing-preview-avatar">А</span></div>
+    <div className="landing-preview-content">
+      <div className="landing-preview-top"><div><span className="landing-preview-eyebrow">ПОНЕДЕЛЬНИК, 8 ОКТЯБРЯ</span><strong>Хорошего дня, Анна</strong></div><span className="landing-preview-action"><i/>Новая запись</span></div>
+      <div className="landing-preview-metrics"><div><span>Записей сегодня</span><strong>12</strong><small>+2 к прошлой неделе</small></div><div><span>Выручка за месяц</span><strong>84 500 сом</strong><small>За последние 30 дней</small></div><div><span>Загрузка команды</span><strong>78%</strong><small>На этой неделе</small></div></div>
+      <div className="landing-preview-calendar"><div className="landing-preview-calendar-head"><strong>Расписание на сегодня</strong><span>Все мастера⌄</span></div>
+        <div className="landing-preview-row"><time>10:00</time><span className="landing-preview-event plum"><b>Маникюр · Анна К.</b><small>Алина · 60 мин</small></span><span className="landing-preview-event green"><b>Окрашивание · Мария Т.</b><small>София · 90 мин</small></span></div>
+        <div className="landing-preview-row"><time>11:00</time><span className="landing-preview-event rose"><b>Уход · Елена С.</b><small>Мадина · 45 мин</small></span><span className="landing-preview-event empty"/></div>
+        <div className="landing-preview-row"><time>12:00</time><span className="landing-preview-event empty"/><span className="landing-preview-event amber"><b>Стрижка · Дарья М.</b><small>София · 60 мин</small></span></div>
+        <div className="landing-preview-row"><time>13:00</time><span className="landing-preview-event plum short"><b>Запись · 30 мин</b></span><span className="landing-preview-event empty"/></div>
+      </div>
+    </div>
+    <div className="landing-preview-note"><span className="landing-preview-note-icon"><FontAwesomeIcon icon={faCalendarDays}/></span><span><b>Всё под контролем</b><small>Расписание команды в одном месте</small></span><span className="landing-preview-check">✓</span></div>
+  </div>;
 }
 
 export function LandingPage() {
   const session = useSession();
+  const root = useRef<HTMLElement>(null);
+  const reducedMotion = useReducedMotion();
   const text = ru.landing;
 
-  useEffect(() => {
-    const elements = document.querySelectorAll<HTMLElement>('[data-reveal]');
-    const observer = new IntersectionObserver((entries) => {
-      entries.filter((entry) => entry.isIntersecting).forEach((entry) => {
-        entry.target.classList.add('is-visible');
-        observer.unobserve(entry.target);
+  useGSAP(() => {
+    const media = gsap.matchMedia();
+    media.add('(min-width: 1024px) and (prefers-reduced-motion: no-preference)', () => {
+      gsap.to('.landing-preview-wrap', {
+        y: -20,
+        ease: 'none',
+        scrollTrigger: { trigger: '.landing-hero', start: 'top top', end: 'bottom top', scrub: 0.8 },
       });
-    }, { threshold: 0.15 });
-    elements.forEach((element) => {
-      element.classList.add('reveal-pending');
-      observer.observe(element);
     });
-    return () => observer.disconnect();
-  }, []);
+    return () => media.revert();
+  }, { scope: root });
 
   const signedIn = Boolean(session.data);
   const appPath = session.data?.active.role === 'master' ? '/app/my-day' : '/app/dashboard';
   const primaryHref = signedIn ? appPath : '/register';
 
-  return <main className="overflow-hidden font-landing text-neutral-900">
-    <header className="sticky top-0 z-40 border-b border-neutral-200 bg-neutral-0/95 backdrop-blur">
-      <nav aria-label={text.navLabel} className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-8 xl:px-0">
-        <a aria-label={text.homeLabel} className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold tracking-tight" href="#top"><span aria-hidden="true" className="grid size-7 place-items-center rounded-md bg-primary-600 text-xs font-semibold text-on-accent">B</span>{text.eyebrow}</a>
-        <div className="ml-auto hidden items-center gap-6 text-[13px] text-neutral-600 md:flex">{text.nav.map((label, index) => <a className="transition-colors hover:text-neutral-900" href={['#features', '#how-it-works', '#benefits', '#demo'][index]} key={label}>{label}</a>)}</div>
-        <div className="flex shrink-0 items-center gap-3"><Link className="hidden border-l border-neutral-200 pl-5 pr-1 py-2 text-[13px] font-medium text-neutral-600 transition-colors hover:text-neutral-900 sm:inline-flex" to="/login">{text.login}</Link><Button asChild size="small"><Link to={primaryHref}>{signedIn ? text.openApp : text.start}</Link></Button></div>
+  return <main className="landing-page" ref={root}>
+    <header className="landing-header">
+      <nav aria-label={text.navLabel} className="landing-nav">
+        <a aria-label={text.homeLabel} className="landing-brand" href="#top"><span className="landing-brand-mark">B</span><span>{text.eyebrow}</span></a>
+        <div className="landing-links">{text.nav.map((label, index) => <a href={['#features', '#how-it-works', '#benefits', '#demo'][index]} key={label}>{label}</a>)}</div>
+        <div className="landing-actions"><Link className="landing-login" to="/login">{text.login}</Link><Button asChild size="small" className="landing-button"><Link to={primaryHref}>{signedIn ? text.openApp : text.start}<FontAwesomeIcon aria-hidden="true" icon={faArrowRight}/></Link></Button></div>
       </nav>
     </header>
 
-    <section className="mx-auto max-w-[1280px] px-5 pb-16 pt-24 sm:pt-40 md:px-8 xl:px-0" id="top">
-      <div className="max-w-[1000px]" data-reveal>
-        <p className="text-xs font-medium uppercase tracking-[0.1em] text-neutral-500">{text.eyebrow}</p>
-        <h1 className="mt-5 max-w-[980px] whitespace-pre-line text-[40px] font-semibold leading-[1.02] tracking-[-0.03em] sm:text-5xl lg:text-[64px]">{text.headline}</h1>
-        <p className="mt-5 max-w-[720px] text-base leading-7 text-neutral-600 sm:text-lg">{text.subheadline}</p>
-        <div className="mt-7 flex flex-wrap items-center gap-4"><Button asChild><Link to={primaryHref}>{signedIn ? text.openApp : text.start}</Link></Button><Link className="text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900" to="/login">{text.login}</Link></div>
+    <section className="landing-hero" id="top">
+      <div className="landing-orbit landing-orbit-one"/><div className="landing-orbit landing-orbit-two"/>
+      <div className="landing-hero-inner">
+        <motion.div className="landing-copy" initial={reducedMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.2, 0.7, 0.2, 1] }}>
+          <p className="landing-kicker"><span/>УПРАВЛЕНИЕ BEAUTY-БИЗНЕСОМ</p>
+          <h1>{text.headline}</h1>
+          <p className="landing-subheadline">{text.subheadline}</p>
+          <div className="landing-hero-actions"><Button asChild className="landing-button landing-button-large"><Link to={primaryHref}>{signedIn ? text.openApp : text.start}<FontAwesomeIcon aria-hidden="true" icon={faArrowRight}/></Link></Button><Link className="landing-secondary-link" to="/login">{text.login}<span aria-hidden="true">↗</span></Link></div>
+          <div className="landing-trust-row"><span><FontAwesomeIcon icon={faShieldHalved}/>Данные бизнеса защищены</span><span><FontAwesomeIcon icon={faClock}/>Запуск за пару минут</span></div>
+        </motion.div>
+        <div className="landing-preview-wrap"><DashboardPreview/></div>
+        <div className="landing-scroll-cue"><span/>Листайте, чтобы узнать больше</div>
       </div>
-      <figure className="landing-mockup mx-auto mt-14 w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0 shadow-sm md:w-[68%] lg:mt-10" data-reveal>
-        <ThemePreview alt={text.dashboardAlt} dark="/images/dashboard-dark.png" eager light="/images/dashboard-light.png"/>
-      </figure>
     </section>
 
-    <section className="border-t border-neutral-200" id="features"><div className="mx-auto max-w-[1280px] px-5 py-16 sm:py-20 md:px-8 xl:px-0"><div className="max-w-2xl" data-reveal><h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{text.featuresTitle}</h2></div><div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">{text.features.map((feature, index) => <article className="flex gap-4" data-reveal key={feature.title}><FontAwesomeIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-neutral-500" icon={featureIcons[index] ?? faScissors}/><div><h3 className="text-base font-medium">{feature.title}</h3><p className="mt-1.5 text-sm leading-6 text-neutral-600">{feature.description}</p></div></article>)}</div></div></section>
+    <section className="landing-feature-section" id="features"><div className="landing-section-inner">
+      <motion.div className="landing-section-heading" initial={reducedMotion ? false : { opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-70px' }} transition={{ duration: 0.45 }}><p className="landing-kicker">ЕДИНАЯ СИСТЕМА</p><h2>{text.featuresTitle}</h2></motion.div>
+      <div className="landing-feature-grid">{text.features.map((feature, index) => <motion.article className="landing-feature-card" initial={reducedMotion ? false : { opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-50px' }} transition={{ duration: 0.4, delay: (index % 3) * 0.07 }} key={feature.title}><span className="landing-feature-icon"><FontAwesomeIcon aria-hidden="true" icon={featureIcons[index] ?? faScissors}/></span><h3>{feature.title}</h3><p>{feature.description}</p><span className="landing-feature-arrow" aria-hidden="true">↗</span></motion.article>)}</div>
+    </div></section>
 
-    <section className="border-y border-neutral-200 bg-neutral-50" id="how-it-works"><div className="mx-auto max-w-[1280px] px-5 py-16 sm:py-20 md:px-8 xl:px-0"><h2 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-reveal>{text.stepsTitle}</h2><ol className="mt-8 grid gap-8 md:grid-cols-3">{text.steps.map((step, index) => <li className="flex gap-4" data-reveal key={step.title}><span className="grid size-8 shrink-0 place-items-center rounded-full border border-neutral-300 text-sm font-medium tabular-nums text-neutral-700">{index + 1}</span><div><h3 className="text-sm font-semibold">{step.title}</h3><p className="mt-1.5 text-sm leading-6 text-neutral-600">{step.description}</p></div></li>)}</ol></div></section>
+    <section className="landing-steps-section" id="how-it-works"><div className="landing-section-inner landing-steps-inner"><div className="landing-steps-intro"><p className="landing-kicker">БЕЗ СЛОЖНОГО ВНЕДРЕНИЯ</p><h2>{text.stepsTitle}</h2><p>Начните с расписания и постепенно подключайте остальные инструменты.</p></div><ol className="landing-steps">{text.steps.map((step, index) => <motion.li initial={reducedMotion ? false : { opacity: 0, x: 12 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.38, delay: index * 0.08 }} key={step.title}><span className="landing-step-number">0{index + 1}</span><div><h3>{step.title}</h3><p>{step.description}</p></div><span className="landing-step-line"/></motion.li>)}</ol></div></section>
 
-    <section className="mx-auto max-w-[1280px] px-5 py-16 sm:py-20 md:px-8 xl:px-0" id="demo"><div className="flex flex-wrap items-end justify-between gap-3" data-reveal><div><p className="text-xs font-medium uppercase tracking-[0.08em] text-neutral-500">{text.eyebrow}</p><h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{text.demoTitle}</h2></div><Link className="inline-flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-neutral-900" to={primaryHref}>{signedIn ? text.openApp : text.demoLink}<FontAwesomeIcon aria-hidden="true" className="size-3.5" icon={faArrowRight}/></Link></div><figure className="landing-mockup mt-8 overflow-hidden rounded-xl border border-neutral-200 bg-neutral-0 shadow-sm" data-reveal><ThemePreview alt={text.calendarAlt} dark="/images/calendar-dark.png" light="/images/calendar-light.png"/></figure><p className="mt-3 text-xs text-neutral-500">{text.calendarCaption}</p></section>
+    <section className="landing-demo-section" id="demo"><div className="landing-section-inner"><div className="landing-demo-heading"><div><p className="landing-kicker">ВАША СТУДИЯ В ОДНОМ ОКНЕ</p><h2>{text.demoTitle}</h2></div><Link className="landing-text-link" to={primaryHref}>{signedIn ? text.openApp : text.demoLink}<FontAwesomeIcon icon={faArrowRight}/></Link></div><div className="landing-demo-panel"><div className="landing-demo-copy"><span className="landing-demo-count">01 / 03</span><h3>Расписание, которое легко читать</h3><p>{text.calendarCaption}</p><ul><li>День команды на одном экране</li><li>Понятная загрузка специалистов</li><li>Быстрый переход к записи клиента</li></ul><Link to={primaryHref} className="landing-text-link">Посмотреть возможности <FontAwesomeIcon icon={faArrowRight}/></Link></div><div className="landing-demo-visual"><div className="landing-demo-window"><div className="landing-window-bar"><span/><span/><span/><i>BeautyFlow · Календарь</i></div><div className="landing-window-body"><div className="landing-window-days"><b>Время</b><span>ПН 08</span><span>ВТ 09</span><span>СР 10</span><span>ЧТ 11</span></div><div className="landing-window-line"><time>10:00</time><i/><b>Анна · Маникюр</b><span/><i/></div><div className="landing-window-line"><time>11:00</time><span/><i/><b>Мадина · Уход</b><i/><span/></div><div className="landing-window-line"><time>12:00</time><b>София · Стрижка</b><i/><span/><b>Анна · Окрашивание</b></div><div className="landing-window-line"><time>13:00</time><i/><span/><b>Мадина · Маникюр</b><span/><i/></div></div></div></div></div></div></section>
 
-    <section className="border-y border-neutral-200 bg-neutral-50" id="benefits"><div className="mx-auto max-w-[1280px] px-5 py-16 sm:py-20 md:px-8 xl:px-0"><h2 className="text-2xl font-semibold tracking-tight sm:text-3xl" data-reveal>{text.uniqueTitle}</h2><div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2">{text.unique.map((item, index) => <article className="flex gap-4" data-reveal key={item.title}><FontAwesomeIcon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-neutral-500" icon={benefitIcons[index] ?? faShieldHalved}/><div><h3 className="text-sm font-semibold">{item.title}</h3><p className="mt-1.5 text-sm leading-6 text-neutral-600">{item.description}</p></div></article>)}</div></div></section>
+    <section className="landing-benefits-section" id="benefits"><div className="landing-section-inner"><div className="landing-section-heading"><p className="landing-kicker">ПРОДУМАНО ДЛЯ КОМАНДЫ</p><h2>{text.uniqueTitle}</h2></div><div className="landing-benefits-grid">{text.unique.map((item, index) => <article className="landing-benefit" key={item.title}><span className="landing-benefit-icon"><FontAwesomeIcon icon={benefitIcons[index] ?? faShieldHalved}/></span><div><h3>{item.title}</h3><p>{item.description}</p></div></article>)}</div></div></section>
 
-    <section className="bg-landing-cta px-5 py-16 text-landing-cta-foreground md:px-8 md:py-20"><div className="mx-auto max-w-[1280px]" data-reveal><h2 className="max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.03em] sm:text-[40px]">{text.ctaTitle}</h2><p className="mt-3 max-w-xl text-sm leading-6 text-landing-cta-muted">{text.ctaText}</p><Button asChild className="mt-6"><Link to={primaryHref}>{signedIn ? text.openApp : text.start}</Link></Button></div></section>
+    <section className="landing-cta-section"><div className="landing-cta-inner"><div><p className="landing-kicker">BEAUTYFLOW</p><h2>{text.ctaTitle}</h2><p>{text.ctaText}</p></div><Button asChild className="landing-button landing-button-light"><Link to={primaryHref}>{signedIn ? text.openApp : text.start}<FontAwesomeIcon icon={faArrowRight}/></Link></Button><div className="landing-cta-orb"/></div></section>
 
-    <footer className="border-t border-neutral-200 bg-neutral-0"><div className="mx-auto max-w-[1280px] px-5 py-10 md:px-8 xl:px-0"><div className="grid grid-cols-2 gap-8 sm:grid-cols-4">{text.footerGroups.map((group) => <section key={group.title}><h2 className="text-xs font-semibold uppercase tracking-[0.06em] text-neutral-500">{group.title}</h2><ul className="mt-3 grid gap-2 text-[13px] text-neutral-600">{group.links.map((item) => <li key={item.label}>{item.href.startsWith('#') ? <a className="hover:text-neutral-900" href={item.href}>{item.label}</a> : <Link className="hover:text-neutral-900" to={item.href}>{item.label}</Link>}</li>)}</ul></section>)}</div><div className="mt-9 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-4"><a className="text-sm font-semibold" href="#top">{text.eyebrow}</a><p className="text-xs text-neutral-500">{text.footer}</p><p className="text-xs text-neutral-500">© {new Date().getFullYear()} BeautyFlow</p></div></div></footer>
+    <footer className="landing-footer"><div className="landing-section-inner"><div className="landing-footer-main"><a className="landing-brand" href="#top"><span className="landing-brand-mark">B</span><span>{text.eyebrow}</span></a><p>Порядок в расписании. Время для роста.</p>{text.footerGroups.map((group) => <section key={group.title}><h2>{group.title}</h2><ul>{group.links.map((item) => <li key={item.label}>{item.href.startsWith('#') ? <a href={item.href}>{item.label}</a> : <Link to={item.href}>{item.label}</Link>}</li>)}</ul></section>)}</div><div className="landing-footer-bottom"><span>© {new Date().getFullYear()} BeautyFlow</span><span>{text.footer}</span><a href="#top">Наверх ↑</a></div></div></footer>
   </main>;
 }

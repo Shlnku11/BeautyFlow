@@ -16,7 +16,7 @@ BeautyFlow — CRM для салонов красоты: онлайн-запис
 4. Примените индексы: `npm run migrate`.
 5. Запустите приложение: `npm run dev`.
 
-Для локального демо наполните базу командой `npm run seed` (работает только при `NODE_ENV=development`). Войти: `owner@demo.local` / `demo-password-123`; мастер: `master@demo.local` / `demo-password-123`. Публичная форма: `/b/beautyflow-demo`.
+Для локального демо наполните базу командой `npm run seed` (работает только при `NODE_ENV=development`). Войти: `owner@demo.local` / `demo-password-123`; мастер: `master@demo.local` / `demo-password-123`. Публичная форма: `/b/demo-salon`.
 
 В `.env.example` используется `directConnection=true`: это позволяет локальному приложению подключаться к replica set, имя узла которого внутри Docker-сети — `mongo`. Для контейнерного приложения используйте адрес MongoDB `mongo:27017` без `directConnection=true`.
 

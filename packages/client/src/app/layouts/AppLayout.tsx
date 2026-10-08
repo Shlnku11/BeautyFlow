@@ -25,6 +25,7 @@ export function AppLayout({ navItems, currentPath, title, brand, banner, childre
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState('');
   const available = new Set(navItems.map(([path]) => path));
   const homePath = available.has('/app/dashboard') ? '/app/dashboard' : '/app/my-day';
@@ -82,9 +83,9 @@ export function AppLayout({ navItems, currentPath, title, brand, banner, childre
     </div>
   </>;
 
-  return <div className={`min-h-screen md:grid ${collapsed ? 'md:grid-cols-[3rem_minmax(0,1fr)]' : 'md:grid-cols-[15rem_minmax(0,1fr)]'}`}>
+  return <div className={`app-shell min-h-screen md:grid ${collapsed ? 'md:grid-cols-[4.25rem_minmax(0,1fr)]' : 'md:grid-cols-[17rem_minmax(0,1fr)]'}`}>
     <a className="skip-link" href="#main-content">Перейти к основному содержимому</a>
-    <aside className={`app-sidebar sticky top-0 hidden h-screen min-h-0 flex-col overflow-y-auto border-r p-3 md:flex ${collapsed ? 'items-stretch' : ''}`}>{sidebar}</aside>
+    <aside className={`app-sidebar sticky top-0 hidden h-screen min-h-0 flex-col overflow-y-auto border-r p-4 md:flex ${collapsed ? 'items-stretch' : ''}`}>{sidebar}</aside>
     {mobileOpen ? <HeadlessDialog open onClose={() => setMobileOpen(false)} className="relative z-50 md:hidden">
       <DialogBackdrop className="fixed inset-0 bg-neutral-900/40" aria-hidden="true"/>
       <div className="fixed inset-0 flex">
@@ -95,21 +96,21 @@ export function AppLayout({ navItems, currentPath, title, brand, banner, childre
       </div>
     </HeadlessDialog> : null}
     <section id="main-content" tabIndex={-1} className="min-w-0 pb-20 md:pb-0">
-      <header className="app-topbar sticky top-0 z-30 flex h-12 items-center justify-between gap-3 border-b px-3 sm:px-4" aria-label={ru.navigation.topbar}>
+      <header className="app-topbar sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b px-3 sm:px-6" aria-label={ru.navigation.topbar}>
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100 md:hidden" aria-label={ru.navigation.openMenu} onClick={() => { setCollapsed(false); setMobileOpen(true); }}><FontAwesomeIcon className="size-4" icon={faBars}/></button>
           <button className="hidden size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100 md:grid" aria-label={collapsed ? ru.navigation.expandMenu : ru.navigation.collapseMenu} onClick={() => setCollapsed((value) => !value)}><FontAwesomeIcon className="size-4" icon={faBars}/></button>
-          <div aria-label={ru.navigation.breadcrumbs} className="truncate text-[13px] text-neutral-600"><span className="hidden text-neutral-400 sm:inline">{brand} / </span><span>{title}</span></div>
+          <div aria-label={ru.navigation.breadcrumbs} className="truncate text-sm font-semibold text-neutral-900"><span className="hidden font-normal text-neutral-400 sm:inline">{brand} / </span><span>{title}</span></div>
         </div>
         <button aria-label={ru.navigation.openSearch} className="hidden h-8 w-full max-w-80 items-center gap-2 rounded-md border border-neutral-200 px-3 text-left text-xs text-neutral-400 hover:bg-neutral-50 md:flex" onClick={openCommand} type="button"><FontAwesomeIcon className="size-3.5" icon={faMagnifyingGlass}/><span className="flex-1">{ru.navigation.search}</span><kbd className="text-[10px]">⌘K</kbd></button>
         <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           <button aria-label={ru.navigation.openSearch} className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100 md:hidden" onClick={openCommand} type="button"><FontAwesomeIcon className="size-4" icon={faMagnifyingGlass}/></button>
           {canCreateAppointment ? <Link aria-label={ru.navigation.newAppointment} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary-600 px-2.5 text-[13px] font-medium text-on-accent transition-colors hover:bg-primary-700 sm:px-3" to="/app/calendar?create=1"><FontAwesomeIcon aria-hidden="true" className="size-3.5" icon={faPlus}/><span className="hidden sm:inline">{ru.navigation.newAppointment}</span></Link> : null}
-          {available.has('/app/appointments') ? <Link aria-label={ru.navigation.openAppointments} title={ru.navigation.openAppointments} className="grid size-8 place-items-center rounded-md text-neutral-600 hover:bg-neutral-100" to="/app/appointments"><FontAwesomeIcon className="size-4" icon={faBell}/></Link> : null}
+          {available.has('/app/appointments') ? <button aria-label="Открыть уведомления" aria-haspopup="dialog" aria-expanded={notificationsOpen} title="Уведомления" className="grid size-9 place-items-center rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900" onClick={() => setNotificationsOpen(true)} type="button"><FontAwesomeIcon className="size-4" icon={faBell}/></button> : null}
           <details className="relative md:hidden"><summary aria-label={ru.navigation.profileMenu} className="grid size-8 cursor-pointer list-none place-items-center rounded-full bg-neutral-100 text-[10px] font-semibold">{initials}</summary><div className="absolute right-0 top-full z-50 mt-2 grid min-w-44 gap-1 rounded-lg border border-neutral-200 bg-neutral-0 p-2 shadow-sm"><span className="truncate px-2 text-xs text-neutral-500">{userEmail}</span>{available.has('/app/settings') ? <Link className="rounded px-2 py-1 text-sm hover:bg-neutral-50" to={profilePath}>{ru.navigation.profile}</Link> : null}<button className="rounded px-2 py-1 text-left text-sm hover:bg-neutral-50" onClick={onLogout}>{ru.navigation.logout}</button></div></details>
         </div>
       </header>
-      {banner}{children}
+      {banner}<div key={currentPath} className="app-page-enter min-w-0">{children}</div>
     </section>
     {mobileItems.length ? <nav aria-label={ru.navigation.mobile} className="app-mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-neutral-0 px-1 pt-1 md:hidden">
       {mobileItems.map(([path, label]) => <Link key={path} aria-current={active(path) ? 'page' : undefined} className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] leading-tight ${active(path) ? 'font-semibold text-primary-700' : 'text-neutral-600'}`} to={path}>
@@ -128,6 +129,9 @@ export function AppLayout({ navItems, currentPath, title, brand, banner, childre
         {filteredCommands.map(({ path, label }) => <li key={path}><Link className="flex min-h-10 items-center gap-2 rounded-md px-3 text-sm hover:bg-neutral-50 focus-visible:bg-neutral-50" onClick={() => setCommandOpen(false)} to={path}><FontAwesomeIcon aria-hidden="true" className="size-4 text-neutral-500" icon={iconByPath[path.split('?')[0] ?? path] ?? faPlus}/><span>{label}</span></Link></li>)}
       </ul>
       {filteredCommands.length === 0 ? <p className="py-5 text-center text-sm text-neutral-500">{ru.navigation.quickSearchNoResults}</p> : null}
+    </Dialog>
+    <Dialog open={notificationsOpen} onClose={() => setNotificationsOpen(false)} title="Центр уведомлений">
+      <div className="notification-empty"><span className="notification-empty-icon"><FontAwesomeIcon icon={faBell}/></span><h3>Уведомления появятся здесь</h3><p>Пока актуальная информация о записях и оплатах находится в соответствующих разделах.</p><div className="notification-links"><Link to="/app/appointments" onClick={() => setNotificationsOpen(false)}><FontAwesomeIcon icon={faClipboardList}/>Открыть записи</Link>{available.has('/app/payments') ? <Link to="/app/payments" onClick={() => setNotificationsOpen(false)}><FontAwesomeIcon icon={faWallet}/>Открыть оплаты</Link> : null}</div></div>
     </Dialog>
   </div>;
 }

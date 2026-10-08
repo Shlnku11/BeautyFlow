@@ -20,7 +20,14 @@ type AuthLocationState = { flow?: 'login' | 'register'; email?: string; loginTok
 function AuthFrame({ children, wide = false, headerHref, headerText }: { children: ReactNode; wide?: boolean; headerHref?: string; headerText?: string }) {
   const defaultHeaderHref = wide ? '/login' : '/register';
   const defaultHeaderText = wide ? `${ru.auth.haveAccount} ${ru.auth.loginTitle.toLowerCase()}` : `${ru.auth.noAccount} ${ru.auth.registerTitle.toLowerCase()}`;
-  return <div className="min-h-svh bg-background text-foreground"><header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 pt-7 sm:px-8"><Link aria-label="BeautyFlow — главная" className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight" to="/"><span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground"><FontAwesomeIcon icon={faCalendarCheck} className="size-4" aria-hidden="true"/></span><span>{ru.app.name}</span></Link><Link className="text-sm text-muted-foreground transition-colors hover:text-foreground" to={headerHref ?? defaultHeaderHref}>{headerText ?? defaultHeaderText}</Link></header><main className="mx-auto flex min-h-[calc(100svh-76px)] w-full items-center justify-center px-4 py-10 sm:px-6"><div className={`w-full ${wide ? 'max-w-[480px]' : 'max-w-[400px]'}`}>{children}</div></main></div>;
+  return <div className="auth-shell">
+    <header className="auth-header"><Link aria-label="BeautyFlow — главная" className="auth-brand" to="/"><span className="auth-brand-mark"><FontAwesomeIcon icon={faCalendarCheck} aria-hidden="true"/></span><span>{ru.app.name}</span></Link><Link className="auth-switch" to={headerHref ?? defaultHeaderHref}>{headerText ?? defaultHeaderText}</Link></header>
+    <main className={`auth-main ${wide ? 'auth-main-wide' : ''}`}>
+      <aside aria-label="BeautyFlow" className="auth-aside"><span className="auth-aside-kicker">ПОРЯДОК В КАЖДОМ ДНЕ</span><h1>Больше времени<br/>на красоту и рост.</h1><p>Записи, клиенты и команда — в одном спокойном рабочем пространстве.</p><div className="auth-aside-card"><span className="auth-aside-card-icon"><FontAwesomeIcon icon={faCalendarCheck}/></span><span><b>Ваш бизнес — в фокусе</b><small>Расписание и важные дела рядом</small></span><span className="auth-aside-card-check">✓</span></div><div aria-hidden="true" className="auth-aside-orbit auth-aside-orbit-a"/><div aria-hidden="true" className="auth-aside-orbit auth-aside-orbit-b"/></aside>
+      <section className="auth-content"><div className={`auth-card-wrap ${wide ? 'auth-card-wrap-wide' : ''}`}>{children}</div></section>
+    </main>
+    <footer className="auth-footer"><span>© {new Date().getFullYear()} BeautyFlow</span><span>Спокойный порядок для вашего бизнеса</span></footer>
+  </div>;
 }
 
 function AuthError({ children }: { children: string | null }) {

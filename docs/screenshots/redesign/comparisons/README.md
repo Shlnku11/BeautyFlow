@@ -1,0 +1,67 @@
+# Playwright side-by-side review
+
+Each JPG places the local BeautyFlow screen on the left and the named public reference capture on the right. References are live snapshots from 2026-10-09, captured with Playwright. They are visual benchmarks for hierarchy, spacing, typography, surface treatment and interaction density, not copied assets or pixel targets.
+
+Reference URLs: [Linear](https://linear.app/), [Linear login](https://linear.app/login), [Vercel](https://vercel.com/), [Stripe](https://stripe.com/), [Stripe payments](https://stripe.com/payments). Product pages are not authenticated dashboards; internal product screens are compared with the relevant public UI reference.
+
+Desktop captures use a 1440px-wide viewport; mobile captures use 390×844. Public routes include both light and dark themes. Desktop CRM routes include both themes. Mobile checks cover the landing, auth, and public booking routes.
+
+Generated 55 comparisons.
+
+## Pair index
+
+- [master-my-day-light--vs--linear](master-my-day-light--vs--linear.jpg)
+- [mobile-public-forgot-password-dark--vs--linear-login-mobile](mobile-public-forgot-password-dark--vs--linear-login-mobile.jpg)
+- [mobile-public-forgot-password-light--vs--linear-login-mobile](mobile-public-forgot-password-light--vs--linear-login-mobile.jpg)
+- [mobile-public-landing-dark--vs--vercel-mobile](mobile-public-landing-dark--vs--vercel-mobile.jpg)
+- [mobile-public-landing-light--vs--vercel-mobile](mobile-public-landing-light--vs--vercel-mobile.jpg)
+- [mobile-public-login-dark--vs--linear-login-mobile](mobile-public-login-dark--vs--linear-login-mobile.jpg)
+- [mobile-public-login-light--vs--linear-login-mobile](mobile-public-login-light--vs--linear-login-mobile.jpg)
+- [mobile-public-public-booking-dark--vs--stripe-mobile](mobile-public-public-booking-dark--vs--stripe-mobile.jpg)
+- [mobile-public-public-booking-light--vs--stripe-mobile](mobile-public-public-booking-light--vs--stripe-mobile.jpg)
+- [mobile-public-register-dark--vs--linear-login-mobile](mobile-public-register-dark--vs--linear-login-mobile.jpg)
+- [mobile-public-register-light--vs--linear-login-mobile](mobile-public-register-light--vs--linear-login-mobile.jpg)
+- [mobile-public-reset-password-dark--vs--linear-login-mobile](mobile-public-reset-password-dark--vs--linear-login-mobile.jpg)
+- [mobile-public-reset-password-light--vs--linear-login-mobile](mobile-public-reset-password-light--vs--linear-login-mobile.jpg)
+- [mobile-public-verify-email-dark--vs--linear-login-mobile](mobile-public-verify-email-dark--vs--linear-login-mobile.jpg)
+- [mobile-public-verify-email-light--vs--linear-login-mobile](mobile-public-verify-email-light--vs--linear-login-mobile.jpg)
+- [owner-appointment-create-modal-dark--vs--linear](owner-appointment-create-modal-dark--vs--linear.jpg)
+- [owner-appointment-create-modal-light--vs--linear](owner-appointment-create-modal-light--vs--linear.jpg)
+- [owner-appointments-dark--vs--linear](owner-appointments-dark--vs--linear.jpg)
+- [owner-appointments-light--vs--linear](owner-appointments-light--vs--linear.jpg)
+- [owner-calendar-day-dark--vs--linear](owner-calendar-day-dark--vs--linear.jpg)
+- [owner-calendar-day-light--vs--linear](owner-calendar-day-light--vs--linear.jpg)
+- [owner-calendar-month-dark--vs--linear](owner-calendar-month-dark--vs--linear.jpg)
+- [owner-calendar-month-light--vs--linear](owner-calendar-month-light--vs--linear.jpg)
+- [owner-calendar-week-dark--vs--linear](owner-calendar-week-dark--vs--linear.jpg)
+- [owner-calendar-week-light--vs--linear](owner-calendar-week-light--vs--linear.jpg)
+- [owner-command-search-modal-dark--vs--linear](owner-command-search-modal-dark--vs--linear.jpg)
+- [owner-command-search-modal-light--vs--linear](owner-command-search-modal-light--vs--linear.jpg)
+- [owner-customers-dark--vs--linear](owner-customers-dark--vs--linear.jpg)
+- [owner-customers-light--vs--linear](owner-customers-light--vs--linear.jpg)
+- [owner-dashboard-dark--vs--linear](owner-dashboard-dark--vs--linear.jpg)
+- [owner-dashboard-light--vs--linear](owner-dashboard-light--vs--linear.jpg)
+- [owner-notifications-modal-dark--vs--linear](owner-notifications-modal-dark--vs--linear.jpg)
+- [owner-notifications-modal-light--vs--linear](owner-notifications-modal-light--vs--linear.jpg)
+- [owner-payments-dark--vs--stripe-payments](owner-payments-dark--vs--stripe-payments.jpg)
+- [owner-payments-light--vs--stripe-payments](owner-payments-light--vs--stripe-payments.jpg)
+- [owner-services-dark--vs--linear](owner-services-dark--vs--linear.jpg)
+- [owner-services-light--vs--linear](owner-services-light--vs--linear.jpg)
+- [owner-settings-dark--vs--vercel](owner-settings-dark--vs--vercel.jpg)
+- [owner-settings-light--vs--vercel](owner-settings-light--vs--vercel.jpg)
+- [owner-staff-dark--vs--linear](owner-staff-dark--vs--linear.jpg)
+- [owner-staff-light--vs--linear](owner-staff-light--vs--linear.jpg)
+- [public-forgot-password-dark--vs--linear-login](public-forgot-password-dark--vs--linear-login.jpg)
+- [public-forgot-password-light--vs--linear-login](public-forgot-password-light--vs--linear-login.jpg)
+- [public-landing-dark--vs--vercel](public-landing-dark--vs--vercel.jpg)
+- [public-landing-light--vs--vercel](public-landing-light--vs--vercel.jpg)
+- [public-login-dark--vs--linear-login](public-login-dark--vs--linear-login.jpg)
+- [public-login-light--vs--linear-login](public-login-light--vs--linear-login.jpg)
+- [public-public-booking-dark--vs--stripe-payments](public-public-booking-dark--vs--stripe-payments.jpg)
+- [public-public-booking-light--vs--stripe-payments](public-public-booking-light--vs--stripe-payments.jpg)
+- [public-register-dark--vs--linear-login](public-register-dark--vs--linear-login.jpg)
+- [public-register-light--vs--linear-login](public-register-light--vs--linear-login.jpg)
+- [public-reset-password-dark--vs--linear-login](public-reset-password-dark--vs--linear-login.jpg)
+- [public-reset-password-light--vs--linear-login](public-reset-password-light--vs--linear-login.jpg)
+- [public-verify-email-dark--vs--linear-login](public-verify-email-dark--vs--linear-login.jpg)
+- [public-verify-email-light--vs--linear-login](public-verify-email-light--vs--linear-login.jpg)
