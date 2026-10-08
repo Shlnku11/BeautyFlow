@@ -63,6 +63,12 @@
 - Real Chromium test checks seeded payment actions/content, no page overflow at 320/375/768/1024/1439/1440/1535/1536px, no table-region overflow at desktop width, and axe in both themes. Evidence screenshots: `docs/screenshots/payments-after-mobile-{light,dark}.png` and `payments-after-wide-{light,dark}.png`.
 - `tests/e2e/a11y/payments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Appointment and service lists still need responsive table treatment.
 
+## 2026-10-08 — Stage 4 appointments responsive layout
+
+- Added day-grouped appointment cards for shells narrower than 1280px; cards keep customer, time, service, master, price, source, status and details action. Payment links retain the existing permission/status gate. The desktop table and appointment detail dialog remain in use on wide layouts.
+- Real Chromium checked cards/table at 320/375/768/1024/1279/1280/1440px, no page overflow, no internal table overflow at desktop, appointment details navigation, and axe in light/dark. Screenshots: `docs/screenshots/appointments-after-mobile-light.png` and `appointments-after-mobile-dark.png`.
+- `tests/e2e/a11y/appointments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅. Services list remains to be made responsive.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.
