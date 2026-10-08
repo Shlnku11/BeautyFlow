@@ -81,6 +81,14 @@ test('key owner and public screens pass axe and fit required viewports', async (
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await expectNoSeriousAxeViolations(page, `${path} (${theme})`);
       await page.screenshot({ path: `docs/screenshots/${screenshotName}-${theme}.png`, fullPage: true, animations: 'disabled' });
+      if (screenshotName === 'customer-detail') {
+        const customerMetrics = page.getByRole('region', { name: 'Показатели клиента' });
+        await expect(customerMetrics).toContainText('Завершённых визитов');
+        for (const rawField of ['visitsCount', 'lastVisitAt', 'nextVisitAt', 'totalPaidMinor', 'currency']) {
+          await expect(page.getByText(rawField, { exact: true })).toHaveCount(0);
+        }
+        await page.screenshot({ path: `docs/screenshots/customer-detail-after-${theme}.png`, fullPage: true, animations: 'disabled' });
+      }
     }
     await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
   }

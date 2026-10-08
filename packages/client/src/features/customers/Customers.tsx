@@ -7,6 +7,7 @@ import { DialogShell as Dialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/input';
 import { NativeSelect as Select } from '@/components/ui/native-select';
+import { formatDateTime } from '@/lib/format';
 
 type ApiErrorState = string | null;
 function errorMessage(error: unknown): string { return error instanceof ApiClientError ? error.message : 'Не удалось выполнить запрос'; }
@@ -19,6 +20,12 @@ function useRemote<T>(path: string, fallback: T): [T, (value: T) => void, ApiErr
   return [data, setData, error, loading];
 }
 type Customer = { id: string; firstName: string; lastName?: string; phone: string; email?: string; notes?: string; source: string; createdAt: string };
+type CustomerSummary = { visitsCount: number; lastVisitAt?: string; nextVisitAt?: string; totalPaidMinor: number; currency: string };
+type CustomerAppointment = { id: string; startAt: string; status: string; service: { name: string } };
+type CustomerPayment = { id: string; amountMinor: number; currency: string; method: 'cash' | 'card' | 'transfer' | 'online'; status: 'pending' | 'paid' | 'refunded' | 'cancelled'; paidAt?: string; createdAt: string };
+const appointmentStatusLabels: Record<string, string> = { pending: 'Ожидает подтверждения', confirmed: 'Подтверждена', completed: 'Завершена', cancelled: 'Отменена', no_show: 'Неявка' };
+const paymentMethodLabels: Record<CustomerPayment['method'], string> = { cash: 'Наличные', card: 'Карта', transfer: 'Перевод', online: 'Онлайн' };
+const paymentStatusLabels: Record<CustomerPayment['status'], string> = { pending: 'Ожидает оплаты', paid: 'Оплачено', refunded: 'Возвращено', cancelled: 'Отменено' };
 export function CustomersPage() {
   const navigate = useNavigate();
   const session = useSession(); const canWrite = session.data?.permissions.includes('customers:write') ?? false;
@@ -43,16 +50,16 @@ export function CustomerDetailPage() {
   const canWrite = session.data?.permissions.includes('customers:write') ?? false;
   const canReadPayments = session.data?.permissions.includes('payments:read') ?? false;
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
-  const [appointments, setAppointments] = useState<Record<string, unknown>[]>([]);
-  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [summary, setSummary] = useState<CustomerSummary | null>(null);
+  const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
+  const [payments, setPayments] = useState<CustomerPayment[]>([]);
   const [message, setMessage] = useState<ApiErrorState>(null);
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    const detailRequest = apiRequest<{ customer: Customer; summary?: Record<string, unknown> }>(`/api/customers/${id}`, { signal: controller.signal });
-    const historyRequest = apiRequest<Record<string, unknown>[]>(`/api/customers/${id}/appointments?limit=100`, { signal: controller.signal });
-    const paymentsRequest = canReadPayments ? apiRequest<Record<string, unknown>[]>(`/api/payments?customerId=${id}&limit=100`, { signal: controller.signal }) : Promise.resolve([] as Record<string, unknown>[]);
+    const detailRequest = apiRequest<{ customer: Customer; summary?: CustomerSummary }>(`/api/customers/${id}`, { signal: controller.signal });
+    const historyRequest = apiRequest<CustomerAppointment[]>(`/api/customers/${id}/appointments?limit=100`, { signal: controller.signal });
+    const paymentsRequest = canReadPayments ? apiRequest<CustomerPayment[]>(`/api/payments?customerId=${id}&limit=100`, { signal: controller.signal }) : Promise.resolve([] as CustomerPayment[]);
     void Promise.all([detailRequest, historyRequest, paymentsRequest]).then(([detail, history, paymentRows]) => { setCustomer(detail.customer); setSummary(detail.summary ?? null); setAppointments(history); setPayments(paymentRows); }).catch((reason: unknown) => { if (!controller.signal.aborted) setMessage(errorMessage(reason)); });
     return () => controller.abort();
   }, [id, canReadPayments]);
@@ -63,16 +70,23 @@ export function CustomerDetailPage() {
       setCustomer(updated); setEditing(false); setMessage('Карточка сохранена.');
     } catch (reason: unknown) { setMessage(errorMessage(reason)); }
   }
+  const timezone = session.data?.active.business.timezone ?? 'UTC';
+  const currency = summary?.currency ?? session.data?.active.business.currency ?? 'KGS';
   return <main className="mx-auto w-full max-w-[1100px] px-5 py-6 md:px-8">
     <Link className="text-xs text-neutral-500 hover:text-neutral-900" to="/app/customers">Клиенты /</Link>
     <div className="mt-2 flex items-center justify-between gap-3"><h1 className="text-2xl font-semibold">{customer ? `${customer.firstName} ${customer.lastName ?? ''}` : 'Карточка клиента'}</h1>{customer && canWrite ? <Button size="small" variant="secondary" onClick={() => setEditing(true)}>Изменить</Button> : null}</div>
     {message ? <p role="status" className="mt-3 text-sm text-success-fg">{message}</p> : null}
     {customer ? <>
-      <section className="mt-4 grid gap-3 sm:grid-cols-3"><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Телефон</p><p className="mt-1 text-sm font-medium tabular-nums">{customer.phone}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Email</p><p className="mt-1 text-sm">{customer.email ?? '—'}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Клиент с</p><p className="mt-1 text-sm">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium' }).format(new Date(customer.createdAt))}</p></article></section>
+      <section className="mt-4 grid gap-3 sm:grid-cols-3"><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Телефон</p><p className="mt-1 text-sm font-medium tabular-nums">{customer.phone}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Email</p><p className="mt-1 text-sm">{customer.email ?? '—'}</p></article><article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><p className="text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500">Клиент с</p><p className="mt-1 text-sm">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeZone: timezone }).format(new Date(customer.createdAt))}</p></article></section>
       {customer.notes ? <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="text-sm font-semibold">Заметки</h2><p className="mt-1 whitespace-pre-wrap text-sm text-neutral-600">{customer.notes}</p></section> : null}
-      {summary ? <section className="mt-4 grid gap-3 sm:grid-cols-3">{Object.entries(summary).map(([key, value]) => <article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" key={key}><p className="text-xs text-neutral-500">{key}</p><p className="mt-1 text-sm font-semibold">{String(value)}</p></article>)}</section> : null}
-      <section className="mt-6 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="text-base font-semibold">История визитов</h2>{appointments.length ? <ul className="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">{appointments.map((row, index) => <li className="grid min-h-[52px] grid-cols-[140px_minmax(0,1fr)_auto] items-center gap-3 text-[13px]" key={String(row.id ?? index)}><time className="tabular-nums text-neutral-600">{String(row.startAt ?? '')}</time><span className="truncate">{String((row.service as { name?: string } | undefined)?.name ?? 'Запись')}</span><span className="text-neutral-500">{String(row.status ?? '')}</span></li>)}</ul> : <p className="mt-3 border-y border-neutral-200 py-6 text-center text-sm text-neutral-500">Истории пока нет.</p>}</section>
-      {canReadPayments ? <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="text-base font-semibold">Оплаты</h2>{payments.length ? <ul className="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">{payments.map((row, index) => <li className="grid min-h-[52px] grid-cols-[140px_1fr_auto] items-center gap-3 text-[13px]" key={String(row.id ?? index)}><span>{String(row.method ?? '')}</span><span>{String(row.status ?? '')}</span><span className="tabular-nums font-medium">{money(Number(row.amountMinor ?? 0), String(row.currency ?? 'KGS'))}</span></li>)}</ul> : <p className="mt-3 border-y border-neutral-200 py-6 text-center text-sm text-neutral-500">Оплат пока нет.</p>}</section> : null}
+      {summary ? <section aria-label="Показатели клиента" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[
+        { label: 'Завершённых визитов', value: String(summary.visitsCount) },
+        { label: 'Последний визит', value: summary.lastVisitAt ? formatDateTime(summary.lastVisitAt, timezone) : 'Нет завершённых визитов' },
+        { label: 'Следующая запись', value: summary.nextVisitAt ? formatDateTime(summary.nextVisitAt, timezone) : 'Не запланирована' },
+        { label: 'Оплачено всего', value: money(summary.totalPaidMinor, currency) },
+      ].map((item) => <article className="rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" key={item.label}><p className="text-xs text-neutral-500">{item.label}</p><p className="mt-1 text-sm font-semibold tabular-nums">{item.value}</p></article>)}</section> : null}
+      <section className="mt-6 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="text-base font-semibold">История визитов</h2>{appointments.length ? <ul className="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">{appointments.map((row) => <li className="grid gap-1 py-3 text-[13px] sm:min-h-[52px] sm:grid-cols-[140px_minmax(0,1fr)_auto] sm:items-center sm:gap-3 sm:py-0" key={row.id}><time className="tabular-nums text-neutral-600" dateTime={row.startAt}>{formatDateTime(row.startAt, timezone)}</time><span className="truncate">{row.service.name}</span><span className="text-neutral-500">{appointmentStatusLabels[row.status] ?? 'Статус обновлён'}</span></li>)}</ul> : <p className="mt-3 border-y border-neutral-200 py-6 text-center text-sm text-neutral-500">Истории пока нет.</p>}</section>
+      {canReadPayments ? <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="text-base font-semibold">Оплаты</h2>{payments.length ? <ul className="mt-3 divide-y divide-neutral-200 border-y border-neutral-200">{payments.map((row) => <li className="grid gap-1 py-3 text-[13px] sm:min-h-[52px] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-3 sm:py-0" key={row.id}><time className="text-neutral-600" dateTime={row.paidAt ?? row.createdAt}>{formatDateTime(row.paidAt ?? row.createdAt, timezone)}</time><span className="text-neutral-600">{paymentMethodLabels[row.method]} · {paymentStatusLabels[row.status]}</span><span className="tabular-nums font-medium">{money(row.amountMinor, row.currency)}</span></li>)}</ul> : <p className="mt-3 border-y border-neutral-200 py-6 text-center text-sm text-neutral-500">Оплат пока нет.</p>}</section> : null}
     </> : <p role="status" className="mt-6 text-sm text-neutral-500">Загрузка карточки…</p>}
     <Dialog open={editing} title="Изменить клиента" onClose={() => setEditing(false)}>{customer ? <form className="grid gap-4" onSubmit={(event) => { void save(event); }}><div className="grid gap-4 sm:grid-cols-2"><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Имя<Input name="firstName" defaultValue={customer.firstName} required/></label><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Фамилия<Input name="lastName" defaultValue={customer.lastName}/></label></div><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Телефон<Input name="phone" defaultValue={customer.phone} required/></label><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Email<Input name="email" type="email" defaultValue={customer.email}/></label><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Заметки<textarea className="min-h-20 rounded-md border border-neutral-300 bg-neutral-0 px-2.5 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600" name="notes" defaultValue={customer.notes}/></label><div className="flex justify-end gap-2 border-t border-neutral-200 pt-3"><Button type="button" variant="secondary" onClick={() => setEditing(false)}>Отмена</Button><Button type="submit">Сохранить</Button></div></form> : null}</Dialog>
   </main>;
