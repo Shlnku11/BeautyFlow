@@ -4,6 +4,7 @@ import { DateTime } from 'luxon';
 import { getEnv } from '../packages/server/src/config/env';
 import { Appointment, Business, BusinessMember, Customer, Payment, Service, Settings, Staff, StaffSchedule, StaffService, Transaction, User } from '../packages/server/src/db/models';
 import type { AppointmentDocument } from '../packages/server/src/db/models/appointments';
+import type { ServiceDocument } from '../packages/server/src/db/models/services';
 import { occupiedKeysFor } from '../packages/server/src/domain/booking-engine/occupancy';
 
 const DEMO_EMAIL = 'owner@demo.local';
@@ -45,6 +46,26 @@ interface SeedAppointment {
 function localDateTime(date: DateTime, time: string): Date {
   const [hour = '0', minute = '0'] = time.split(':');
   return date.set({ hour: Number(hour), minute: Number(minute), second: 0, millisecond: 0 }).toUTC().toJSDate();
+}
+
+function isOccupiedKeysConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { code?: unknown; keyPattern?: unknown };
+  if (candidate.code !== 11000 || typeof candidate.keyPattern !== 'object' || candidate.keyPattern === null) return false;
+  return 'occupiedKeys' in candidate.keyPattern;
+}
+
+function candidateStartTimes(row: SeedAppointment, service: ServiceDocument): Date[] {
+  const [preferredHour = '0', preferredMinute = '0'] = row.time.split(':');
+  const preferred = Number(preferredHour) * 60 + Number(preferredMinute);
+  const latestStart = 19 * 60 - service.durationMinutes - service.bufferMinutes;
+  const startMinutes = [
+    ...Array.from({ length: Math.max(0, Math.floor((13 * 60 - service.durationMinutes - service.bufferMinutes - 10 * 60) / 15) + 1) }, (_, index) => 10 * 60 + index * 15),
+    ...Array.from({ length: Math.max(0, Math.floor((latestStart - 14 * 60) / 15) + 1) }, (_, index) => 14 * 60 + index * 15),
+  ];
+  return startMinutes
+    .sort((left, right) => Math.abs(left - preferred) - Math.abs(right - preferred) || left - right)
+    .map((minute) => localDateTime(row.date, `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`));
 }
 
 function openDay(offset: number): DateTime {
@@ -218,47 +239,60 @@ async function seed(): Promise<void> {
   ).exec();
 
   const appointmentRows = seedAppointments(now);
-  const appointments = await Promise.all(appointmentRows.map(async (row) => {
+  const appointments: AppointmentDocument[] = [];
+  for (const row of appointmentRows) {
     const staff = validStaff[row.staffIndex];
     const service = validServices[row.serviceIndex];
     const customer = customers[row.customerIndex];
     if (!staff || !service || !customer) throw new Error(`Missing demo reference for ${row.key}`);
-    const startAt = localDateTime(row.date, row.time);
-    const endAt = new Date(startAt.getTime() + service.durationMinutes * 60_000);
-    const blockedUntilAt = new Date(endAt.getTime() + service.bufferMinutes * 60_000);
     const active = ['pending', 'confirmed', 'completed'].includes(row.status);
-    const cancelledAt = row.status === 'cancelled' ? endAt : undefined;
-    const completedAt = row.status === 'completed' ? endAt : undefined;
-    const seedFields = {
-      businessId: business._id,
-      customerId: customer._id,
-      staffId: staff._id,
-      serviceId: service._id,
-      startAt,
-      endAt,
-      bufferMinutes: service.bufferMinutes,
-      blockedUntilAt,
-      ...(active ? { occupiedKeys: occupiedKeysFor(staff._id.toString(), startAt, blockedUntilAt) } : {}),
-      status: row.status,
-      source: 'internal' as const,
-      serviceSnapshot: { name: service.name, durationMinutes: service.durationMinutes, priceMinor: service.priceMinor, currency: service.currency },
-      contactEmail: customer.email,
-      customerNote: row.status === 'completed' ? 'Пожелания обсудили перед визитом.' : undefined,
-      internalNote: row.status === 'pending' ? 'Ожидается подтверждение клиента.' : undefined,
-      visitNote: row.status === 'completed' ? 'Визит завершён, клиент доволен результатом.' : undefined,
-      idempotencyKey: row.key,
-      rescheduleCount: 0,
-      createdBy: owner._id,
-      ...(cancelledAt ? { cancelledAt, cancelledBy: 'staff' as const, cancelReason: 'Демо-отмена' } : {}),
-      ...(completedAt ? { completedAt } : {}),
-    };
-    // BOOKING_ENGINE_SPEC §§5.2, 7: occupiedKeys come from the booking engine for blocking states; terminal cancellation/no-show has no slot claim.
-    return Appointment.findOneAndUpdate(
-      { businessId: business._id, idempotencyKey: row.key },
-      { $set: seedFields, ...(!active ? { $unset: { occupiedKeys: 1 } } : {}) },
-      { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true },
-    ).exec();
-  }));
+    const preferredStart = localDateTime(row.date, row.time);
+    const startCandidates = active ? candidateStartTimes(row, service) : [preferredStart];
+    let appointment: AppointmentDocument | null = null;
+    for (const startAt of startCandidates) {
+      const endAt = new Date(startAt.getTime() + service.durationMinutes * 60_000);
+      const blockedUntilAt = new Date(endAt.getTime() + service.bufferMinutes * 60_000);
+      const cancelledAt = row.status === 'cancelled' ? endAt : undefined;
+      const completedAt = row.status === 'completed' ? endAt : undefined;
+      const seedFields = {
+        businessId: business._id,
+        customerId: customer._id,
+        staffId: staff._id,
+        serviceId: service._id,
+        startAt,
+        endAt,
+        bufferMinutes: service.bufferMinutes,
+        blockedUntilAt,
+        ...(active ? { occupiedKeys: occupiedKeysFor(staff._id.toString(), startAt, blockedUntilAt) } : {}),
+        status: row.status,
+        source: 'internal' as const,
+        serviceSnapshot: { name: service.name, durationMinutes: service.durationMinutes, priceMinor: service.priceMinor, currency: service.currency },
+        contactEmail: customer.email,
+        customerNote: row.status === 'completed' ? 'Пожелания обсудили перед визитом.' : undefined,
+        internalNote: row.status === 'pending' ? 'Ожидается подтверждение клиента.' : undefined,
+        visitNote: row.status === 'completed' ? 'Визит завершён, клиент доволен результатом.' : undefined,
+        idempotencyKey: row.key,
+        rescheduleCount: 0,
+        createdBy: owner._id,
+        ...(cancelledAt ? { cancelledAt, cancelledBy: 'staff' as const, cancelReason: 'Демо-отмена' } : {}),
+        ...(completedAt ? { completedAt } : {}),
+      };
+      // BOOKING_ENGINE_SPEC §§5.2, 7: occupiedKeys come from the booking engine for blocking states; terminal cancellation/no-show has no slot claim.
+      try {
+        appointment = await Appointment.findOneAndUpdate(
+          { businessId: business._id, idempotencyKey: row.key },
+          { $set: seedFields, ...(!active ? { $unset: { occupiedKeys: 1 } } : {}) },
+          { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true },
+        ).exec();
+      } catch (error) {
+        if (active && isOccupiedKeysConflict(error)) continue;
+        throw error;
+      }
+      if (appointment) break;
+    }
+    if (!appointment) throw new Error(`No unoccupied demo appointment slot found for ${row.key}`);
+    appointments.push(appointment);
+  }
 
   const completedAppointments = appointmentRows.flatMap((row, index) => row.status === 'completed' ? [appointments[index]].filter((item) => item !== null) : []);
   const paymentPlans = [
@@ -282,7 +316,7 @@ async function seed(): Promise<void> {
     ).exec();
   }));
 
-  for (const [index, payment] of demoPayments.entries()) {
+  for (const payment of demoPayments) {
     if (payment.status === 'pending') continue;
     const occurredAt = payment.paidAt ?? payment.createdAt;
     const existingCharge = await Transaction.findOne({ businessId: business._id, paymentId: payment._id, type: 'charge' }).lean().exec();

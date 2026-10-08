@@ -6,6 +6,7 @@
 - Проверки после восстановления: миграции уже применены; typecheck ✅, lint ✅, полный Vitest ✅ (31 файл / 115 тестов), race ✅ (2/2), build ✅; Playwright Chromium root redirect smoke ✅. Build сообщает о клиентском бандле 1.26 MB и upstream `use client` warnings.
 - `npm run dev` поднимал Vite и API; прямые Chromium переходы на landing/login/register и перечисленные app/public URL открывали document shell; без сессии защищённые app routes ведут на `/login`. Authenticated CRUD walkthrough не запускался в этом smoke.
 - Shadcn migration всё ещё частичная и visual-ready не считается: legacy EmptyState/ErrorState/Radio/Toast остаются, AppLayout и часть экранов ещё используют native/custom UI, все 24 эскиза и light/dark скриншоты отсутствуют.
+- Seed data is available for real authenticated UI review: `npm run seed` twice succeeded and upserted 3 staff, 5 services, 10 customers, 32 appointments, and 11 payments. The seed now writes appointments sequentially and retries only occupied-key collisions using valid business-hour slots. Login: `owner@demo.local` / `demo-password-123`. The first seed invocation before this fix failed on a preexisting unique `occupiedKeys` value; its upserts were then completed by the successful reruns.
 
 ## Передача WIP на 2026-10-07 — shadcn/ui и P0/P1
 
