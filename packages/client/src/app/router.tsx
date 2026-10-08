@@ -2,18 +2,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 're
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ru } from '@/shared/i18n/ru';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
-import { UiSandbox } from '@/features/dev/UiSandbox';
-import { CalendarPage } from '@/features/calendar/CalendarPage';
-import { AuthPage } from '@/features/auth/AuthPage';
-import { PublicBooking, PublicManage } from '@/features/public-booking/PublicBooking';
-import { PaymentsPage } from '@/features/payments/Payments';
-import { DashboardPage, MyDayPage } from '@/features/dashboard/Dashboard';
-import { CustomerDetailPage, CustomersPage } from '@/features/customers/Customers';
-import { ServicesPage } from '@/features/services/Services';
-import { SettingsPage } from '@/features/settings/Settings';
-import { StaffDetailPage, StaffPage } from '@/features/staff/Staff';
 import { useSession } from '@/hooks/use-session';
-import { AppointmentsPage } from '@/features/appointments/Appointments';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { AuthLayout } from '@/app/layouts/AuthLayout';
 import { PublicLayout } from '@/app/layouts/PublicLayout';
@@ -25,6 +14,21 @@ const links = [
 ] as const;
 
 const LandingPage = lazy(() => import('@/features/public-landing/Landing').then((module) => ({ default: module.LandingPage })));
+const UiSandbox = lazy(() => import('@/features/dev/UiSandbox').then((module) => ({ default: module.UiSandbox })));
+const CalendarPage = lazy(() => import('@/features/calendar/CalendarPage').then((module) => ({ default: module.CalendarPage })));
+const AuthPage = lazy(() => import('@/features/auth/AuthPage').then((module) => ({ default: module.AuthPage })));
+const PublicBooking = lazy(() => import('@/features/public-booking/PublicBooking').then((module) => ({ default: module.PublicBooking })));
+const PublicManage = lazy(() => import('@/features/public-booking/PublicBooking').then((module) => ({ default: module.PublicManage })));
+const PaymentsPage = lazy(() => import('@/features/payments/Payments').then((module) => ({ default: module.PaymentsPage })));
+const DashboardPage = lazy(() => import('@/features/dashboard/Dashboard').then((module) => ({ default: module.DashboardPage })));
+const MyDayPage = lazy(() => import('@/features/dashboard/Dashboard').then((module) => ({ default: module.MyDayPage })));
+const CustomerDetailPage = lazy(() => import('@/features/customers/Customers').then((module) => ({ default: module.CustomerDetailPage })));
+const CustomersPage = lazy(() => import('@/features/customers/Customers').then((module) => ({ default: module.CustomersPage })));
+const ServicesPage = lazy(() => import('@/features/services/Services').then((module) => ({ default: module.ServicesPage })));
+const SettingsPage = lazy(() => import('@/features/settings/Settings').then((module) => ({ default: module.SettingsPage })));
+const StaffDetailPage = lazy(() => import('@/features/staff/Staff').then((module) => ({ default: module.StaffDetailPage })));
+const StaffPage = lazy(() => import('@/features/staff/Staff').then((module) => ({ default: module.StaffPage })));
+const AppointmentsPage = lazy(() => import('@/features/appointments/Appointments').then((module) => ({ default: module.AppointmentsPage })));
 
 function PageFrame({ title }: { title: string }) {
   return <main className="mx-auto w-full max-w-7xl p-6"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-3 text-neutral-600">Подключение данных выполняется через защищённый API.</p></main>;
@@ -102,5 +106,5 @@ function AppShell() {
 }
 
 export function App() {
-  return <Routes><Route path="/login" element={<AuthLayout><AuthPage/></AuthLayout>}/><Route path="/register" element={<AuthLayout><AuthPage register/></AuthLayout>}/><Route path="/verify-email" element={<AuthLayout><AuthPage mode="verify"/></AuthLayout>}/><Route path="/forgot-password" element={<AuthLayout><AuthPage mode="forgot"/></AuthLayout>}/><Route path="/reset-password" element={<AuthLayout><AuthPage mode="reset"/></AuthLayout>}/><Route path="/b/:slug/manage/:token" element={<PublicLayout><PublicManage/></PublicLayout>}/><Route path="/b/:slug/*" element={<PublicLayout><PublicBooking/></PublicLayout>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<PublicLayout><RootRedirect/></PublicLayout>}/></Routes>;
+  return <Suspense fallback={<SessionLoading/>}><Routes><Route path="/login" element={<AuthLayout><AuthPage/></AuthLayout>}/><Route path="/register" element={<AuthLayout><AuthPage register/></AuthLayout>}/><Route path="/verify-email" element={<AuthLayout><AuthPage mode="verify"/></AuthLayout>}/><Route path="/forgot-password" element={<AuthLayout><AuthPage mode="forgot"/></AuthLayout>}/><Route path="/reset-password" element={<AuthLayout><AuthPage mode="reset"/></AuthLayout>}/><Route path="/b/:slug/manage/:token" element={<PublicLayout><PublicManage/></PublicLayout>}/><Route path="/b/:slug/*" element={<PublicLayout><PublicBooking/></PublicLayout>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<PublicLayout><RootRedirect/></PublicLayout>}/></Routes></Suspense>;
 }
