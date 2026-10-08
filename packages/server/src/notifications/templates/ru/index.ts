@@ -9,8 +9,9 @@ import * as followupAfterVisit from './followup_after_visit';
 import * as staffInvite from './staff_invite';
 import * as passwordReset from './password_reset';
 import * as emailVerification from './email_verification';
+import * as loginVerification from './login_verification';
 
-type EmailKind = Extract<NotificationDocument['kind'], 'appointment_confirmed' | 'appointment_changed' | 'appointment_cancelled' | 'reminder_24h' | 'reminder_1h' | 'followup_after_visit' | 'staff_invite' | 'password_reset' | 'email_verification'>;
+type EmailKind = Extract<NotificationDocument['kind'], 'appointment_confirmed' | 'appointment_changed' | 'appointment_cancelled' | 'reminder_24h' | 'reminder_1h' | 'followup_after_visit' | 'staff_invite' | 'password_reset' | 'email_verification' | 'login_verification'>;
 const templates: Record<EmailKind, (data: NotificationTemplateData) => RenderedEmail> = {
   appointment_confirmed: appointmentConfirmed.render,
   appointment_changed: appointmentChanged.render,
@@ -21,6 +22,7 @@ const templates: Record<EmailKind, (data: NotificationTemplateData) => RenderedE
   staff_invite: staffInvite.render,
   password_reset: passwordReset.render,
   email_verification: emailVerification.render,
+  login_verification: loginVerification.render,
 };
 
 export function renderRuTemplate(kind: EmailKind, data: NotificationTemplateData): RenderedEmail { return templates[kind](data); }

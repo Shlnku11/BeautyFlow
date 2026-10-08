@@ -1,13 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { verifyLoginEmail } from '../email-verification';
 
 test('customer list cards fit phones and preserve all contact metadata', async ({ page }) => {
   const run = `${Date.now()}`;
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.21.${Number(run.slice(-8)) % 255}.${Number(run.slice(-4)) % 254 + 1}` });
   await page.goto('/login');
   await page.getByLabel('Email').fill('owner@demo.local');
-  await page.getByLabel('Пароль').fill('demo-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('demo-password-123');
   await page.getByRole('button', { name: 'Войти' }).click();
+  await verifyLoginEmail(page, 'owner@demo.local');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
   await expect(page.getByText(/Подтвердите email/)).toHaveCount(0);
 

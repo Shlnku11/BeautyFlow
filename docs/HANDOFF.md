@@ -1,5 +1,16 @@
 # HANDOFF.md
 
+## Актуальная передача — 2026-10-08
+
+- Блок 1 (Landing) закрыт: `e1a27b4 feat(landing): rebuild landing and add theme previews`.
+- Блок 2 (Auth) в работе. Email-код для входа частично реализован в текущем WIP-коммите: AUTH-02 возвращает временный `loginToken`, добавлены AUTH-16 verify и AUTH-17 resend, уведомление `login_verification`, UI-код и тесты. Следующему исполнителю нужно продолжить с этого состояния, проверить изменения и решить вопрос о финальном контракте email-OTP в новом чате; не переписывать с нуля.
+- В этой сессии прошли typecheck/lint и целевые unit/API/route registry тесты (3 файла / 9 тестов). Целевой Playwright Chromium сценарий регистрации бизнеса и полного owner workflow завершился успешно (1 passed, 44.9s). Полный набор проверок после Auth-изменений не запускался.
+- Порт 5173 занят приложением `sales-dashboard`; для этого проекта использовать `5174` (в том числе `DEV_APP_BASE_URL=http://localhost:5174` при запуске соответствующего dev/E2E окружения). Не завершать чужой процесс.
+- Блоки 3–8 ожидают.
+- Для тестов с прокси учитывать `TRUSTED_PROXY_HOPS=1`, чтобы E2E запросы не делили один IP для rate limit.
+
+Команды: существующий MongoDB-контейнер `docs-master-architecture-md-1-3-mongo-1` на `27018`; затем `npm run migrate`, `npm run dev`, проверки `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:race`, `npm run build`, `npm run test:e2e`, `npm run check:contrast`, `npm run test:a11y`. Не менять `.env` и не создавать новый MongoDB-контейнер.
+
 ## Передача работы — 2026-10-08 (актуальное состояние)
 
 ### Текущий этап

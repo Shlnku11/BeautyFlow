@@ -42,6 +42,32 @@ export class AuthRepository {
   enqueueEmailVerification(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
     return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
   }
+  setLoginVerification(userId: Types.ObjectId, codeHash: string, expiresAt: Date, session: ClientSession, expectedCodeHash?: string) {
+    return User.updateOne({ _id: userId, status: 'active', emailVerified: true, ...(expectedCodeHash ? { loginVerificationCodeHash: expectedCodeHash, loginVerificationExpiresAt: { $gt: new Date() } } : {}) }, { $set: { loginVerificationCodeHash: codeHash, loginVerificationExpiresAt: expiresAt, loginVerificationAttempts: 0 } }, { session }).exec();
+  }
+  enqueueLoginVerification(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
+    return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
+  }
+  consumeLoginVerification(userId: Types.ObjectId, codeHash: string, now: Date, session: ClientSession) {
+    return User.updateOne({ _id: userId, status: 'active', emailVerified: true, loginVerificationCodeHash: codeHash, loginVerificationExpiresAt: { $gt: now }, loginVerificationAttempts: { $lt: 5 } }, { $unset: { loginVerificationCodeHash: 1, loginVerificationExpiresAt: 1 }, $set: { loginVerificationAttempts: 0 } }, { session }).exec();
+  }
+  incrementLoginVerificationAttempt(userId: Types.ObjectId, codeHash: string, now: Date) {
+    return User.collection.findOneAndUpdate(
+      { _id: userId, status: 'active', emailVerified: true, loginVerificationCodeHash: codeHash, loginVerificationExpiresAt: { $gt: now }, loginVerificationAttempts: { $lt: 5 } },
+      [{ $set: {
+        loginVerificationAttempts: { $add: [{ $ifNull: ['$loginVerificationAttempts', 0] }, 1] },
+        loginVerificationCodeHash: { $cond: [{ $gte: [{ $add: [{ $ifNull: ['$loginVerificationAttempts', 0] }, 1] }, 5] }, '$$REMOVE', '$loginVerificationCodeHash'] },
+        loginVerificationExpiresAt: { $cond: [{ $gte: [{ $add: [{ $ifNull: ['$loginVerificationAttempts', 0] }, 1] }, 5] }, '$$REMOVE', '$loginVerificationExpiresAt'] },
+      } }],
+      { returnDocument: 'after' },
+    );
+  }
+  findLoginVerificationState(userId: Types.ObjectId) {
+    return User.findOne({ _id: userId, status: 'active' }).select('emailVerified loginVerificationCodeHash loginVerificationExpiresAt loginVerificationAttempts').lean().exec();
+  }
+  cancelPendingLoginVerifications(businessId: Types.ObjectId, email: string, session: ClientSession) {
+    return Notification.updateMany({ businessId, kind: 'login_verification', 'recipient.email': email, status: 'scheduled' }, { $set: { status: 'cancelled' }, $unset: { templateData: 1 } }, { session }).exec();
+  }
   consumeEmailVerification(emailNormalized: string, codeHash: string, now: Date, session: ClientSession) {
     return User.updateOne({ emailNormalized, status: 'active', emailVerified: false, emailVerificationCodeHash: codeHash, emailVerificationExpiresAt: { $gt: now }, emailVerificationAttempts: { $lt: 5 } }, { $set: { emailVerified: true, emailVerificationAttempts: 0 }, $unset: { emailVerificationCodeHash: 1, emailVerificationExpiresAt: 1 } }, { session }).exec();
   }
@@ -73,9 +99,10 @@ export class AuthRepository {
     return BusinessMember.collection.findOne({ inviteTokenHash: tokenHash, status: 'invited', inviteExpiresAt: { $gt: now } }, { session });
   }
   acceptInvitation(userId: Types.ObjectId, businessId: Types.ObjectId, memberId: Types.ObjectId, name: string, passwordHash: string, session: ClientSession) {
+    // API_CONTRACTS §2 AUTH-06: accepting a one-time invitation delivered to this mailbox verifies its control.
     return Promise.all([
       BusinessMember.findOneAndUpdate({ _id: memberId, userId, businessId, status: 'invited' }, { $set: { status: 'active', joinedAt: new Date() }, $unset: { inviteTokenHash: 1, inviteExpiresAt: 1 } }, { session, returnDocument: 'after' }).lean().exec(),
-      User.updateOne({ _id: userId, status: 'invited' }, { $set: { name, passwordHash, status: 'active' } }, { session }).exec(),
+      User.updateOne({ _id: userId, status: 'invited' }, { $set: { name, passwordHash, status: 'active', emailVerified: true } }, { session }).exec(),
     ]).then(([member]) => member);
   }
   findMembership(userId: Types.ObjectId, businessId: Types.ObjectId) {

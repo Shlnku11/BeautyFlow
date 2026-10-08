@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { AuthService } from '../services/auth-service';
-import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, GoogleLoginSchema, GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, GoogleLoginSchema, GoogleRegisterBusinessSchema, LoginSchema, LoginVerificationResendSchema, LoginVerificationSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { getEnv } from '../config/env';
 import { defineExpressRoute } from './define-express-route';
 import { AppError } from './errors';
@@ -9,7 +9,7 @@ import { noContent } from './responses';
 import { removeCurrentSession } from '../auth/route-runtime';
 
 const authService = new AuthService();
-export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06','AUTH-07','AUTH-08','AUTH-09','AUTH-11','AUTH-12']);
+export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03','AUTH-04','AUTH-06','AUTH-07','AUTH-08','AUTH-09','AUTH-11','AUTH-12','AUTH-16','AUTH-17']);
 export const OPTIONAL_AUTH_ROUTE_IDS = new Set(['AUTH-13','AUTH-14','AUTH-15']);
 
 export function registerAuthRoutes(app: Express): void {
@@ -84,10 +84,21 @@ export function registerAuthRoutes(app: Express): void {
   }));
   app.post('/api/auth/login', defineExpressRoute({
     id: 'AUTH-02', method: 'POST', path: '/api/auth/login', auth: 'none', contextSource: 'NONE', bodySchema: LoginSchema, rateLimit: 'RL-LOGIN',
+    handler: async ({ body }) => {
+      const result = await authService.login(body.email, body.password);
+      return Response.json({ data: result.data });
+    },
+  }));
+  app.post('/api/auth/login/verify', defineExpressRoute({
+    id: 'AUTH-16', method: 'POST', path: '/api/auth/login/verify', auth: 'none', contextSource: 'NONE', bodySchema: LoginVerificationSchema, rateLimit: 'RL-RESET',
     handler: async ({ body, request }) => {
-      const result = await authService.login(body.email, body.password, request);
+      const result = await authService.verifyLogin(body.loginToken, body.code, request);
       return Response.json({ data: result.data }, { headers: { 'Set-Cookie': result.cookie } });
     },
+  }));
+  app.post('/api/auth/login/resend', defineExpressRoute({
+    id: 'AUTH-17', method: 'POST', path: '/api/auth/login/resend', auth: 'none', contextSource: 'NONE', bodySchema: LoginVerificationResendSchema, rateLimit: 'RL-RESET',
+    handler: async ({ body }) => Response.json({ data: await authService.resendLoginVerification(body.loginToken) }),
   }));
   app.post('/api/auth/logout', defineExpressRoute({
     id: 'AUTH-03', method: 'POST', path: '/api/auth/logout', auth: 'session', permission: 'account:self', contextSource: 'SESSION', bodySchema: EmptyBodySchema, rateLimit: 'RL-API',

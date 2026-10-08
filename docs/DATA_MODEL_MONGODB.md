@@ -46,6 +46,9 @@
 | emailVerificationCodeHash | String | нет | null | HMAC-SHA256 кода подтверждения, без сырого кода |
 | emailVerificationExpiresAt | Date | нет | null | +15 минут |
 | emailVerificationAttempts | Number | да | `0` | не более 5 неверных проверок на код |
+| loginVerificationCodeHash | String | нет | null | HMAC-SHA256 кода входа с nonce одноразового loginToken; без сырого кода |
+| loginVerificationExpiresAt | Date | нет | null | +15 минут; после истечения challenge не принимается |
+| loginVerificationAttempts | Number | да | `0` | не более 5 неверных проверок на challenge входа |
 | googleId | String | нет | — | Google subject (`sub`), уникален; nullable для пользователей без OAuth |
 | avatarUrl | String | нет | — | HTTPS URL аватара из проверенного Google ID token |
 | passwordHash | String | нет | null | argon2id; `null` для `invited` и Google-only аккаунтов без пароля |

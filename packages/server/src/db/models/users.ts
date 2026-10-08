@@ -10,6 +10,9 @@ export interface UserDocument {
   emailVerificationCodeHash?: string;
   emailVerificationExpiresAt?: Date;
   emailVerificationAttempts: number;
+  loginVerificationCodeHash?: string;
+  loginVerificationExpiresAt?: Date;
+  loginVerificationAttempts: number;
   googleId?: string;
   avatarUrl?: string;
   passwordHash: string | null;
@@ -31,6 +34,9 @@ const schema = createModelSchema<UserDocument>({
   emailVerificationCodeHash: { type: String, trim: true },
   emailVerificationExpiresAt: { type: Date },
   emailVerificationAttempts: { type: Number, required: true, min: 0, default: 0 },
+  loginVerificationCodeHash: { type: String, trim: true },
+  loginVerificationExpiresAt: { type: Date },
+  loginVerificationAttempts: { type: Number, required: true, min: 0, default: 0 },
   googleId: { type: String, trim: true },
   avatarUrl: { type: String, trim: true, maxlength: 2048 },
   passwordHash: { type: String, default: null },

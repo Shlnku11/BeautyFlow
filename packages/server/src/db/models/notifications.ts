@@ -14,6 +14,7 @@ export const NOTIFICATION_KINDS = [
   'staff_invite',
   'password_reset',
   'email_verification',
+  'login_verification',
 ] as const;
 export const NOTIFICATION_STATUSES = ['scheduled', 'processing', 'sent', 'failed', 'cancelled', 'skipped'] as const;
 

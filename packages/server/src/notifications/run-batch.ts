@@ -20,7 +20,7 @@ function isRecord(value: unknown): value is PlainRecord { return typeof value ==
 function plainTemplateData(value: unknown): NotificationTemplateData {
   if (!isRecord(value)) return {};
   const result: NotificationTemplateData = {};
-  for (const key of ['businessName', 'businessAddress', 'businessPhone', 'timezone', 'customerName', 'staffName', 'serviceName', 'startAt', 'manageUrl', 'inviteUrl', 'resetUrl', 'verificationCode'] as const) {
+  for (const key of ['businessName', 'businessAddress', 'businessPhone', 'timezone', 'customerName', 'staffName', 'serviceName', 'startAt', 'manageUrl', 'inviteUrl', 'resetUrl', 'verificationCode', 'loginCode'] as const) {
     if (typeof value[key] === 'string') result[key] = value[key];
   }
   return result;
@@ -72,7 +72,7 @@ async function setOutcome(notification: NotificationDocument, workerId: string, 
 }
 
 async function skip(notification: NotificationDocument, workerId: string, reason: string, now: Date): Promise<void> {
-  await setOutcome(notification, workerId, { status: 'skipped', lastError: reason, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification');
+  await setOutcome(notification, workerId, { status: 'skipped', lastError: reason, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification' || notification.kind === 'login_verification');
 }
 
 export async function runNotificationBatch(options: BatchOptions = {}): Promise<BatchSummary> {
@@ -145,11 +145,11 @@ export async function runNotificationBatch(options: BatchOptions = {}): Promise<
           summary.skipped += 1;
           continue;
         }
-        await setOutcome(notification, workerId, { status: 'sent', sentAt: now, providerMessageId: outcome.providerMessageId, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification');
+        await setOutcome(notification, workerId, { status: 'sent', sentAt: now, providerMessageId: outcome.providerMessageId, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification' || notification.kind === 'login_verification');
         summary.sent += 1;
         continue;
       }
-      await setOutcome(notification, workerId, { status: 'sent', sentAt: now, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification');
+      await setOutcome(notification, workerId, { status: 'sent', sentAt: now, expireAt: new Date(now.getTime() + RETENTION_MS) }, notification.kind === 'password_reset' || notification.kind === 'email_verification' || notification.kind === 'login_verification');
       summary.sent += 1;
     } catch (error: unknown) {
       const permanent = error instanceof PermanentProviderError;
@@ -157,7 +157,7 @@ export async function runNotificationBatch(options: BatchOptions = {}): Promise<
       const failed = permanent || !transient || notification.attempts >= notification.maxAttempts;
       const code = permanent ? 'PERMANENT_PROVIDER_ERROR' : 'TRANSIENT_PROVIDER_ERROR';
       if (failed) {
-        await setOutcome(notification, workerId, { status: 'failed', lastError: code }, notification.kind === 'password_reset' || notification.kind === 'email_verification');
+        await setOutcome(notification, workerId, { status: 'failed', lastError: code }, notification.kind === 'password_reset' || notification.kind === 'email_verification' || notification.kind === 'login_verification');
         summary.failed += 1;
       } else {
         await setOutcome(notification, workerId, { status: 'scheduled', nextAttemptAt: new Date(now.getTime() + retryDelayMs(notification.attempts)), lastError: code });

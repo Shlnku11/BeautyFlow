@@ -101,5 +101,5 @@ function AppShell() {
 }
 
 export function App() {
-  return <Routes><Route path="/login" element={<AuthLayout><AuthPage/></AuthLayout>}/><Route path="/register" element={<AuthLayout><AuthPage register/></AuthLayout>}/><Route path="/b/:slug/manage/:token" element={<PublicLayout><PublicManage/></PublicLayout>}/><Route path="/b/:slug/*" element={<PublicLayout><PublicBooking/></PublicLayout>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<PublicLayout><RootRedirect/></PublicLayout>}/></Routes>;
+  return <Routes><Route path="/login" element={<AuthLayout><AuthPage/></AuthLayout>}/><Route path="/register" element={<AuthLayout><AuthPage register/></AuthLayout>}/><Route path="/verify-email" element={<AuthLayout><AuthPage mode="verify"/></AuthLayout>}/><Route path="/forgot-password" element={<AuthLayout><AuthPage mode="forgot"/></AuthLayout>}/><Route path="/reset-password" element={<AuthLayout><AuthPage mode="reset"/></AuthLayout>}/><Route path="/b/:slug/manage/:token" element={<PublicLayout><PublicManage/></PublicLayout>}/><Route path="/b/:slug/*" element={<PublicLayout><PublicBooking/></PublicLayout>}/><Route path="/__dev/ui" element={<UiSandbox/>}/><Route path="/app/*" element={<AppShell/>}/><Route path="/" element={<PublicLayout><RootRedirect/></PublicLayout>}/></Routes>;
 }

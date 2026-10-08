@@ -291,3 +291,10 @@
 - Inter fallback исправлен на Inter Variable/Inter/sans-serif. Таблица записей показывает loading state до ответа.
 - Подготовлены docs/PROJECT_SUMMARY.md, docs/PRESENTATION.md, 14-слайдовая docs/presentation/index.html и docs/presentation.pdf. PDF пересчитан после проверки печатной вёрстки: 14 страниц. Команда пересборки: npm run presentation:pdf; PowerPoint не генерировался и новые пакеты не добавлялись.
 - После последних client правок typecheck/lint ✅, build ✅, contrast ✅. Новый `npm run presentation:pdf` ✅ и PDF metadata подтверждает 14 страниц. Playwright regression/a11y остаются ожидающими восстановления MongoDB.
+## Auth block WIP — 2026-10-08
+
+- Block 1 (Landing) is closed at `e1a27b4`. Block 2 (Auth) is in progress; blocks 3–8 are waiting.
+- Email OTP for login has been started in this WIP: AUTH-02 password success now yields a temporary login token; AUTH-16 verifies a six-digit code; AUTH-17 resends it. The login-verification notification/template, UI flow, route contracts, model fields, and focused tests are present. Continue from these files and resolve/confirm the final email-OTP contract in the next chat; do not restart the implementation.
+- Focused checks passed: typecheck, lint, and unit/API/route-registry tests (3 files / 9 tests). A targeted Playwright Chromium business-owner workflow passed (1 test). Full verification suite was not run after the latest changes.
+- Local port 5173 is owned by `sales-dashboard`; use port 5174 for this project. Set `DEV_APP_BASE_URL=http://localhost:5174` for an isolated E2E/dev environment where needed. Do not stop the other application.
+- MongoDB: reuse `docs-master-architecture-md-1-3-mongo-1` on port 27018. Do not create another container or edit `.env`.

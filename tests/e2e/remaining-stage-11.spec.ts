@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import mongoose from 'mongoose';
-import { verifyRegistrationEmail } from './email-verification';
+import { verifyLoginEmail, verifyRegistrationEmail } from './email-verification';
 import { captureThemeScreenshots } from './screen-capture';
 import { appOrigin } from './test-origin';
 
@@ -25,7 +25,7 @@ async function registerOwner(page: Page, label: string): Promise<{ businessId: s
   await page.getByLabel('Ваше имя').fill(`${label} Owner`);
   const email = `${label.toLowerCase()}.${run}@example.test`;
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Пароль').fill(ownerPassword);
+  await page.getByLabel('Пароль', { exact: true }).fill(ownerPassword);
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
   await verifyRegistrationEmail(page, email);
@@ -157,8 +157,9 @@ test('E2E-5: invited master accepts AUTH-06, sees only own data, and is denied o
   const loginPage = await context.newPage();
   await loginPage.goto('/login');
   await loginPage.getByLabel('Email').fill(email);
-  await loginPage.getByLabel('Пароль').fill(ownerPassword);
+  await loginPage.getByLabel('Пароль', { exact: true }).fill(ownerPassword);
   await loginPage.getByRole('button', { name: 'Войти' }).click();
+  await verifyLoginEmail(loginPage, email);
   await expect(loginPage).toHaveURL(/\/app/);
   const me = await loginPage.request.get(`${origin}/api/auth/me`).then((response) => response.json()) as { data: { active: { role: string; staffId?: string }; permissions: string[] } };
   expect(me.data.active).toMatchObject({ role: 'master', staffId: staff.id });

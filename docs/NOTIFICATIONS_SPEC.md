@@ -40,11 +40,12 @@ EmailProvider (smtp | console)         SmsProvider / PushProvider (adapters, п�
 | `staff_invite` | `STF-02` (создание сотрудника с email), `MEM-04` (повтор) | приглашённый (`recipient.email`) | сейчас |
 | `password_reset` | `AUTH-07` | пользователь | сейчас |
 | `email_verification` | `AUTH-01`, `AUTH-12` | владелец аккаунта | сейчас |
+| `login_verification` | `AUTH-02` | пользователь | сейчас |
 
 - Для `pending` записи подтверждение не уходит (отправляется «заявка принята» — **не** в MVP; решение §Decisions: в MVP при `autoConfirm=false` клиент получает `appointment_confirmed` только после подтверждения).
 - Включение/выключение по видам — `settings.notifications.*Enabled`; выключенный вид просто не ставится в очередь, а при выключении уже стоящие `scheduled` этого вида получают `cancelled`. **MVP:** изменить флаги через API нельзя (`SET-04` — post-MVP), действуют значения по умолчанию (все включены); логика сохранения и отмены реализуется в сервисе и проверяется на уровне сервиса (кейс 14 ниже), HTTP-эндпоинт появится в post-MVP. <!-- CHANGED: A2b -->
 - Если у записи нет `contactEmail` → уведомление `skipped` (`NO_RECIPIENT`).
-- Шаблоны: текст на русском, ключи `src/server/notifications/templates/ru/<kind>.ts`; структура допускает `en` позже (ключ `locale`). Содержимое: название бизнеса, услуга, мастер, дата/время **в поясе бизнеса с подписью зоны**, адрес, ссылка управления (`manageUrl`) для `confirmed/changed/reminder`, `ics`-вложение — вне MVP. `email_verification` хранит код в `templateData` только до результата доставки; после sent/failed/skipped поле целиком удаляется. Тема и тело не содержат лишних персональных данных.
+- Шаблоны: текст на русском, ключи `src/server/notifications/templates/ru/<kind>.ts`; структура допускает `en` позже (ключ `locale`). Содержимое: название бизнеса, услуга, мастер, дата/время **в поясе бизнеса с подписью зоны**, адрес, ссылка управления (`manageUrl`) для `confirmed/changed/reminder`, `ics`-вложение — вне MVP. `email_verification` и `login_verification` хранят код в `templateData` только до результата доставки; после sent/failed/skipped поле целиком удаляется. Тема и тело не содержат лишних персональных данных.
 - Данные рендера: для `confirmed/changed/cancelled/invite/reset` — снимок `templateData`, сохранённый при постановке; для `reminder_*` и `followup` — **рендер при отправке по актуальной записи** (запись могла быть перенесена/отменена).
 
 ## 4. Планирование и инвалидация
@@ -61,7 +62,7 @@ EmailProvider (smtp | console)         SmsProvider / PushProvider (adapters, п�
 - `appointment_confirmed|changed|cancelled`: `"<channel>:<kind>:<appointmentId>:<__v записи>"`;
 - `reminder_*`: `"<channel>:<kind>:<appointmentId>:<startAtEpochMs>"`;
 - `followup_after_visit`: `"<channel>:followup_after_visit:<appointmentId>"`;
-- `staff_invite`: `"<channel>:staff_invite:<memberId>:<inviteTokenHash[0..8]>"`; `password_reset`: `"<channel>:password_reset:<userId>:<resetTokenHash[0..8]>"`; `email_verification`: `"email:email_verification:<userId>:<codeHash[0..8]>"`.
+- `staff_invite`: `"<channel>:staff_invite:<memberId>:<inviteTokenHash[0..8]>"`; `password_reset`: `"<channel>:password_reset:<userId>:<resetTokenHash[0..8]>"`; `email_verification`: `"email:email_verification:<userId>:<codeHash[0..8]>"`; `login_verification`: `"email:login_verification:<userId>:<codeHash[0..8]>"`. <!-- CHANGED: stage 2 -->
 Вставка при дубле (`E11000`) — штатный no-op. Дополнительно воркер передаёт провайдеру `idempotencyKey = notification._id`.
 
 ## 6. Очередь, воркер, повторы
@@ -103,7 +104,7 @@ Integration (replica set, `ConsoleEmailProvider`/фейк):
 5. падение воркера в `processing` → recovery возвращает в `scheduled`;
 6. перенос отменяет старые напоминания и создаёт новые; отмена записи отменяет все;
 7. напоминание к отменённой/прошедшей записи → `skipped (STALE)`; просроченное → `skipped (LATE)`;
-8. `password_reset`, `staff_invite` и `email_verification`: повторный запрос (новый токен/код) создаёт новое уведомление, повторная постановка той же ценности — no-op (`dedupeKey` включает хэш); <!-- CHANGED: A2b -->
+8. `password_reset`, `staff_invite`, `email_verification` и `login_verification`: повторный запрос (новый токен/код) создаёт новое уведомление, повторная постановка той же ценности — no-op (`dedupeKey` включает хэш); одноразовые коды очищаются из `templateData` после исхода доставки; <!-- CHANGED: A2b; stage 2 -->
 9. запись с `autoConfirm=false` (`pending`): ни подтверждения, ни напоминаний; после `APT-06 → confirmed` ставятся `appointment_confirmed` и напоминания; <!-- CHANGED: A2b -->
 10. `SYS-02` без секрета → 401, с секретом → 200;
 11. изоляция: журнал бизнеса A не содержит уведомлений B; воркер рендерит с данными своего бизнеса;

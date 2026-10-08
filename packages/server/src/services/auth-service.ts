@@ -13,6 +13,7 @@ import type { BusinessRole } from '@/shared/constants';
 import type { RegisterBusinessRequestDto } from '@/shared/types/dto';
 import { buildDedupeKey } from '../notifications/dedupe-key';
 import { isGoogleOAuthConfigured, verifyGoogleIdToken } from '../auth/google-token';
+import { createLoginChallenge, hashLoginCode, readLoginChallenge } from '../auth/login-verification';
 import type { GoogleRegisterBusinessSchema } from '@/shared/schemas/auth';
 import type { z } from 'zod';
 
@@ -20,6 +21,7 @@ const repository = new AuthRepository();
 const argonOptions = { memoryCost: 19_456, timeCost: 2, parallelism: 1 };
 const FORGOT_PASSWORD_MIN_DURATION_MS = 150;
 const EMAIL_VERIFICATION_TTL_MS = 15 * 60_000;
+const LOGIN_VERIFICATION_TTL_MS = 15 * 60_000;
 
 async function keepMinimumDuration(startedAt: number): Promise<void> {
   const remaining = FORGOT_PASSWORD_MIN_DURATION_MS - (performance.now() - startedAt);
@@ -29,6 +31,10 @@ async function keepMinimumDuration(startedAt: number): Promise<void> {
 export interface AuthResult {
   data: { user: { id: string; name: string; email: string; emailVerified: boolean; locale: 'ru' }; membership: { businessId: string; businessName: string; slug: string; role: 'owner' | 'admin' | 'master'; staffId?: string } };
   cookie: string;
+}
+
+export interface LoginChallengeResult {
+  data: { requiresEmailCode: true; loginToken: string };
 }
 
 function userDto(user: { _id: Types.ObjectId; name: string; email: string; emailVerified?: boolean }) {
@@ -137,6 +143,29 @@ export class AuthService {
       maxAttempts: 5,
       dedupeKey,
       templateData: { businessName, verificationCode: code },
+    }, session);
+  }
+
+  private async queueLoginVerification(user: { _id: Types.ObjectId; email: string; name: string }, businessId: Types.ObjectId, challenge: { loginToken: string; nonce: string }, code: string, session: import('mongoose').ClientSession, expectedCodeHash?: string): Promise<void> {
+    // API_CONTRACTS §2 AUTH-02/16 and DATA_MODEL_MONGODB §1: persist only a nonce-bound HMAC; raw codes live only in the delivery queue until outcome.
+    const codeHash = hashLoginCode(challenge.nonce, code);
+    const now = new Date();
+    const updated = await repository.setLoginVerification(user._id, codeHash, new Date(now.getTime() + LOGIN_VERIFICATION_TTL_MS), session, expectedCodeHash);
+    if (updated.matchedCount !== 1) throw new AppError(expectedCodeHash ? ERROR_CODES.INVALID_CODE : ERROR_CODES.INVALID_CREDENTIALS, 401, 'Код неверен');
+    await repository.cancelPendingLoginVerifications(businessId, user.email, session);
+    const dedupeKey = buildDedupeKey({ channel: 'email', kind: 'login_verification', userId: user._id.toString(), tokenHash: codeHash });
+    await repository.enqueueLoginVerification({
+      businessId,
+      channel: 'email',
+      kind: 'login_verification',
+      recipient: { email: user.email, name: user.name },
+      status: 'scheduled',
+      scheduledFor: now,
+      nextAttemptAt: now,
+      attempts: 0,
+      maxAttempts: 5,
+      dedupeKey,
+      templateData: { loginCode: code },
     }, session);
   }
 
@@ -290,16 +319,86 @@ export class AuthService {
     });
   }
 
-  async login(email: string, password: string, request: Request): Promise<AuthResult> {
+  async login(email: string, password: string): Promise<LoginChallengeResult> {
     const user = await repository.findUserByEmail(email.toLowerCase());
     const valid = user?.passwordHash ? await verify(user.passwordHash, password) : await verify(await hash('dummy-password-never-used', argonOptions), password).catch(() => false);
     if (!user || !valid || user.status !== 'active') throw new AppError(ERROR_CODES.INVALID_CREDENTIALS, 401, 'Неверный email или пароль');
+    if (!user.emailVerified) throw new AppError(ERROR_CODES.EMAIL_NOT_VERIFIED, 403, 'Сначала подтвердите email');
     const memberships = await repository.findActiveMembershipByUserId(user._id);
     if (!memberships) throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
     const business = await repository.findBusinessById(memberships.businessId);
     if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
-    const { cookie } = await issueSession(user._id, business._id, request);
-    return { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, memberships.role) }, cookie };
+    const challenge = createLoginChallenge(user._id.toString());
+    const code = createEmailVerificationCode();
+    await withTransaction((session) => this.queueLoginVerification(user, business._id, challenge, code, session));
+    return { data: { requiresEmailCode: true, loginToken: challenge.loginToken } };
+  }
+
+  async verifyLogin(loginToken: string, code: string, request: Request): Promise<AuthResult> {
+    const challenge = readLoginChallenge(loginToken);
+    if (!challenge) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    const userId = new Types.ObjectId(challenge.userId);
+    const codeHash = hashLoginCode(challenge.nonce, code);
+    const now = new Date();
+    const state = await repository.findLoginVerificationState(userId);
+    if (!state) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    if (state.loginVerificationAttempts >= 5) throw new RateLimitError(900);
+    if (state.loginVerificationExpiresAt && state.loginVerificationExpiresAt <= now) {
+      throw new AppError(ERROR_CODES.EXPIRED_CODE, 410, 'Срок действия кода истёк');
+    }
+    if (!state.loginVerificationCodeHash) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    if (!sameHash(state.loginVerificationCodeHash, codeHash)) {
+      await repository.incrementLoginVerificationAttempt(userId, state.loginVerificationCodeHash, now);
+      const afterAttempt = await repository.findLoginVerificationState(userId);
+      if (afterAttempt?.loginVerificationAttempts !== undefined && afterAttempt.loginVerificationAttempts >= 5) {
+        throw new RateLimitError(900);
+      }
+      throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    }
+    let result: AuthResult | null = null;
+    await withTransaction(async (session) => {
+      // API_CONTRACTS §2 AUTH-16: conditional consumption makes the code single-use before a session can be created.
+      const consumed = await repository.consumeLoginVerification(userId, codeHash, now, session);
+      if (consumed.modifiedCount !== 1) return;
+      const membership = await repository.findActiveMembershipByUserId(userId, session);
+      if (!membership) throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+      const businessId = membership.businessId as Types.ObjectId;
+      const business = await repository.findBusinessById(businessId, session);
+      if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+      const user = await repository.findUserById(userId, session);
+      if (!user || !user.emailVerified || user.status !== 'active') throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+      const { cookie } = await issueSession(user._id, business._id, request, session);
+      result = { data: { user: userDto(user), membership: membershipDto(business._id, business.name, business.slug, membership.role) }, cookie };
+    });
+    if (!result) {
+      const latest = await repository.findLoginVerificationState(userId);
+      if (latest?.loginVerificationAttempts !== undefined && latest.loginVerificationAttempts >= 5) throw new RateLimitError(900);
+      if (latest?.loginVerificationExpiresAt && latest.loginVerificationExpiresAt <= new Date()) throw new AppError(ERROR_CODES.EXPIRED_CODE, 410, 'Срок действия кода истёк');
+      throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    }
+    return result;
+  }
+
+  async resendLoginVerification(loginToken: string): Promise<{ loginToken: string }> {
+    const previousChallenge = readLoginChallenge(loginToken);
+    if (!previousChallenge) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    const userId = new Types.ObjectId(previousChallenge.userId);
+    const now = new Date();
+    const state = await repository.findLoginVerificationState(userId);
+    if (!state) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    if (state.loginVerificationAttempts >= 5) throw new RateLimitError(900);
+    if (!state.loginVerificationExpiresAt || state.loginVerificationExpiresAt <= now || !state.loginVerificationCodeHash) {
+      throw new AppError(ERROR_CODES.EXPIRED_CODE, 410, 'Срок действия кода истёк');
+    }
+    const user = await repository.findUserById(userId);
+    const membership = await repository.findActiveMembershipByUserId(userId);
+    if (!user || !user.emailVerified || user.status !== 'active' || !membership) throw new AppError(ERROR_CODES.INVALID_CODE, 401, 'Код неверен');
+    const businessId = membership.businessId as Types.ObjectId;
+    const business = await repository.findBusinessById(businessId);
+    if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+    const challenge = createLoginChallenge(userId.toString());
+    await withTransaction((session) => this.queueLoginVerification(user, businessId, challenge, createEmailVerificationCode(), session, state.loginVerificationCodeHash));
+    return { loginToken: challenge.loginToken };
   }
 
 

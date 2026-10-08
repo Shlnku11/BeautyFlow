@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { verifyRegistrationEmail } from './email-verification';
+import { verifyLoginEmail, verifyRegistrationEmail } from './email-verification';
 import { prepareFullPageScreenshot } from './screen-capture';
 import { appOrigin } from './test-origin';
 
@@ -58,7 +58,7 @@ test('login route loads and provides a labeled form', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'Войти' })).toBeVisible();
   await expect(page.getByLabel('Email')).toBeVisible();
-  await expect(page.getByLabel('Пароль')).toBeVisible();
+  await expect(page.getByLabel('Пароль', { exact: true })).toBeVisible();
 });
 
 test('login route has no serious or critical axe violations', async ({ page }) => {
@@ -80,6 +80,7 @@ test('health API reports a ready database', async ({ request }) => {
 });
 
 test('business owner can register and log back in using a server-side session', async ({ page, context }) => {
+  test.setTimeout(180_000);
   const run = `${Date.now()}`;
   const ipOffset = Number(run) % 16_777_214;
   const testIp = `198.51.${Math.floor(ipOffset / 256) % 256}.${ipOffset % 256 || 1}`;
@@ -91,7 +92,7 @@ test('business owner can register and log back in using a server-side session', 
   await page.getByLabel('Валюта').selectOption('KGS');
   await page.getByLabel('Ваше имя').fill('E2E Owner');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Пароль').fill('Strong-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('Strong-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
   await verifyRegistrationEmail(page, email);
@@ -102,8 +103,9 @@ test('business owner can register and log back in using a server-side session', 
   const loginPage = await context.newPage();
   await loginPage.goto('/login');
   await loginPage.getByLabel('Email').fill(email);
-  await loginPage.getByLabel('Пароль').fill('Strong-password-123');
+  await loginPage.getByLabel('Пароль', { exact: true }).fill('Strong-password-123');
   await loginPage.getByRole('button', { name: 'Войти' }).click();
+  await verifyLoginEmail(loginPage, email);
   await expect(loginPage).toHaveURL(/\/app/);
   await loginPage.close();
   await page.goto('/app/dashboard');
@@ -275,7 +277,7 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByLabel('Ваше имя').fill('Runtime Owner');
   const email = `runtime.${run}@example.test`;
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Пароль').fill('Runtime-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('Runtime-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
   await verifyRegistrationEmail(page, email);

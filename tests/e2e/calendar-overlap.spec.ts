@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { expect, test } from '@playwright/test';
 import { appOrigin } from './test-origin';
+import { verifyLoginEmail } from './email-verification';
 
 interface PublicService {
   id: string;
@@ -26,8 +27,9 @@ test('calendar renders simultaneous bookings in separate visible lanes', async (
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.20.0.${Number(run.slice(-3)) % 254 + 1}` });
   await page.goto('/login');
   await page.getByLabel('Email').fill('owner@demo.local');
-  await page.getByLabel('Пароль').fill('demo-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('demo-password-123');
   await page.getByRole('button', { name: 'Войти' }).click();
+  await verifyLoginEmail(page, 'owner@demo.local');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
 
   const settingsResponse = await page.request.get('http://localhost:3000/api/settings');

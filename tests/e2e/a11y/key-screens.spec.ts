@@ -15,7 +15,7 @@ async function registerOwner(page: Page, run: string): Promise<void> {
   await page.getByLabel('Ваше имя').fill('A11y Owner');
   const email = `a11y.${run}@example.test`;
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Пароль').fill('Strong-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('Strong-password-123');
   await page.getByLabel('Я принимаю условия использования').check();
   await page.getByRole('button', { name: 'Создать бизнес' }).click();
   await verifyRegistrationEmail(page, email);

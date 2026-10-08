@@ -53,6 +53,8 @@
 | AUTH-10 | `PATCH /api/auth/me` | нет | — | post-MVP | Post-MVP: смена имени профиля вынесена из MVP владельцем |
 | AUTH-11 | `POST /api/auth/verify-email` | да | 2 | 3 | Одноразовый 6-значный код, TTL 15 минут, 5 попыток |
 | AUTH-12 | `POST /api/auth/resend-verification` | да | 2 | 3 | Нейтральный ответ 202, новый код через notifications queue, RL-RESET |
+| AUTH-16 | `POST /api/auth/login/verify` | да | 2 | 3 | Email-код после пароля, TTL 15 минут, 5 попыток, создаёт сессию только после проверки |
+| AUTH-17 | `POST /api/auth/login/resend` | да | 2 | 3 | Ротация активного challenge и письма-кода через 60-секундный UI cooldown |
 | AUTH-13 | `POST /api/auth/google` | нет | — | 3 | Опциональное расширение: проверенный Google ID token и сессия; login по email остаётся доступен |
 | AUTH-14 | `GET /api/auth/google/config` | нет | — | 3 | Опциональное расширение: безопасный public client ID/status; без credentials UI показывает «Скоро» |
 | AUTH-15 | `POST /api/auth/google/register-business` | нет | — | 3 | Опциональное расширение: атомарное создание пользователя и бизнеса из проверенного Google ID token |

@@ -1,13 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { verifyLoginEmail } from '../email-verification';
 
 test('customer detail uses localized values and passes axe in both themes', async ({ page }) => {
   const run = `${Date.now()}`;
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.19.${Number(run.slice(-8)) % 255}.${Number(run.slice(-4)) % 254 + 1}` });
   await page.goto('/login');
   await page.getByLabel('Email').fill('owner@demo.local');
-  await page.getByLabel('Пароль').fill('demo-password-123');
+  await page.getByLabel('Пароль', { exact: true }).fill('demo-password-123');
   await page.getByRole('button', { name: 'Войти' }).click();
+  await verifyLoginEmail(page, 'owner@demo.local');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
   const response = await page.request.get('http://localhost:3000/api/customers?limit=100');
   expect(response.status()).toBe(200);

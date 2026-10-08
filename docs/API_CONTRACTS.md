@@ -69,12 +69,12 @@ Codes: 201, 409 `SLUG_TAKEN`/`EMAIL_TAKEN` (единый текст «email ил
 Isolation: создаёт новый тенант; ничего не читает из чужих. Rate: `RL-REGISTER`.
 Tests: ST-5, ST-6; honeypot≠"" → 422; дубли slug/email; зарезервированный slug; создание атомарно (сбой на шаге → ничего не сохранено); пароль слабый → 422.
 
-**AUTH-02 `POST /api/auth/login`** — вход.
+**AUTH-02 `POST /api/auth/login`** — вход. <!-- CHANGED: stage 2 -->
 Auth: нет · Context: `NONE`.
-Request: `{ email, password }`. Response `200`: `{ data:{ user:UserDto, membership:MembershipDto } }` + cookie. В MVP у пользователя одно членство; сессия сразу создаётся с его `businessId`.
-Codes: 200, 401 `INVALID_CREDENTIALS` (одинаково для неизвестного email и неверного пароля; время ответа выравнивается), 403 `NO_ACTIVE_MEMBERSHIP`, 422, 429.
-Isolation: сессия создаётся с `businessId` только из активного членства пользователя. Rate: `RL-LOGIN`.
-Tests: ST-5, ST-6; одинаковый ответ для неизвестного email; отключённый пользователь/членство; смена сессии (новая cookie, старая при наличии удаляется); флаги cookie.
+Request: `{ email, password }`. Response `200`: `{ data:{ requiresEmailCode:true, loginToken:string } }`, без сессии и cookie. Email с `emailVerified=false` → `403 EMAIL_NOT_VERIFIED` с переходом пользователя на подтверждение адреса. При корректном пароле создаются одноразовый код входа и challenge в очереди; подтверждение выполняет `AUTH-16`.
+Codes: 200, 401 `INVALID_CREDENTIALS` (одинаково для неизвестного email и неверного пароля; время ответа выравнивается), 403 `EMAIL_NOT_VERIFIED`/`NO_ACTIVE_MEMBERSHIP`, 422, 429.
+Rate: `RL-LOGIN`.
+Tests: ST-5, ST-6; одинаковый ответ для неизвестного email; неподтверждённый email; код входа не создаёт сессию до подтверждения; отключённый пользователь/членство.
 
 **AUTH-03 `POST /api/auth/logout`** — выход. Auth: сессия · Permission: `account:self` · Context: `SESSION`.
 Request: `{}`. Response `204`, cookie очищается, документ `sessions` удаляется. Codes: 204, 401 (идемпотентно допустим 204 без сессии). Isolation: удаляет только свою сессию. Rate: `RL-API`.
@@ -102,6 +102,10 @@ Tests: токен одноразовый; истёкший → 404; роль б�
 **AUTH-11 `POST /api/auth/verify-email`** — подтвердить адрес владельца аккаунта. Auth: нет · Context: `NONE`. Request: `{ email, code }` (6 цифр). Response `200`: `{ data:{ emailVerified:true } }`. В `users` код хранится как HMAC-SHA256; очередь email хранит код для доставки и очищает `templateData` после результата отправки. Код действует 15 минут и допускает 5 неверных проверок; после пятой попытки код очищается, дальнейшие запросы → `429 RATE_LIMITED`. Успешное подтверждение одноразово выставляет `emailVerified=true` и удаляет hash/expiry. Неверный, просроченный, повторно использованный код или неизвестный email → единый `400 EMAIL_VERIFICATION_INVALID`. Rate: `RL-RESET`. Тесты: TTL, пять ошибочных попыток с конкурентным ограничением/429 после исчерпания, успешный код, повторное использование и изоляция разных аккаунтов A/B.
 
 **AUTH-12 `POST /api/auth/resend-verification`** — повторно отправить код. Auth: нет · Context: `NONE`. Request: `{ email }`. Response `202` всегда с нейтральным текстом; если аккаунт существует, активен и не подтверждён — новый код и уведомление ставятся в очередь, прежние ожидающие коды аннулируются. Rate: `RL-RESET`.
+
+**AUTH-16 `POST /api/auth/login/verify`** — завершить вход по email-коду. Auth: нет · Context: `NONE`. Request: `{ loginToken, code }`, где `code` — шесть цифр. `loginToken` выдаёт только успешный `AUTH-02`; он привязан к пользователю и конкретному коду. Код хранится как HMAC-SHA256, действует 15 минут, допускает не более 5 неверных попыток. Успех одноразово потребляет код, создаёт сессию активного членства и возвращает `{ data:{ user:UserDto, membership:MembershipDto } }` + cookie. Codes: 200, 401 `INVALID_CODE`, 403 `NO_ACTIVE_MEMBERSHIP`, 410 `EXPIRED_CODE`, 422, 429 `RATE_LIMITED`. Rate: `RL-RESET`. <!-- CHANGED: stage 2 -->
+
+**AUTH-17 `POST /api/auth/login/resend`** — повторно отправить код входа. Auth: нет · Context: `NONE`. Request: `{ loginToken }`. Пока challenge активен и не исчерпал попытки, создаёт новый код и challenge с TTL 15 минут, отменяет ожидающее письмо старого кода и возвращает `{ data:{ loginToken } }`. Rate: `RL-RESET`. Codes: 200, 401 `INVALID_CODE`, 403 `NO_ACTIVE_MEMBERSHIP`, 410 `EXPIRED_CODE`, 422, 429 `RATE_LIMITED`. <!-- CHANGED: stage 2 -->
 
 ### Google OAuth (необязательное расширение, не входит в MVP route matrix)
 
