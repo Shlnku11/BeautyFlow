@@ -69,6 +69,12 @@
 - Real Chromium checked cards/table at 320/375/768/1024/1279/1280/1440px, no page overflow, no internal table overflow at desktop, appointment details navigation, and axe in light/dark. Screenshots: `docs/screenshots/appointments-after-mobile-light.png` and `appointments-after-mobile-dark.png`.
 - `tests/e2e/a11y/appointments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅. Services list remains to be made responsive.
 
+## 2026-10-08 — Stage 4 services responsive layout
+
+- Replaced the narrow-shell service rows with cards below 1120px. Cards expose full service description, duration, buffer, price, assigned staff names, active state, online-booking state, and contextual edit action. The desktop table remains above that breakpoint.
+- Chromium used seeded MongoDB service/staff data, checked edit dialog, cards/table at 320/375/768/1023/1119/1120/1280/1440px, no page overflow, no inner table overflow, and axe in light/dark. Evidence: `docs/screenshots/services-after-mobile-light.png` and `services-after-mobile-dark.png`.
+- `tests/e2e/a11y/services-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅, `npm run check:contrast` ✅. Service loading/error and filtered-empty states remain unverified.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.

@@ -24,7 +24,7 @@
 | Customers list (после Stage 4) | 8 | 8 | 8 | 8 | 9 | 8 | 9 | На телефоне таблица заменяется карточками с именем, телефоном, email, источником и локальной датой добавления; desktop сохраняет плотную таблицу. Chromium подтверждает пять ширин и axe в light/dark. Ещё не аудированы специальные состояния пустого результата/API error и master permissions. |
 | Customer detail (после Stage 4) | 8 | 8 | 8 | 8 | 8 | 8 | 9 | Backend summary преобразован в русские подписи; дата/время форматируются в поясе бизнеса, деньги — через локализованный currency formatter, history/payment rows имеют компактную вертикальную компоновку на mobile. Real Chromium проверяет A/B-safe API view, отсутствие raw keys, обе темы, axe и ширины 320/375/768/1024/1440. Состояния API failure и master без financial permission требуют отдельного теста. |
 | Staff list + card | 6 | 7 | 7 | 6 | 5 | 7 | 6 | Карточка и табы работают, но форма с профилем выглядит изолированной узкой панелью в широком shell; списки и поля на мобильном требуют проверки преобразования таблиц, а клавиатурный обход вкладок не пройден. |
-| Services | 6 | 7 | 7 | 6 | 4 | 7 | 6 | Таблица хорошо структурирована на широком экране, но длинное описание соседствует с именем и действиями; у таблицы нет узкого карточного представления; состояния загрузки/ошибки нужно увидеть отдельно. |
+| Services (после Stage 4) | 8 | 8 | 8 | 8 | 9 | 8 | 9 | Ниже 1120px карточка показывает описание, длительность/перерыв, цену, мастеров, активность и доступность онлайн-записи; контекстное действие открывает edit dialog. Таблица остаётся для широкого shell. Chromium проверил восемь ширин и axe light/dark. Loading/API error и пустые фильтры требуют отдельной проверки. |
 | Payments (после Stage 4) | 8 | 8 | 8 | 8 | 9 | 8 | 9 | На ширинах менее 1536px строка оплаты превращается в карточку со статусом, обеими датами, методом, суммой/возвратом, автором и допустимыми действиями. Полная 9-колоночная таблица показывается, когда в shell есть место; Chromium подтвердил отсутствие внутреннего overflow при 1536px и axe в light/dark. Отдельные API error/loading и длинный фильтрованный empty-state ещё не проверены.
 | Settings | 7 | 8 | 8 | 7 | 7 | 7 | 7 | Бизнес-форма аккуратна; не проверены все вкладки Команда/Запись, подтверждения и destructive-состояния; topbar баннер/email и настройки темы не имеют завершённой демонстрационной логики. |
 | My day | 7 | 8 | 8 | 7 | 8 | 7 | 7 | У master нет денег и доступна своя выборка, но нулевой день визуально теряется рядом с ближайшими 7 днями; demo master показывает email-баннер; время и расписание требуют полного прохода на реальном дне. |
@@ -73,6 +73,12 @@
 - Таблица появляется от 1280px. Реальный Chromium проверил отсутствие page overflow и переключение представления на 320 / 375 / 768 / 1024 / 1279 / 1280 / 1440px, и отсутствие внутреннего overflow у desktop-таблицы. Карточки прошли axe в светлой и тёмной теме.
 - Скриншоты: [`appointments-after-mobile-light.png`](screenshots/appointments-after-mobile-light.png), [`appointments-after-mobile-dark.png`](screenshots/appointments-after-mobile-dark.png). `tests/e2e/a11y/appointments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; production build ✅.
 
+## Stage 4 — список услуг (2026-10-08)
+
+- Ниже 1120px services table заменяется карточками с названием/описанием, длительностью и перерывом, ценой, именами назначенных мастеров, активностью и состоянием онлайн-записи. Контекстное «Изменить услугу: …» открывает существующий edit dialog; desktop table остаётся на широком shell.
+- Seeded MongoDB Chromium E2E проверяет карточку и edit dialog, переключение представлений и отсутствие page overflow на 320 / 375 / 768 / 1023 / 1119 / 1120 / 1280 / 1440px; desktop table не имеет внутреннего overflow; axe light/dark — без serious/critical.
+- Скриншоты: [`services-after-mobile-light.png`](screenshots/services-after-mobile-light.png), [`services-after-mobile-dark.png`](screenshots/services-after-mobile-dark.png). `tests/e2e/a11y/services-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; build ✅; contrast ✅. Error/loading and filtered-empty states remain unverified.
+
 ### Причины ключевых оценок
 
 - **Календарь — baseline D4/S4/R3:** исходная сетка теряла карточки из-за динамических Tailwind-классов; затем это исправлено. Текущие ограничения и оценки указаны в Stage 4 выше.
@@ -116,7 +122,7 @@
 1. ✅ Исправить календарные placement-свойства; диапазон row start/span 1–52 подтверждён production CSS. День на 320/375px не переполняется, перекрывающиеся записи разных мастеров занимают отдельные дорожки; keyboard-only slot workflow остаётся отдельной проверкой.
 2. ✅ Переписать customer card presentation mapping: русские подписи, currency formatting, local dates в business timezone; контракт и модель не менялись. Отдельно преобразовать customer list в responsive карточки.
 3. Добавить корректный outer 404/error route и единые loading/error/empty состояния; проверить существующие кнопки/модалки браузерными сценариями.
-4. ✅ Перевести payments, appointments и customers на responsive карточки; services ещё нужно перевести на карточки в узкой области, сохранив плотную таблицу при достаточной ширине.
+4. ✅ Перевести payments, appointments, customers и services на responsive карточки, сохранив таблицы только там, где содержимое помещается.
 5. ✅ Убрать email verification banner у demo users (`emailVerified=true` в development seed); проверено после seed и входа.
 6. Восстановить route-level code splitting и снизить initial client chunk; замерить 375px и desktop после build.
 
@@ -135,4 +141,4 @@
 
 ## Приоритет
 
-P0: календарная сетка/мобильный день/пересечения закрыты → customer list/demo verification state закрыты → payments/appointments responsive views закрыты → 404/errors → services responsive table → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
+P0: календарная сетка/мобильный день/пересечения закрыты → customer list/demo verification state/payments/appointments/services responsive views закрыты → 404/errors → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
