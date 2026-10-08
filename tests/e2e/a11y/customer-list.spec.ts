@@ -9,6 +9,7 @@ test('customer list cards fit phones and preserve all contact metadata', async (
   await page.getByLabel('Пароль').fill('demo-password-123');
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
+  await expect(page.getByText(/Подтвердите email/)).toHaveCount(0);
 
   const response = await page.request.get('http://localhost:3000/api/customers?limit=100');
   expect(response.status()).toBe(200);

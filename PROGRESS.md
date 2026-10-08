@@ -50,6 +50,12 @@
 - Fixed the unnamed mobile topbar “new appointment” link exposed by axe: localized accessible name and decorative icon hidden from the accessibility tree.
 - `tests/e2e/a11y/customer-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Customer empty/API-error and master-specific states remain unaudited.
 
+## 2026-10-08 — Stage 4 demo verification state
+
+- Fixed the local seed account state that caused an irrelevant persistent “Подтвердите email” banner: owner/master demo users are marked verified, and stale verification hashes/expiry are cleared on reseed. Scope is limited to the development seed; auth behavior/contracts are unchanged.
+- `npm run seed` ✅ against the existing MongoDB container (3 staff, 5 services, 19 customers, 41 appointments, 11 payments). The customer-list Chromium E2E asserts the banner is absent for the demo owner.
+- Checks: targeted customer-list E2E ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.

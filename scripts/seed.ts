@@ -109,7 +109,7 @@ function seedAppointments(now: DateTime): SeedAppointment[] {
 async function upsertUser(email: string, name: string, passwordHash: string) {
   const user = await User.findOneAndUpdate(
     { emailNormalized: email },
-    { $set: { email, emailNormalized: email, passwordHash, name, locale: 'ru', status: 'active', passwordChangedAt: new Date() } },
+    { $set: { email, emailNormalized: email, passwordHash, name, locale: 'ru', status: 'active', emailVerified: true, passwordChangedAt: new Date() }, $unset: { emailVerificationCodeHash: 1, emailVerificationExpiresAt: 1 } },
     { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true },
   ).exec();
   return user;
