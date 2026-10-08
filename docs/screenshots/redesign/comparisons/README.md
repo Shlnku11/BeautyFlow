@@ -4,13 +4,41 @@ Each JPG places the local BeautyFlow screen on the left and the named public ref
 
 Reference URLs: [Linear](https://linear.app/), [Linear login](https://linear.app/login), [Vercel](https://vercel.com/), [Stripe](https://stripe.com/), [Stripe payments](https://stripe.com/payments). Product pages are not authenticated dashboards; internal product screens are compared with the relevant public UI reference.
 
-Desktop captures use a 1440px-wide viewport; mobile captures use 390×844. Public routes include both light and dark themes. Desktop CRM routes include both themes. Mobile checks cover the landing, auth, and public booking routes.
+Desktop captures use a 1440px-wide viewport; mobile captures use 390×844. Public routes include both light and dark themes. Desktop CRM routes include both themes. Mobile CRM, owner modals, and master My Day include both themes; mobile public captures cover landing, auth, and public booking.
 
-Generated 55 comparisons.
+Generated 83 comparisons.
 
 ## Pair index
 
 - [master-my-day-light--vs--linear](master-my-day-light--vs--linear.jpg)
+- [mobile-master-my-day-dark--vs--linear-mobile](mobile-master-my-day-dark--vs--linear-mobile.jpg)
+- [mobile-master-my-day-light--vs--linear-mobile](mobile-master-my-day-light--vs--linear-mobile.jpg)
+- [mobile-owner-appointment-create-modal-dark--vs--linear-mobile](mobile-owner-appointment-create-modal-dark--vs--linear-mobile.jpg)
+- [mobile-owner-appointment-create-modal-light--vs--linear-mobile](mobile-owner-appointment-create-modal-light--vs--linear-mobile.jpg)
+- [mobile-owner-appointments-dark--vs--linear-mobile](mobile-owner-appointments-dark--vs--linear-mobile.jpg)
+- [mobile-owner-appointments-light--vs--linear-mobile](mobile-owner-appointments-light--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-day-dark--vs--linear-mobile](mobile-owner-calendar-day-dark--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-day-light--vs--linear-mobile](mobile-owner-calendar-day-light--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-month-dark--vs--linear-mobile](mobile-owner-calendar-month-dark--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-month-light--vs--linear-mobile](mobile-owner-calendar-month-light--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-week-dark--vs--linear-mobile](mobile-owner-calendar-week-dark--vs--linear-mobile.jpg)
+- [mobile-owner-calendar-week-light--vs--linear-mobile](mobile-owner-calendar-week-light--vs--linear-mobile.jpg)
+- [mobile-owner-command-search-modal-dark--vs--linear-mobile](mobile-owner-command-search-modal-dark--vs--linear-mobile.jpg)
+- [mobile-owner-command-search-modal-light--vs--linear-mobile](mobile-owner-command-search-modal-light--vs--linear-mobile.jpg)
+- [mobile-owner-customers-dark--vs--linear-mobile](mobile-owner-customers-dark--vs--linear-mobile.jpg)
+- [mobile-owner-customers-light--vs--linear-mobile](mobile-owner-customers-light--vs--linear-mobile.jpg)
+- [mobile-owner-dashboard-dark--vs--linear-mobile](mobile-owner-dashboard-dark--vs--linear-mobile.jpg)
+- [mobile-owner-dashboard-light--vs--linear-mobile](mobile-owner-dashboard-light--vs--linear-mobile.jpg)
+- [mobile-owner-notifications-modal-dark--vs--linear-mobile](mobile-owner-notifications-modal-dark--vs--linear-mobile.jpg)
+- [mobile-owner-notifications-modal-light--vs--linear-mobile](mobile-owner-notifications-modal-light--vs--linear-mobile.jpg)
+- [mobile-owner-payments-dark--vs--linear-mobile](mobile-owner-payments-dark--vs--linear-mobile.jpg)
+- [mobile-owner-payments-light--vs--linear-mobile](mobile-owner-payments-light--vs--linear-mobile.jpg)
+- [mobile-owner-services-dark--vs--linear-mobile](mobile-owner-services-dark--vs--linear-mobile.jpg)
+- [mobile-owner-services-light--vs--linear-mobile](mobile-owner-services-light--vs--linear-mobile.jpg)
+- [mobile-owner-settings-dark--vs--linear-mobile](mobile-owner-settings-dark--vs--linear-mobile.jpg)
+- [mobile-owner-settings-light--vs--linear-mobile](mobile-owner-settings-light--vs--linear-mobile.jpg)
+- [mobile-owner-staff-dark--vs--linear-mobile](mobile-owner-staff-dark--vs--linear-mobile.jpg)
+- [mobile-owner-staff-light--vs--linear-mobile](mobile-owner-staff-light--vs--linear-mobile.jpg)
 - [mobile-public-forgot-password-dark--vs--linear-login-mobile](mobile-public-forgot-password-dark--vs--linear-login-mobile.jpg)
 - [mobile-public-forgot-password-light--vs--linear-login-mobile](mobile-public-forgot-password-light--vs--linear-login-mobile.jpg)
 - [mobile-public-landing-dark--vs--vercel-mobile](mobile-public-landing-dark--vs--vercel-mobile.jpg)
