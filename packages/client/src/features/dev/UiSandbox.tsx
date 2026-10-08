@@ -25,6 +25,6 @@ export function UiSandbox() {
     <Table><TableHeader><TableRow><TableHead>Имя</TableHead></TableRow></TableHeader><TableBody><TableRow><TableCell>Тестовая строка</TableCell></TableRow></TableBody></Table>
     <Tabs defaultValue="one"><TabsList><TabsTrigger value="one">Вкладка 1</TabsTrigger><TabsTrigger value="two">Вкладка 2</TabsTrigger></TabsList><TabsContent value="one"><p>Содержимое первой вкладки</p></TabsContent><TabsContent value="two"><p>Содержимое второй вкладки</p></TabsContent></Tabs>
     <Dialog><DialogTrigger asChild><Button variant="secondary">Open dialog</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Dialog</DialogTitle></DialogHeader><p>Диалоговое окно</p></DialogContent></Dialog>
-    <Skeleton className="h-8 w-48" aria-label="Skeleton"/>
+    <Skeleton className="h-8 w-48" />
   </main>;
 }

@@ -306,7 +306,7 @@ test('business registration through the browser form opens the owner dashboard',
   await appointmentRow.getByRole('button', { name: 'Runtime Client' }).click();
   const appointmentDialog = page.getByRole('dialog', { name: 'Запись' });
   await expect(appointmentDialog).toBeVisible();
-  await appointmentDialog.getByRole('button', { name: 'Закрыть диалог' }).click();
+  await appointmentDialog.getByLabel('Закрыть').click();
   await expect(appointmentDialog).toBeHidden();
 
   await page.goto('/app/payments');

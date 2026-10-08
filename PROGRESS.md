@@ -15,6 +15,14 @@
 - The requested `emilkowal-animations` name is absent in the named repository. Installed that author's official `emil-design-eng` and `animate` skills as the matching animation/design guidance. The specified `DevMar/awwwards-animations` URL could not be cloned; installed the public `devmartinese/awwwards-animations-skill` repository instead.
 - The skills and `skills-lock.json` are project-local and pending their Stage 2 documentation/commit. No animation packages have been installed yet; that is Stage 5 and remains explicitly scoped to `motion`, `gsap`, and `lenis`.
 
+## 2026-10-08 — Stage 3 visual/runtime audit
+
+- Added `docs/AUDIT.md` with 14 screen-state families, scores for design/structure/type/states/responsive/dark/a11y, architecture/runtime/tests/performance/security ratings, concrete defects, and a prioritized Stage 4 plan.
+- Captured 42 real Chromium baseline images (light/dark): landing, login, register/verify, dashboard, calendar day/week/month, appointments, customer list/detail, staff list/detail, services, payments, settings, master my-day, public booking/completion/manage, appointment modal. Stored in `docs/screenshots/audit-before/`.
+- Live findings: calendar grid events collapse because dynamic Tailwind row placement classes are not emitted; customer detail prints untranslated database keys, ISO timestamps, and unformatted minor units; payments table wraps columns severely; demo owner/master are unverified and show a persistent banner; appointment modal showed a generic error during reschedule view. Public booking and manage flow completed in Chromium.
+- Stage 3 test evidence: typecheck ✅, lint ✅, Vitest 31 files / 115 tests ✅, race 2/2 ✅, build ✅, migrate ✅, full Chromium E2E 11/11 ✅, a11y suite 1/1 ✅, contrast ✅. Axe checked 13 key routes in light/dark; responsive checks covered 320/375/768/1024/1440, mobile navigation, skip-link, Escape and keyboard-only public booking. Full E2E uncovered and then verified fixes for sandbox Skeleton ARIA, inactive tab contrast (4.39:1 → darker muted foreground), and ambiguous dialog-close locator. Initial client bundle remains 1,257.12 kB minified / 365.26 kB gzip; FPS/production trace not measured.
+- Stage 4 must fix the audit P0s before motion work. External app setup uses real seeded demo rows in the local development database; no hardcoded mock was added to runtime.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.

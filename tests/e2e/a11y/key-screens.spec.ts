@@ -86,6 +86,7 @@ test('key owner and public screens pass axe and fit required viewports', async (
   }
 
   await page.goto('/__dev/ui');
+  await page.getByRole('button', { name: 'Open dialog' }).click();
   const sandboxDialogTitle = page.getByRole('heading', { name: 'Dialog' });
   await expect(sandboxDialogTitle).toBeVisible();
   await page.keyboard.press('Escape');
