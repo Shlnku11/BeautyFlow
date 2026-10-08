@@ -37,7 +37,10 @@
 - 30-минутная запись теперь занимает 40px и остаётся читаемой: время с клиентом и услуга видны, имя мастера доступно в `aria-label` и tooltip; при более длинной записи имя мастера также видно строкой. В полном контексте карточки сохранены действия открытия записи и цвет мастера.
 - Реальный Chromium E2E создал запись через публичную форму, открыл неделю с выбранной датой, проверил карточку внутри `Календарная сетка` и её высоту ≥39px. `npm run typecheck`, lint и build прошли.
 - До: [`calendar-week-light.png`](screenshots/audit-before/calendar-week-light.png), [`calendar-week-dark.png`](screenshots/audit-before/calendar-week-dark.png). После: [`calendar-after-light.png`](screenshots/calendar-after-light.png), [`calendar-after-dark.png`](screenshots/calendar-after-dark.png).
-- Предварительная оценка после этой одной правки: D7 / S7 / T7 / St7 / R4 / Dark8 / A11y8. Остаются мобильная ширина внутренней сетки, плотность/перекрытие нескольких записей и states для пустого дня. Остальные экраны не менялись.
+- Первый частичный результат получил D7 / S7 / T7 / St7 / R4 / Dark8 / A11y8. В последующем проходе закрыты мобильная ширина и пересечение двух записей разных мастеров; текущая оценка календаря: D8 / S9 / T8 / St8 / R8 / Dark8 / A8. Пустой день теперь показывает ясное «На этот период записей нет»; полноценная keyboard navigation по слотам всё ещё не аудирована.
+- На мобильном автоматически выбирается «День», а внутренний grid не требует горизонтальной прокрутки: Chromium проверяет это на 320 и 375px. На широком экране отдельный E2E создаёт две реальные Mongo-записи на общий слот, подтверждает разные горизонтальные bounds и отменяет записи после проверки. `assignCalendarLanes` повторно использует дорожки после окончания и раскладывает overlap-группы по отдельным колонкам.
+- В ближайших записях переход к оплате больше не переносится посимвольно; на мобильном список складывается в вертикальные строки. У метки начала дня 08:00 убрано обрезание верхней строки. После: [`calendar-after-mobile.png`](screenshots/calendar-after-mobile.png), [`calendar-overlap-light.png`](screenshots/calendar-overlap-light.png), [`calendar-overlap-dark.png`](screenshots/calendar-overlap-dark.png).
+- После этой работы полный gate зелёный: Vitest 32 файла / 118 тестов, race 2/2, typecheck, lint, production build, contrast, Chromium E2E 13/13 и a11y/responsive 2/2. Build предупреждает о большом едином JS chunk (1,261.02 kB minified / 366.43 kB gzip) и dependency `use client` directives; это отдельные последующие задачи.
 
 ## Stage 4 — карточка клиента (2026-10-08)
 
@@ -47,7 +50,7 @@
 
 ### Причины ключевых оценок
 
-- **Календарь — D4/S4/R3:** календарная сетка является главным рабочим экраном, но заполненные записи не читаются в основном grid. В предоставленном эталоне карточки занимают фактическую длительность и показывают 3 строки данных; текущее приложение не показывает их из-за динамических Tailwind-классов. Это первый P0 для Stage 4.
+- **Календарь — baseline D4/S4/R3:** исходная сетка теряла карточки из-за динамических Tailwind-классов; затем это исправлено. Текущие ограничения и оценки указаны в Stage 4 выше.
 - **Customer detail:** DTO-to-view mapping, локализация истории/оплат и business timezone закрыты в Stage 4; для 10/10 остаются доказательство master permissions/error states. **Customer list** сохраняет отдельный mobile-table gap.
 - **Payments — R3:** строки из 9 колонок на desktop уже ломают слова; на 320–768px таблица станет практически нечитаемой. Нужна responsive карточка при сохранении desktop-таблицы.
 - **Public booking — St4:** реальные слоты и запись работают в браузере, но состояния «слоты ещё не запрошены», «слотов нет», «загрузка», «ошибка» и успешный результат визуально почти не разделены.
@@ -76,7 +79,7 @@
 | Область | Балл | Основание |
 |---|---:|---|
 | Архитектура | 8/10 | Monorepo разделяет `packages/client`, `packages/server`, `packages/shared`; feature routes сгруппированы. Остались частичный shadcn переход и legacy UI-компоненты, что мешает единой композиции. |
-| Runtime | 7/10 | Реальный Chromium проходит root, auth/register, публичную запись/manage и owner/master экраны; календарная сетка и customer card имеют воспроизводимые UI-дефекты; неизвестный route не получает согласованный экран 404. |
+| Runtime | 8/10 | Реальный Chromium проходит root, auth/register, публичную запись/manage, адаптивный день календаря и owner/master экраны; неизвестный route не получает согласованный экран 404, API error states покрыты не полностью. |
 | Тесты | 9/10 | Unit/integration/API 115/115 и race 2/2 прошли после recovery; full E2E 11/11 и a11y 1/1 прошли. Axe охватывает 13 ключевых экранов в двух темах. Не проверялись ручное устройство, скринридер и production performance trace. |
 | Производительность | 4/10 | Build создаёт один client chunk 1,257.14 kB minified (365.26 kB gzip); feature routes импортируются eagerly, route-level code splitting отсутствует. FPS/мобильная производительность не измерялись. |
 | Безопасность | 8/10 | Актуальны tenant/role тесты и cookie/session архитектура; отдельный production deployment/secret scan в этой проверке не повторялись. Google UI и парольные recovery-интеракции остаются неполными. |
@@ -85,7 +88,7 @@
 
 ### Радикальные — P0
 
-1. ✅ Исправить календарные placement-свойства через статический class map; диапазон row start/span 1–52 подтверждён production CSS. До перехода к следующему экрану календарю ещё нужны мобильная ширина и проверка пересечений нескольких записей.
+1. ✅ Исправить календарные placement-свойства; диапазон row start/span 1–52 подтверждён production CSS. День на 320/375px не переполняется, перекрывающиеся записи разных мастеров занимают отдельные дорожки; keyboard-only slot workflow остаётся отдельной проверкой.
 2. ✅ Переписать customer card presentation mapping: русские подписи, currency formatting, local dates в business timezone; контракт и модель не менялись. Отдельно преобразовать customer list в responsive карточки.
 3. Добавить корректный outer 404/error route и единые loading/error/empty состояния; проверить существующие кнопки/модалки браузерными сценариями.
 4. Перевести payments/appointments/customers/services таблицы на responsive карточки на ширине `<768px`, оставив плотную таблицу на desktop.
@@ -107,4 +110,4 @@
 
 ## Приоритет
 
-P0: календарные карточки отображаются; оставшиеся calendar mobile/overlap checks → customer list responsive cards → demo verification state → 404/errors → payments/appointments/services responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.
+P0: календарная сетка/мобильный день/пересечения закрыты → customer list responsive cards → demo verification state → 404/errors → payments/appointments/services responsive tables → route code splitting. Затем: регистрация/public booking flow states → component consistency → full responsive/a11y audit. Анимации — после исправления семантики и layout, чтобы не маскировать ошибки.

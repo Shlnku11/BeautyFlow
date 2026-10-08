@@ -7,6 +7,7 @@ import { ru } from '@/shared/i18n/ru';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { AppointmentCreateDialog, AppointmentDetailDialog } from '@/components/data/AppointmentDialogs';
+import { assignCalendarLanes } from './appointment-lanes';
 
 interface CalendarPayload {
   range: { from: string; to: string; timezone: string };
@@ -128,6 +129,9 @@ const rowSpanClasses = [
   'row-span-51',
   'row-span-52'
 ] as const;
+const laneGridClasses = ['grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4', 'grid-cols-5', 'grid-cols-6', 'grid-cols-7', 'grid-cols-8', 'grid-cols-9', 'grid-cols-10', 'grid-cols-11', 'grid-cols-12'] as const;
+const laneStartClasses = ['col-start-1', 'col-start-2', 'col-start-3', 'col-start-4', 'col-start-5', 'col-start-6', 'col-start-7', 'col-start-8', 'col-start-9', 'col-start-10', 'col-start-11', 'col-start-12'] as const;
+const laneSpanClasses = ['col-span-1', 'col-span-2', 'col-span-3', 'col-span-4', 'col-span-5', 'col-span-6', 'col-span-7', 'col-span-8', 'col-span-9', 'col-span-10', 'col-span-11', 'col-span-12'] as const;
 const timeLabel = (date: DateTime) => date.toFormat('HH:mm');
 const staffClass: Record<string, string> = {
   violet: 'border-staff-violet bg-staff-violet/10 text-neutral-900 hover:bg-staff-violet/20 dark:bg-staff-violet/15 dark:hover:bg-staff-violet/25',
@@ -201,7 +205,8 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const firstDay = view === 'week' ? day.startOf('week') : day;
   const days = Array.from({ length: view === 'week' ? 7 : view === 'month' ? 35 : 1 }, (_, index) => (view === 'month' ? day.startOf('month').startOf('week') : firstDay).plus({ days: index }));
   const visibleStaff = (data?.staff ?? []).filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.id));
-  const columnsClass = days.length === 7 ? 'grid-cols-[56px_repeat(7,minmax(130px,1fr))]' : 'grid-cols-[56px_minmax(300px,1fr)]';
+  const columnsClass = days.length === 7 ? 'grid-cols-[56px_repeat(7,minmax(130px,1fr))]' : view === 'day' ? 'grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[56px_minmax(300px,1fr)]' : 'grid-cols-[56px_minmax(300px,1fr)]';
+  const calendarContentWidth = view === 'day' ? 'w-full min-w-0 sm:min-w-[780px]' : 'w-full min-w-[780px]';
   const createAt = (dayIso: string, staff: string, minute: number) => {
     const start = DateTime.fromISO(dayIso, { zone }).startOf('day').plus({ minutes: minute });
     setCreateSlot({ date: dayIso, startAt: start.toUTC().toISO() ?? '', staffId: staff });
@@ -238,21 +243,24 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
     {data ? <>
       {view === 'month' ? <MonthCalendar days={days} appointments={data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id))} timezone={zone} onDaySelect={(iso) => { setDate(iso); setView('day'); }} onAppointmentSelect={setSelectedAppointment} /> : null}
       {view !== 'month' && view !== 'appointments' ? <section className="mt-5 overflow-x-auto rounded-lg border border-neutral-300 bg-neutral-0" aria-label="Календарная сетка">
-        <div className="w-full min-w-[780px]">
+        <div className={calendarContentWidth}>
           <div className={`grid ${columnsClass} border-b border-neutral-300`}>
-            <div className="sticky top-0 z-10 bg-neutral-50 px-2 py-2 text-[10px] text-neutral-500">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
+            <div className="sticky top-0 z-10 bg-neutral-50 px-1 py-2 text-[10px] text-neutral-500 sm:px-2">{DateTime.now().setZone(zone).toFormat('ZZ')}</div>
             {days.map((calendarDay) => <div className={`sticky top-0 z-10 flex flex-col px-2 py-2 text-[13px] ${calendarDay.hasSame(DateTime.now().setZone(zone), 'day') ? 'bg-primary-50' : 'bg-neutral-50'}`} key={calendarDay.toISODate()}><strong className="font-medium">{calendarDay.toFormat('ccc d', { locale: 'ru' })}</strong></div>)}
           </div>
           <div className={`grid ${columnsClass}`}>
-            <div className="grid grid-rows-[repeat(13,80px)]">{Array.from({ length: 13 }, (_, index) => <span className="-mt-2 border-b border-neutral-200 pr-2 text-right text-[11px] text-neutral-500" key={index}>{String(index + 8).padStart(2, '0')}:00</span>)}</div>
+            <div className="grid grid-rows-[repeat(13,80px)]">{Array.from({ length: 13 }, (_, index) => <span className={`${index === 0 ? '' : '-mt-2'} border-b border-neutral-200 pr-2 text-right text-[11px] text-neutral-500`} key={index}>{String(index + 8).padStart(2, '0')}:00</span>)}</div>
             {days.map((calendarDay) => {
               const dayIso = calendarDay.toISODate() ?? '';
               const dateAppointments = data.appointments.filter((item) => DateTime.fromISO(item.startAt).setZone(zone).toISODate() === dayIso && (selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)));
+              const appointmentLanes = assignCalendarLanes(dateAppointments.map((item) => ({ id: item.id, startAt: DateTime.fromISO(item.startAt).toMillis(), endAt: DateTime.fromISO(item.endAt).toMillis() })));
+              const laneColumnCount = Math.min(12, Math.max(1, ...Array.from(appointmentLanes.values(), (position) => position.laneCount)));
+              const laneGridClass = laneGridClasses[laneColumnCount - 1] ?? laneGridClasses[0];
               const dateBlocks = data.blockedPeriods.filter((item) => DateTime.fromISO(item.startAt).setZone(zone).toISODate() === dayIso && (selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staffId)));
               const now = DateTime.now().setZone(zone);
               const nowSlotIndex = Math.floor((now.hour * 60 + now.minute - dayStartMinute) / slotMinutes);
               const showCurrentTime = dayIso === now.toISODate() && nowSlotIndex >= 0 && nowSlotIndex < slotCount;
-              return <div className="grid grid-rows-[repeat(52,20px)] border-l border-neutral-200" key={dayIso}>
+              return <div className={`grid ${laneGridClass} grid-rows-[repeat(52,20px)] border-l border-neutral-200`} key={dayIso}>
                 {Array.from({ length: slotCount }, (_, index) => {
                   const minute = dayStartMinute + index * slotMinutes;
                   const slotAt = calendarDay.startOf('day').plus({ minutes: minute });
@@ -263,9 +271,9 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const availableStaff = visibleStaff.find((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const working = visibleStaff.some((member) => data.workingIntervals.some((entry) => entry.staffId === member.id && entry.date === dayIso && entry.intervals.some((interval) => DateTime.fromISO(interval.start).toMillis() <= slotStart && DateTime.fromISO(interval.end).toMillis() >= slotEnd)));
                   const borderClass = index % 4 === 0 ? 'border-t border-neutral-300' : index % 2 === 0 ? 'border-t border-neutral-200' : 'border-t border-neutral-100';
-                  const slotClass = `flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${blocked ? 'bg-neutral-100' : working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
+                  const slotClass = `col-span-full flex min-w-0 items-start gap-1 px-0.5 ${borderClass} ${blocked ? 'bg-neutral-100' : working ? 'bg-neutral-0' : 'bg-neutral-25'}`;
                   return <div className={slotClass} key={minute}>
-                    {!busy && !blocked && canBook && availableStaff ? <button className="h-4 min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
+                    {!busy && !blocked && canBook && availableStaff ? <button className="h-full min-h-0 w-full rounded text-[10px] text-neutral-400 hover:bg-primary-50 hover:text-primary-700" aria-label={`Создать запись ${calendarDay.toFormat('d MMM', { locale: 'ru' })} ${timeLabel(slotAt)}`} onClick={() => createAt(dayIso, availableStaff.id, minute)}></button> : null}
                   </div>;
                 })}
                 {dateAppointments.map((appointment) => {
@@ -277,18 +285,23 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
                   const colorClass = staffClass[appointment.staff.color] ?? staffClass.slate;
                   const rowStartClass = rowStartClasses[startIndex] ?? 'row-start-1';
                   const rowSpanClass = rowSpanClasses[span - 1] ?? 'row-span-1';
+                  const lane = appointmentLanes.get(appointment.id);
+                  const laneIndex = Math.min(laneColumnCount - 1, lane?.lane ?? 0);
+                  const laneStartClass = laneStartClasses[laneIndex] ?? laneStartClasses[0];
+                  const laneSpanIndex = lane?.laneCount === 1 ? laneColumnCount - 1 : 0;
+                  const laneSpanClass = laneSpanClasses[laneSpanIndex] ?? laneSpanClasses[0];
                   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}`.trim();
                   const appointmentLabel = `${timeLabel(startAt)} · ${customerName} · ${appointment.service.name} · ${appointment.staff.displayName}`;
-                  return <button aria-label={appointmentLabel} className={`z-10 col-start-1 flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-3 ${colorClass} ${rowStartClass} ${rowSpanClass}`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={appointmentLabel}><strong className="truncate tabular-nums">{timeLabel(startAt)} · {appointment.customer.firstName}</strong><span className="truncate">{appointment.service.name}</span>{span >= 3 ? <span className="truncate text-neutral-600">{appointment.staff.displayName}</span> : <span className="sr-only">{appointment.staff.displayName}</span>}</button>;
+                  return <button aria-label={appointmentLabel} className={`z-10 ${laneStartClass} ${laneSpanClass} flex min-h-0 min-w-0 flex-col overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left text-[10px] leading-3 ${colorClass} ${rowStartClass} ${rowSpanClass}`} key={appointment.id} onClick={() => setSelectedAppointment(appointment.id)} title={appointmentLabel}><strong className="truncate tabular-nums">{timeLabel(startAt)} · {appointment.customer.firstName}</strong><span className="truncate">{appointment.service.name}</span>{span >= 3 ? <span className="truncate text-neutral-600">{appointment.staff.displayName}</span> : <span className="sr-only">{appointment.staff.displayName}</span>}</button>;
                 })}
-                {showCurrentTime ? <span aria-hidden="true" className={`pointer-events-none z-20 h-px self-start bg-danger-solid col-start-1 ${rowStartClasses[nowSlotIndex] ?? 'row-start-1'}`} /> : null}
+                {showCurrentTime ? <span aria-hidden="true" className={`pointer-events-none z-20 col-span-full h-px self-start bg-danger-solid ${rowStartClasses[nowSlotIndex] ?? 'row-start-1'}`} /> : null}
               </div>;
             })}
           </div>
         </div>
       </section> : null}
       {view !== 'appointments' ? <div className="mt-4 flex flex-wrap gap-2">{data.load.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staffId)).map((item) => <div className="rounded-md border border-neutral-200 bg-neutral-0 px-3 py-2 text-xs" key={item.staffId}>{data.staff.find((member) => member.id === item.staffId)?.displayName ?? 'Мастер'} <span className="ml-2 text-neutral-500">{item.loadPercent === null ? '—' : `${item.loadPercent}% загрузка`}</span></div>)}</div> : null}
-      {(view === 'appointments' || view !== 'month') ? <section className="mt-5"><h2 className="text-sm font-semibold">{view === 'appointments' ? 'Все записи' : 'Ближайшие записи'}</h2><ul className="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">{data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)).map((item) => <li className="grid min-h-12 grid-cols-[100px_minmax(0,1fr)_auto] items-center gap-3 px-2 text-[13px]" key={item.id}><time className="tabular-nums text-neutral-500" dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: zone }).format(new Date(item.startAt))}</time><button className="min-w-0 truncate text-left font-medium hover:underline" onClick={() => setSelectedAppointment(item.id)}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</button><span className="truncate text-neutral-500">{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <a className="text-primary-700" href={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</a> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-sm text-neutral-500">На этот период записей нет.</p> : null}</section> : null}
+      {(view === 'appointments' || view !== 'month') ? <section className="mt-5"><h2 className="text-sm font-semibold">{view === 'appointments' ? 'Все записи' : 'Ближайшие записи'}</h2><ul className="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">{data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)).map((item) => <li className="grid gap-1 px-2 py-3 text-[13px] sm:min-h-12 sm:grid-cols-[100px_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3 sm:py-0" key={item.id}><time className="tabular-nums text-neutral-500" dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: zone }).format(new Date(item.startAt))}</time><button className="min-w-0 truncate text-left font-medium hover:underline" onClick={() => setSelectedAppointment(item.id)}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</button><span className="truncate text-neutral-500">{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <a className="whitespace-nowrap text-primary-700" href={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</a> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-sm text-neutral-500">На этот период записей нет.</p> : null}</section> : null}
     </> : null}
     {createSlot && data ? <AppointmentCreateDialog date={createSlot.date} startAt={createSlot.startAt} timezone={zone} staff={data.staff} preselectedStaffId={createSlot.staffId} onClose={() => setCreateSlot(null)} onCreated={() => setRefresh((value) => value + 1)} /> : null}
     {selectedAppointment && data ? <AppointmentDetailDialog id={selectedAppointment} timezone={zone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelectedAppointment(null)} onChanged={() => setRefresh((value) => value + 1)} /> : null}

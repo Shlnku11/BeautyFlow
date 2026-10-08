@@ -27,7 +27,14 @@
 
 - Fixed week/day appointment-card placement. Tailwind row-start and row-span utilities are statically enumerated through row 52, with matching `gridRow`/`gridRowStart` theme values; the production CSS was checked for rows 25 and 52. Removed runtime-generated arbitrary classes.
 - Calendar card now fits a 30-minute booking, exposes full appointment context to assistive tech, and shows the master when duration allows. Real Chromium regression completed registration, staff/service/schedule setup and public booking, then asserted a visible 40px grid card.
-- Captured after images: `docs/screenshots/calendar-after-light.png` and `calendar-after-dark.png`. Targeted E2E ✅ (1/1), typecheck ✅, lint ✅, build ✅. Audit marks calendar’s class-generation blocker fixed; responsive internal grid and overlapping appointments remain open.
+- Captured after images: `docs/screenshots/calendar-after-light.png` and `calendar-after-dark.png`. Targeted card E2E ✅ (1/1), typecheck ✅, lint ✅, build ✅. Static placement classes confirmed in production CSS.
+
+## 2026-10-08 — Stage 4 calendar mobile + collision layout
+
+- Mobile day view now uses the available viewport width instead of a hidden 780px inner minimum; the 08:00 axis label is no longer clipped, and touchable free slots fill their 20px row. Upcoming rows stack on phones and the payment action stays a single line at desktop widths.
+- Added `assignCalendarLanes` interval grouping and grid columns. Simultaneous different-staff bookings render in independent lanes; completed lanes are reused for later visits. A unit test covers concurrent, nested, adjacent, and disconnected intervals.
+- Chromium E2E created two public bookings at the same available time for different seeded masters, checked separate card bounds, then canceled both fixtures. The responsive a11y suite asserts day view/no internal horizontal overflow; widths 320/375/768/1024/1440 and both themes pass.
+- Evidence: lane unit tests ✅ (3/3), overlap E2E ✅ (1/1), full Chromium E2E ✅ (13/13), `npm run test:a11y` ✅ (2/2), typecheck ✅, lint ✅, `npm test` ✅ (32 files / 118 tests), race ✅ (2/2), build ✅, contrast ✅. Production CSS contains `grid-cols-1/2/12`, `col-start-2`, and `col-span-12`. Screenshots: `calendar-after-mobile.png`, `calendar-overlap-light.png`, `calendar-overlap-dark.png`.
 
 ## 2026-10-08 — Stage 4 customer detail
 

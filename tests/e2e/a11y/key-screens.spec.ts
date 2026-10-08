@@ -109,6 +109,12 @@ test('key owner and public screens pass axe and fit required viewports', async (
       await page.waitForLoadState('networkidle');
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth, `${path} overflows at ${width}px`).toBeLessThanOrEqual(width);
+      if (path === '/app/calendar' && width < 768) {
+        await expect(page.getByRole('button', { name: 'День' })).toHaveAttribute('aria-pressed', 'true');
+        const calendarGrid = page.getByRole('region', { name: 'Календарная сетка' });
+        await expect.poll(() => calendarGrid.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(0);
+        if (width === 375) await page.screenshot({ path: 'docs/screenshots/calendar-after-mobile.png', fullPage: true, animations: 'disabled' });
+      }
       if (width < 768) {
         await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeVisible();
         await expect(page.getByRole('navigation', { name: 'Мобильная навигация' })).toBeVisible();
