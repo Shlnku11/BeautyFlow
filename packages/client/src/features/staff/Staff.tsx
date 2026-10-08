@@ -1,100 +1,634 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faArrowLeft,
+  faArrowRight,
+  faEnvelope,
+  faMagnifyingGlass,
+  faPaperPlane,
+  faPhone,
+  faScissors,
+  faUserPlus,
+} from '@fortawesome/free-solid-svg-icons';
+import { Link, useParams } from 'react-router';
 import { ApiClientError, apiRequest } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DialogShell as Dialog } from '@/components/ui/dialog';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DialogDescription, DialogFooter, DialogHeader, DialogShell as Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 
 type ApiErrorState = string | null;
-const inputClass = 'rounded-md border border-neutral-300 bg-neutral-0 px-3 py-2 text-neutral-900 shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600';
-const buttonClass = 'inline-flex h-9 items-center rounded-md bg-primary-600 px-4 text-[13px] font-medium text-on-accent transition-colors hover:bg-primary-700 disabled:opacity-50';
-const secondaryButtonClass = 'inline-flex h-9 items-center rounded-md border border-neutral-200 bg-neutral-0 px-4 text-[13px] font-medium text-neutral-900 transition-colors hover:bg-neutral-100 disabled:opacity-50';
-function errorMessage(error: unknown): string { return error instanceof ApiClientError ? error.message : 'Не удалось выполнить запрос'; }
-function useRemote<T>(path: string, fallback: T): [T, (value: T) => void, ApiErrorState, boolean] {
-  const [data, setData] = useState(fallback);
-  const [error, setError] = useState<ApiErrorState>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { const controller = new AbortController(); setLoading(true); void apiRequest<T>(path, { signal: controller.signal }).then(setData).catch((reason: unknown) => { if (!controller.signal.aborted) setError(errorMessage(reason)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); return () => controller.abort(); }, [path]);
-  return [data, setData, error, loading];
-}
-import { Link, useNavigate, useParams } from 'react-router';
+type UiMessage = { text: string; kind: 'success' | 'error' };
 type Staff = { id: string; displayName: string; email?: string; phone?: string; bio?: string; color: string; isActive: boolean; acceptsOnlineBooking: boolean; serviceIds?: string[] };
 type Service = { id: string; name: string; description?: string; durationMinutes: number; bufferMinutes: number; priceMinor: number; currency: string; onlineBookingEnabled: boolean; isActive: boolean; staffIds: string[] };
 type Member = { id: string; user: { name: string; email: string }; role: string; status: string; staffId?: string };
+interface WeeklyDay { isoWeekday: number; intervals: { start: string; end: string }[]; breaks: { start: string; end: string }[]; }
+interface StaffException { date: string; kind: string; reason?: string; }
+
+const staffColorDots: Record<string, string> = {
+  violet: 'bg-staff-violet', teal: 'bg-staff-teal', blue: 'bg-staff-blue', green: 'bg-staff-green',
+  amber: 'bg-staff-amber', rose: 'bg-staff-rose', orange: 'bg-staff-orange', slate: 'bg-staff-slate',
+};
+const staffColorLabels: Record<string, string> = { amber: 'Янтарный', blue: 'Синий', green: 'Зелёный', orange: 'Оранжевый', rose: 'Розовый', slate: 'Серый', teal: 'Бирюзовый', violet: 'Фиолетовый' };
+const weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const tabs = [
+  { value: 'profile', label: 'Профиль' },
+  { value: 'schedule', label: 'Расписание' },
+  { value: 'exceptions', label: 'Исключения' },
+  { value: 'services', label: 'Услуги' },
+  { value: 'access', label: 'Доступ' },
+] as const;
+
+function errorMessage(error: unknown): string {
+  return error instanceof ApiClientError ? error.message : 'Не удалось выполнить запрос. Проверьте соединение и повторите попытку.';
+}
+
+function useRemote<T>(path: string | null, fallback: T): [T, (value: T) => void, ApiErrorState, boolean, () => void] {
+  const [data, setData] = useState(fallback);
+  const [error, setError] = useState<ApiErrorState>(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  useEffect(() => {
+    if (!path) {
+      setData(fallback);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    void apiRequest<T>(path, { signal: controller.signal })
+      .then(setData)
+      .catch((reason: unknown) => { if (!controller.signal.aborted) setError(errorMessage(reason)); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [path, reloadKey]);
+  return [data, setData, error, loading, () => setReloadKey((value) => value + 1)];
+}
+
+function initials(name: string): string {
+  return name.trim().split(/\s+/).slice(0, 2).map((part) => part.slice(0, 1).toLocaleUpperCase('ru-RU')).join('') || '?';
+}
+
+function staffCount(count: number): string {
+  const remainder100 = count % 100;
+  const remainder10 = count % 10;
+  const word = remainder100 >= 11 && remainder100 <= 14 ? 'сотрудников' : remainder10 === 1 ? 'сотрудник' : remainder10 >= 2 && remainder10 <= 4 ? 'сотрудника' : 'сотрудников';
+  return `${count} ${word}`;
+}
+
+function serviceCount(count: number): string {
+  const remainder100 = count % 100;
+  const remainder10 = count % 10;
+  const word = remainder100 >= 11 && remainder100 <= 14 ? 'услуг' : remainder10 === 1 ? 'услуга' : remainder10 >= 2 && remainder10 <= 4 ? 'услуги' : 'услуг';
+  return `${count} ${word}`;
+}
+
+function assignedServiceCount(staffId: string, services: Service[]): number {
+  return services.filter((service) => service.staffIds.includes(staffId)).length;
+}
+
+function StaffAvatar({ staff, size = 'md' }: { staff: Pick<Staff, 'displayName' | 'color'>; size?: 'md' | 'lg' }) {
+  return <Avatar className={size === 'lg' ? 'size-14 border-2 border-background ring-1 ring-border sm:size-16' : 'size-10'}>
+    <AvatarFallback className="bg-muted text-sm font-semibold text-foreground">{initials(staff.displayName)}</AvatarFallback>
+  </Avatar>;
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return <Badge tone={active ? 'success' : 'neutral'} className="gap-1.5 px-2.5">
+    <span aria-hidden="true" className={`size-1.5 rounded-full ${active ? 'bg-success-solid' : 'bg-muted-foreground'}`} />
+    {active ? 'Активен' : 'Неактивен'}
+  </Badge>;
+}
+
+function StaffCard({ staff, services }: { staff: Staff; services: Service[] }) {
+  const dot = staffColorDots[staff.color] ?? staffColorDots.slate;
+  return <Card className="group min-w-0 overflow-hidden border-border bg-card shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/30">
+    <Link aria-label={`Открыть профиль сотрудника ${staff.displayName}`} className="block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" to={`/app/staff/${staff.id}`}>
+      <CardContent className="flex h-full min-h-[150px] min-w-0 flex-col p-4 sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden="true" className={`mt-1 size-2.5 shrink-0 rounded-full ${dot}`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <h2 className="truncate text-[15px] font-semibold tracking-tight text-foreground">{staff.displayName}</h2>
+              <StatusBadge active={staff.isActive} />
+            </div>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{staff.email ?? staff.phone ?? 'Контакты не добавлены'}</p>
+          </div>
+        </div>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-4">
+          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            <FontAwesomeIcon aria-hidden="true" icon={faScissors} className="size-3.5" />
+            {serviceCount(assignedServiceCount(staff.id, services))}
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
+            {staff.acceptsOnlineBooking ? 'Онлайн-запись' : 'Без онлайн-записи'}
+            <FontAwesomeIcon aria-hidden="true" icon={faArrowRight} className="size-3 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </div>
+      </CardContent>
+    </Link>
+  </Card>;
+}
+
+function FormMessage({ message }: { message: UiMessage }) {
+  const error = message.kind === 'error';
+  return <p aria-live="polite" className={`rounded-md border px-3 py-2 text-sm ${error ? 'border-danger-bg bg-danger-bg text-danger-fg' : 'border-success-bg bg-success-bg text-success-fg'}`} role={error ? 'alert' : 'status'}>{message.text}</p>;
+}
+
+function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <Card className="mt-5 border-danger-bg bg-card">
+    <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div><h2 className="font-medium text-foreground">Не удалось загрузить данные</h2><p className="mt-1 text-sm text-muted-foreground">{message}</p></div>
+      <Button type="button" variant="outline" onClick={onRetry}>Повторить</Button>
+    </CardContent>
+  </Card>;
+}
+
 export function StaffPage() {
-  const navigate = useNavigate();
   const session = useSession();
   const canWrite = session.data?.permissions.includes('staff:write') ?? false;
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [rows, setRows, error, loading] = useRemote<Staff[]>(`/api/staff?includeInactive=${includeInactive}`, []);
+  const [rows, setRows, error, loading, reload] = useRemote<Staff[]>(`/api/staff?includeInactive=${includeInactive}`, []);
+  const [services, , servicesError, servicesLoading, reloadServices] = useRemote<Service[]>('/api/services', []);
   const [query, setQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [message, setMessage] = useState<ApiErrorState>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<UiMessage | null>(null);
+
   async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setMessage(null); const form = new FormData(event.currentTarget);
+    event.preventDefault();
+    setMessage(null);
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
     try {
-      const staff = await apiRequest<Staff & { accessInvite: string }>('/api/staff', { method: 'POST', body: { displayName: form.get('displayName'), email: form.get('email') || undefined, phone: form.get('phone') || undefined, color: form.get('color'), acceptsOnlineBooking: form.has('acceptsOnlineBooking') } });
-      setRows([staff, ...rows]); setDialogOpen(false); setMessage(staff.accessInvite === 'sent' ? 'Сотрудник добавлен, приглашение отправлено.' : 'Сотрудник добавлен.');
-    } catch (reason: unknown) { setMessage(errorMessage(reason)); }
+      const staff = await apiRequest<Staff & { accessInvite: string }>('/api/staff', {
+        method: 'POST',
+        body: {
+          displayName: form.get('displayName'), email: form.get('email') || undefined,
+          phone: form.get('phone') || undefined, color: form.get('color'),
+          acceptsOnlineBooking: form.has('acceptsOnlineBooking'),
+        },
+      });
+      setRows([staff, ...rows]);
+      setDialogOpen(false);
+      setMessage({ text: staff.accessInvite === 'sent' ? 'Сотрудник добавлен, приглашение отправлено.' : 'Сотрудник добавлен.', kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
   }
-  const visibleRows = rows.filter((row) => row.displayName.toLocaleLowerCase('ru-RU').includes(query.toLocaleLowerCase('ru-RU')) || row.email?.toLocaleLowerCase('ru-RU').includes(query.toLocaleLowerCase('ru-RU')));
-  return <main className="mx-auto w-full max-w-[1440px] px-5 py-6 md:px-8">
-    <div className="flex items-center justify-between gap-3"><h1 className="text-2xl font-semibold">Сотрудники</h1>{canWrite ? <Button size="small" onClick={() => setDialogOpen(true)}>＋ Сотрудник</Button> : null}</div>
-    <div className="mt-5 flex flex-wrap items-center gap-2"><label className="sr-only" htmlFor="staff-search">Поиск сотрудников</label><Input className="max-w-[280px]" id="staff-search" placeholder="Имя или email" value={query} onChange={(event) => setQuery(event.target.value)}/><label className="inline-flex h-9 items-center gap-2 px-2 text-xs text-neutral-600"><input checked={includeInactive} onChange={(event) => setIncludeInactive(event.target.checked)} type="checkbox"/>Неактивные</label><span className="ml-auto text-xs text-neutral-500">{visibleRows.length} сотрудников</span></div>
-    {message ? <p role="status" className="mt-3 text-sm text-success-fg">{message}</p> : null}{error ? <p role="alert" className="mt-3 text-sm text-danger-fg">{error}</p> : null}
-    {loading ? <div aria-label="Загрузка сотрудников" className="mt-4 grid gap-2">{Array.from({ length: 5 }, (_, index) => <div className="h-12 animate-pulse rounded bg-neutral-100" key={index}/>)}</div> : visibleRows.length ? <>
-      <div className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0 md:block"><table className="w-full min-w-[720px] border-collapse text-left text-[13px] [&_td]:px-4 [&_th]:px-4"><caption className="sr-only">Список сотрудников</caption><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-[11px] font-medium uppercase tracking-[0.05em] text-neutral-500"><th scope="col">Сотрудник</th><th scope="col">Email / телефон</th><th scope="col">Услуги</th><th scope="col">Онлайн-запись</th><th scope="col">Статус</th></tr></thead><tbody>{visibleRows.map((row) => <tr className="h-[52px] cursor-pointer border-b border-neutral-100 transition-colors hover:bg-neutral-50" key={row.id} onClick={() => navigate(`/app/staff/${row.id}`)}><td className="font-medium"><span className="mr-2 inline-block size-2 rounded-full bg-staff-violet"/><Link to={`/app/staff/${row.id}`}>{row.displayName}</Link></td><td className="text-neutral-600">{row.email ?? row.phone ?? '—'}</td><td className="tabular-nums text-neutral-600">{row.serviceIds?.length ?? 0}</td><td className="text-neutral-600">{row.acceptsOnlineBooking ? 'Да' : 'Нет'}</td><td className="text-neutral-600">{row.isActive ? 'Активен' : 'Неактивен'}</td></tr>)}</tbody></table></div>
-      <ul className="mt-4 divide-y divide-neutral-200 border-y border-neutral-200 md:hidden">{visibleRows.map((row) => <li className="py-3" key={row.id}><Link className="block" to={`/app/staff/${row.id}`}><span className="text-sm font-medium">{row.displayName}</span><span className="mt-0.5 block text-xs text-neutral-500">{row.email ?? row.phone ?? '—'} · {row.isActive ? 'Активен' : 'Неактивен'}</span></Link></li>)}</ul>
-    </> : <div className="mt-5"><EmptyState title={query ? 'Сотрудники не найдены' : 'Сотрудников пока нет'}>{canWrite ? <Button size="small" className="mt-3" onClick={() => setDialogOpen(true)}>＋ Сотрудник</Button> : null}</EmptyState></div>}
-    <Dialog open={dialogOpen} title="Новый сотрудник" onClose={() => setDialogOpen(false)}><form className="grid gap-4" onSubmit={(event) => { void create(event); }}><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Имя<input className={inputClass} name="displayName" required minLength={2}/></label><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Email для доступа<input className={inputClass} name="email" type="email"/></label><div className="grid grid-cols-2 gap-4"><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Телефон<input className={inputClass} name="phone" type="tel"/></label><label className="grid gap-1 text-[13px] font-medium text-neutral-600">Цвет<select className={inputClass} name="color"><option value="violet">Indigo</option><option value="teal">Teal</option><option value="blue">Blue</option><option value="green">Green</option><option value="amber">Amber</option><option value="rose">Rose</option><option value="orange">Orange</option><option value="slate">Slate</option></select></label></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="acceptsOnlineBooking" defaultChecked/>Принимает онлайн-запись</label><div className="flex justify-end gap-2 border-t border-neutral-200 pt-3"><Button type="button" variant="secondary" onClick={() => setDialogOpen(false)}>Отмена</Button><Button type="submit">Добавить</Button></div></form></Dialog>
+
+  const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
+  const visibleRows = rows.filter((row) => [row.displayName, row.email ?? '', row.phone ?? ''].some((value) => value.toLocaleLowerCase('ru-RU').includes(normalizedQuery)));
+  const activeCount = rows.filter((row) => row.isActive).length;
+
+  return <main className="mx-auto w-full max-w-[1440px] px-4 pb-24 pt-5 sm:px-6 md:pb-7 md:pt-7 xl:px-8">
+    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground">КОМАНДА</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Сотрудники</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Профили специалистов, услуги и доступ к расписанию.</p>
+      </div>
+      {canWrite ? <Button onClick={() => { setMessage(null); setDialogOpen(true); }}>
+        <FontAwesomeIcon aria-hidden="true" icon={faUserPlus} /> Добавить сотрудника
+      </Button> : null}
+    </header>
+
+    <section aria-label="Сводка команды" className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border py-3 text-sm">
+      <span className="font-medium tabular-nums text-foreground">{staffCount(rows.length)}</span>
+      <span className="text-muted-foreground">{activeCount} активны</span>
+      <span className="text-muted-foreground">{rows.filter((row) => row.acceptsOnlineBooking).length} принимают онлайн-запись</span>
+    </section>
+
+    <section aria-label="Фильтры сотрудников" className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="relative w-full sm:max-w-sm">
+        <FontAwesomeIcon aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" icon={faMagnifyingGlass} />
+        <Label className="sr-only" htmlFor="staff-search">Поиск сотрудников</Label>
+        <Input autoComplete="off" className="pl-9" id="staff-search" placeholder="Имя, email или телефон" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </div>
+      <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 text-sm text-muted-foreground" htmlFor="staff-inactive">
+        <Checkbox checked={includeInactive} id="staff-inactive" onCheckedChange={(checked) => setIncludeInactive(checked === true)} />
+        Показывать неактивных
+      </label>
+      <p aria-live="polite" className="text-xs text-muted-foreground sm:ml-auto">Показано {visibleRows.length} из {rows.length}</p>
+    </section>
+
+    {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+    {error || servicesError ? <LoadError message={error ?? servicesError ?? 'Не удалось загрузить данные.'} onRetry={() => { if (error) reload(); if (servicesError) reloadServices(); }} /> : loading || servicesLoading ? <div aria-label="Загрузка сотрудников" className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="status">
+      <span className="sr-only">Загружаем список сотрудников</span>
+      {Array.from({ length: 6 }, (_, index) => <Card aria-hidden="true" className="h-[150px]" key={index}><CardContent className="flex h-full flex-col justify-between p-4"><div className="flex gap-3"><Skeleton className="size-10 rounded-full"/><div className="grid flex-1 content-start gap-2"><Skeleton className="h-4 w-2/3"/><Skeleton className="h-3 w-1/2"/></div></div><Skeleton className="h-4 w-3/4"/></CardContent></Card>)}
+    </div> : visibleRows.length > 0 ? <>
+      <ul aria-label="Карточки сотрудников" className="mt-4 grid gap-3 sm:grid-cols-2 xl:hidden">
+        {visibleRows.map((staff) => <li key={staff.id}><StaffCard staff={staff} services={services} /></li>)}
+      </ul>
+      <section aria-label="Таблица сотрудников" className="mt-4 hidden overflow-hidden rounded-lg border border-border bg-card xl:block">
+        <Table className="min-w-[760px] text-[13px]">
+          <TableCaption className="sr-only">Сотрудники команды, услуги и способы записи</TableCaption>
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[34%] pl-5">Специалист</TableHead>
+              <TableHead>Контакты</TableHead>
+              <TableHead>Услуги</TableHead>
+              <TableHead>Запись</TableHead>
+              <TableHead className="pr-5 text-right">Статус</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleRows.map((staff) => <TableRow key={staff.id} className="h-[68px]">
+              <TableCell className="pl-5">
+                <Link aria-label={`Открыть профиль сотрудника ${staff.displayName}`} className="group flex w-fit items-center gap-3 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" to={`/app/staff/${staff.id}`}>
+                  <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${staffColorDots[staff.color] ?? staffColorDots.slate}`} />
+                  <span className="font-medium text-foreground group-hover:text-primary">{staff.displayName}</span>
+                </Link>
+              </TableCell>
+              <TableCell className="max-w-[250px] truncate text-muted-foreground">{staff.email ?? staff.phone ?? 'Контакты не добавлены'}</TableCell>
+              <TableCell className="tabular-nums text-muted-foreground">{serviceCount(assignedServiceCount(staff.id, services))}</TableCell>
+              <TableCell><Badge variant="outline" className="font-normal">{staff.acceptsOnlineBooking ? 'Онлайн' : 'По телефону'}</Badge></TableCell>
+              <TableCell className="pr-5 text-right"><span className="inline-flex justify-end"><StatusBadge active={staff.isActive} /></span></TableCell>
+            </TableRow>)}
+          </TableBody>
+        </Table>
+      </section>
+    </> : <Card className="mt-5 border-dashed bg-card">
+      <CardContent className="grid min-h-56 place-items-center px-5 py-10 text-center">
+        <div className="max-w-sm">
+          <span className="mx-auto grid size-10 place-items-center rounded-full bg-muted text-muted-foreground"><FontAwesomeIcon aria-hidden="true" icon={faMagnifyingGlass} /></span>
+          <h2 className="mt-3 text-base font-semibold text-foreground">{normalizedQuery ? 'Ничего не найдено' : includeInactive ? 'Сотрудников пока нет' : 'Нет активных сотрудников'}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{normalizedQuery ? 'Попробуйте изменить запрос или проверить телефон и email.' : includeInactive ? 'Добавьте специалиста, чтобы назначать услуги и записи.' : 'Покажите неактивных сотрудников или добавьте нового специалиста.'}</p>
+          {normalizedQuery ? <Button className="mt-4" variant="outline" onClick={() => setQuery('')}>Очистить поиск</Button> : canWrite ? <Button className="mt-4" onClick={() => setDialogOpen(true)}><FontAwesomeIcon aria-hidden="true" icon={faUserPlus} /> Добавить сотрудника</Button> : null}
+        </div>
+      </CardContent>
+    </Card>}
+
+    <Dialog open={dialogOpen} title="Новый сотрудник" onClose={() => setDialogOpen(false)}>
+      <DialogHeader><DialogDescription>Добавьте специалиста в команду. Email можно указать сейчас или позже на вкладке доступа.</DialogDescription></DialogHeader>
+      <form className="grid gap-4" onSubmit={(event) => { void create(event); }}>
+        <div className="grid gap-1.5"><Label htmlFor="new-staff-name">Имя сотрудника</Label><Input autoFocus id="new-staff-name" name="displayName" autoComplete="name" required minLength={2} placeholder="Например, Алия Садыкова" /></div>
+        <div className="grid gap-1.5"><Label htmlFor="new-staff-email">Email для доступа <span className="font-normal text-muted-foreground">(необязательно)</span></Label><Input id="new-staff-email" name="email" type="email" autoComplete="email" placeholder="name@example.com" /></div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5"><Label htmlFor="new-staff-phone">Телефон</Label><Input id="new-staff-phone" name="phone" type="tel" autoComplete="tel" placeholder="+996 …" /></div>
+          <div className="grid gap-1.5"><Label htmlFor="new-staff-color">Цвет календаря</Label><NativeSelect className="w-full" defaultValue="violet" id="new-staff-color" name="color"><NativeSelectOption value="violet">Фиолетовый</NativeSelectOption><NativeSelectOption value="teal">Бирюзовый</NativeSelectOption><NativeSelectOption value="blue">Синий</NativeSelectOption><NativeSelectOption value="green">Зелёный</NativeSelectOption><NativeSelectOption value="amber">Янтарный</NativeSelectOption><NativeSelectOption value="rose">Розовый</NativeSelectOption><NativeSelectOption value="orange">Оранжевый</NativeSelectOption><NativeSelectOption value="slate">Серый</NativeSelectOption></NativeSelect></div>
+        </div>
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border p-3" htmlFor="new-staff-online">
+          <Checkbox defaultChecked id="new-staff-online" name="acceptsOnlineBooking" />
+          <span><span className="block text-sm font-medium">Принимает онлайн-запись</span><span className="mt-0.5 block text-xs text-muted-foreground">Клиенты смогут выбрать специалиста на странице записи.</span></span>
+        </label>
+        {message ? <FormMessage message={message} /> : null}
+        <DialogFooter className="border-t border-border pt-4">
+          <Button disabled={saving} type="button" variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>
+          <Button disabled={saving} type="submit">{saving ? 'Добавляем…' : 'Добавить сотрудника'}</Button>
+        </DialogFooter>
+      </form>
+    </Dialog>
   </main>;
 }
 
-const tabs = ['Профиль', 'Расписание', 'Исключения', 'Услуги', 'Доступ'] as const;
 export function StaffDetailPage() {
-  const { id = '' } = useParams(); const [tab, setTab] = useState<(typeof tabs)[number]>('Профиль');
-  const session = useSession(); const permissions = session.data?.permissions ?? []; const canWrite = permissions.includes('staff:write');
-  const [staff, setStaff, error, loading] = useRemote<Staff | null>(`/api/staff/${id}`, null);
-  const [message, setMessage] = useState<ApiErrorState>(null);
-  async function saveProfile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); setMessage(null); try { const updated = await apiRequest<Staff>(`/api/staff/${id}`, { method: 'PATCH', body: { displayName: form.get('displayName'), email: form.get('email') || undefined, phone: form.get('phone') || undefined, bio: form.get('bio') || undefined, color: form.get('color'), acceptsOnlineBooking: form.has('acceptsOnlineBooking'), ...(permissions.includes('staff:deactivate') ? { isActive: form.has('isActive') } : {}) } }); setStaff(updated); setMessage('Профиль сохранён.'); } catch (reason: unknown) { if (reason instanceof ApiClientError && reason.code === 'STAFF_HAS_UPCOMING_APPOINTMENTS' && window.confirm('У сотрудника есть будущие записи. Всё равно деактивировать?')) { try { const retried = await apiRequest<Staff>(`/api/staff/${id}`, { method: 'PATCH', body: { isActive: false, confirm: true } }); setStaff(retried); setMessage('Сотрудник деактивирован; его доступ к кабинету отключён.'); } catch (retryError: unknown) { setMessage(errorMessage(retryError)); } } else setMessage(errorMessage(reason)); } }
-  const visibleTabs = tabs.filter((item) => item !== 'Доступ' || permissions.includes('members:read'));
-  return <main className="mx-auto max-w-5xl p-4 md:p-6"><Link className="text-xs text-neutral-500 hover:text-primary-700" to="/app/staff">← Сотрудники</Link><h1 className="mt-3 text-2xl font-semibold">{staff?.displayName ?? 'Сотрудник'}</h1>{loading ? <p role="status">Загрузка…</p> : null}{error ? <p role="alert">{error}</p> : null}<div className="mt-5 flex flex-wrap gap-1 border-b border-neutral-200" role="tablist" aria-label="Настройки сотрудника">{visibleTabs.map((item) => <button key={item} role="tab" aria-selected={tab === item} className={`h-9 min-h-9 rounded-none border-b-2 px-3 text-sm ${tab === item ? 'border-primary-600 font-medium text-neutral-900' : 'border-transparent text-neutral-500 hover:text-neutral-800'}`} onClick={() => setTab(item)}>{item}</button>)}</div>{message ? <p className="mt-3" role="status">{message}</p> : null}
-    {tab === 'Профиль' && staff ? <form className="mt-4 grid max-w-2xl gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm" onSubmit={(event) => { void saveProfile(event); }}><label className="grid gap-1">Имя<input className={inputClass} name="displayName" defaultValue={staff.displayName} required minLength={2} disabled={!canWrite}/></label><label className="grid gap-1">Email<input className={inputClass} name="email" type="email" defaultValue={staff.email} disabled={!canWrite}/></label><label className="grid gap-1">Телефон<input className={inputClass} name="phone" defaultValue={staff.phone} disabled={!canWrite}/></label><label className="grid gap-1">О себе<textarea className={inputClass} name="bio" defaultValue={staff.bio} disabled={!canWrite}/></label><label className="grid gap-1">Цвет<select className={inputClass} name="color" defaultValue={staff.color} disabled={!canWrite}>{['amber','blue','green','orange','rose','slate','teal','violet'].map((color) => <option key={color}>{color}</option>)}</select></label><label className="flex gap-2"><input type="checkbox" name="acceptsOnlineBooking" defaultChecked={staff.acceptsOnlineBooking} disabled={!canWrite}/>Принимает онлайн-запись</label>{permissions.includes('staff:deactivate') ? <label className="flex gap-2"><input type="checkbox" name="isActive" defaultChecked={staff.isActive}/>Активен</label> : null}{canWrite ? <button className={buttonClass}>Сохранить профиль</button> : null}</form> : null}
-    {tab === 'Расписание' ? <StaffScheduleTab id={id} writable={permissions.includes('staff:schedule_write')}/> : null}{tab === 'Исключения' ? <StaffExceptionsTab id={id} writable={permissions.includes('staff:schedule_write')}/> : null}{tab === 'Услуги' ? <StaffServicesTab id={id} writable={permissions.includes('staff:write')}/> : null}{tab === 'Доступ' ? <StaffAccessTab id={id}/> : null}
+  const { id = '' } = useParams();
+  const [tab, setTab] = useState<(typeof tabs)[number]['value']>('profile');
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const session = useSession();
+  const permissions = session.data?.permissions ?? [];
+  const canWrite = permissions.includes('staff:write');
+  const canDeactivate = permissions.includes('staff:deactivate');
+  const [staff, setStaff, error, loading, reload] = useRemote<Staff | null>(`/api/staff/${id}`, null);
+  const [serviceCatalog] = useRemote<Service[]>(permissions.includes('services:read') ? '/api/services' : null, []);
+  const [profileRevision, setProfileRevision] = useState(0);
+  const [message, setMessage] = useState<UiMessage | null>(null);
+
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage(null);
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
+    const body = {
+      displayName: form.get('displayName'), email: form.get('email') || undefined,
+      phone: form.get('phone') || undefined, bio: form.get('bio') || undefined,
+      color: form.get('color'), acceptsOnlineBooking: form.has('acceptsOnlineBooking'),
+      ...(canDeactivate ? { isActive: form.has('isActive') } : {}),
+    };
+    try {
+      const updated = await apiRequest<Staff>(`/api/staff/${id}`, { method: 'PATCH', body });
+      setStaff(updated);
+      setProfileRevision((revision) => revision + 1);
+      setMessage({ text: 'Профиль сохранён.', kind: 'success' });
+    } catch (reason: unknown) {
+      if (reason instanceof ApiClientError && reason.code === 'STAFF_HAS_UPCOMING_APPOINTMENTS') setConfirmDeactivate(true);
+      else setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmStaffDeactivation() {
+    setSaving(true);
+    try {
+      const updated = await apiRequest<Staff>(`/api/staff/${id}`, { method: 'PATCH', body: { isActive: false, confirm: true } });
+      setStaff(updated);
+      setMessage({ text: 'Сотрудник деактивирован. Его будущие записи сохранены, доступ к кабинету отключён.', kind: 'success' });
+      setConfirmDeactivate(false);
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const visibleTabs = tabs.filter((item) => item.value !== 'access' || permissions.includes('members:read'));
+
+  return <main className="mx-auto w-full max-w-[1180px] px-4 pb-24 pt-5 sm:px-6 md:pb-7 md:pt-7 xl:px-8">
+    <Link className="inline-flex min-h-8 items-center gap-2 rounded-sm text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" to="/app/staff">
+      <FontAwesomeIcon aria-hidden="true" icon={faArrowLeft} className="size-3.5" /> Команда сотрудников
+    </Link>
+
+    {loading ? <div className="mt-4 grid gap-3" role="status" aria-label="Загрузка профиля сотрудника"><Skeleton className="h-28 w-full"/><Skeleton className="h-10 w-full"/><Skeleton className="h-72 w-full"/></div> : error || !staff ? <Card className="mt-5 border-danger-bg">
+      <CardContent className="p-5"><h1 className="text-xl font-semibold">Профиль недоступен</h1><p className="mt-2 text-sm text-muted-foreground">{error ?? 'Сотрудник не найден или у вас нет доступа к этому профилю.'}</p><div className="mt-4 flex gap-2"><Button variant="outline" onClick={reload}>Повторить</Button><Button asChild variant="secondary"><Link to="/app/staff">Вернуться к команде</Link></Button></div></CardContent>
+    </Card> : <>
+      <Card className="mt-4 overflow-hidden border-border bg-card shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+          <div className="relative mx-auto shrink-0 sm:mx-0"><StaffAvatar staff={staff} size="lg"/><span aria-hidden="true" className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-card ${staffColorDots[staff.color] ?? staffColorDots.slate}`} /></div>
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start"><h1 className="text-2xl font-semibold tracking-tight text-foreground">{staff.displayName}</h1><StatusBadge active={staff.isActive} /></div>
+            <p className="mt-1 text-sm text-muted-foreground">Профиль специалиста · {staff.acceptsOnlineBooking ? 'принимает онлайн-запись' : 'запись по телефону'}</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-muted-foreground sm:justify-start">
+              {staff.email ? <a className="inline-flex min-w-0 items-center gap-2 hover:text-foreground" href={`mailto:${staff.email}`}><FontAwesomeIcon aria-hidden="true" icon={faEnvelope} className="size-3.5 shrink-0"/><span className="truncate">{staff.email}</span></a> : null}
+              {staff.phone ? <a className="inline-flex items-center gap-2 hover:text-foreground" href={`tel:${staff.phone}`}><FontAwesomeIcon aria-hidden="true" icon={faPhone} className="size-3.5 shrink-0"/>{staff.phone}</a> : null}
+              {!staff.email && !staff.phone ? <span>Контакты не добавлены</span> : null}
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-2 border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${staffColorDots[staff.color] ?? staffColorDots.slate}`} />
+            <span className="text-sm text-muted-foreground">{serviceCount(assignedServiceCount(staff.id, serviceCatalog))}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs className="mt-5 block" value={tab} onValueChange={(value) => { setTab(value as (typeof tabs)[number]['value']); setMessage(null); }}>
+        <TabsList aria-label="Разделы профиля сотрудника" variant="line" className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
+          {visibleTabs.map((item) => <TabsTrigger className="min-h-10 shrink-0 rounded-none border-b-2 border-transparent px-3 text-sm text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-none" key={item.value} value={item.value}>{item.label}</TabsTrigger>)}
+        </TabsList>
+
+        {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+
+        <TabsContent value="profile" className="mt-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(240px,0.85fr)]">
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader className="pb-4"><CardTitle className="text-base">Данные профиля</CardTitle><CardDescription>Контакты и информация, которую видит команда.</CardDescription></CardHeader>
+              <CardContent>
+                <form className="grid gap-4" key={profileRevision} onSubmit={(event) => { void saveProfile(event); }}>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-1.5"><Label htmlFor="staff-name">Имя</Label><Input autoComplete="name" defaultValue={staff.displayName} disabled={!canWrite} id="staff-name" minLength={2} name="displayName" required /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="staff-email">Email</Label><Input autoComplete="email" defaultValue={staff.email} disabled={!canWrite} id="staff-email" name="email" type="email" placeholder="name@example.com" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="staff-phone">Телефон</Label><Input autoComplete="tel" defaultValue={staff.phone} disabled={!canWrite} id="staff-phone" name="phone" type="tel" placeholder="+996 …" /></div>
+                    <div className="grid gap-1.5"><Label htmlFor="staff-color">Цвет в календаре</Label><NativeSelect className="w-full" defaultValue={staff.color} disabled={!canWrite} id="staff-color" name="color">{['amber','blue','green','orange','rose','slate','teal','violet'].map((color) => <NativeSelectOption key={color} value={color}>{staffColorLabels[color]}</NativeSelectOption>)}</NativeSelect></div>
+                  </div>
+                  <div className="grid gap-1.5"><Label htmlFor="staff-bio">О специалисте</Label><Textarea defaultValue={staff.bio} disabled={!canWrite} id="staff-bio" name="bio" placeholder="Опыт, специализация и важная информация для клиентов." rows={4} /></div>
+                  <div className="grid gap-2 rounded-md border border-border p-3">
+                    <label className="flex cursor-pointer items-start gap-2.5" htmlFor="staff-online"><Checkbox defaultChecked={staff.acceptsOnlineBooking} disabled={!canWrite} id="staff-online" name="acceptsOnlineBooking"/><span><span className="block text-sm font-medium">Онлайн-запись доступна</span><span className="mt-0.5 block text-xs text-muted-foreground">Клиенты могут выбрать этого специалиста при бронировании.</span></span></label>
+                    {canDeactivate ? <label className="flex cursor-pointer items-start gap-2.5 border-t border-border pt-2" htmlFor="staff-active"><Checkbox defaultChecked={staff.isActive} id="staff-active" name="isActive"/><span><span className="block text-sm font-medium">Сотрудник активен</span><span className="mt-0.5 block text-xs text-muted-foreground">Неактивный профиль скрыт из онлайн-записи.</span></span></label> : null}
+                  </div>
+                  {canWrite ? <div className="flex justify-end border-t border-border pt-4"><Button disabled={saving} type="submit">{saving ? 'Сохраняем…' : 'Сохранить изменения'}</Button></div> : null}
+                </form>
+              </CardContent>
+            </Card>
+            <Card className="h-fit border-border bg-card shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Сводка</CardTitle><CardDescription>Текущее состояние специалиста.</CardDescription></CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Статус</span><StatusBadge active={staff.isActive} /></div>
+                <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Онлайн-запись</span><Badge variant="outline" className="font-normal">{staff.acceptsOnlineBooking ? 'Включена' : 'Выключена'}</Badge></div>
+                <div className="flex items-center justify-between gap-4"><span className="text-sm text-muted-foreground">Назначено услуг</span><span className="font-medium tabular-nums text-foreground">{serviceCount(assignedServiceCount(staff.id, serviceCatalog))}</span></div>
+                <div className="border-t border-border pt-3"><p className="text-xs leading-5 text-muted-foreground">Расписание, исключения и услуги редактируются в соседних разделах профиля.</p></div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        <TabsContent value="schedule" className="mt-4"><StaffScheduleTab id={id} writable={permissions.includes('staff:schedule_write')} /></TabsContent>
+        <TabsContent value="exceptions" className="mt-4"><StaffExceptionsTab id={id} writable={permissions.includes('staff:schedule_write')} /></TabsContent>
+        <TabsContent value="services" className="mt-4"><StaffServicesTab id={id} writable={canWrite} /></TabsContent>
+        {visibleTabs.some((item) => item.value === 'access') ? <TabsContent value="access" className="mt-4"><StaffAccessTab id={id} canManage={permissions.includes('members:manage_role')} canInvite={permissions.includes('members:invite')} /></TabsContent> : null}
+      </Tabs>
+    </>}
+
+    <Dialog open={confirmDeactivate} title="Деактивировать сотрудника?" onClose={() => setConfirmDeactivate(false)}>
+      <DialogHeader><DialogDescription>У сотрудника есть будущие записи. Подтвердите деактивацию — записи сохранятся, а доступ к кабинету будет отключён.</DialogDescription></DialogHeader>
+      <DialogFooter className="border-t border-border pt-4"><Button disabled={saving} variant="outline" onClick={() => setConfirmDeactivate(false)}>Оставить активным</Button><Button disabled={saving} variant="destructive" onClick={() => { void confirmStaffDeactivation(); }}>{saving ? 'Деактивируем…' : 'Деактивировать'}</Button></DialogFooter>
+    </Dialog>
   </main>;
 }
 
-interface WeeklyDay { isoWeekday: number; intervals: { start: string; end: string }[]; breaks: { start: string; end: string }[]; }
 function StaffScheduleTab({ id, writable }: { id: string; writable: boolean }) {
-  const [schedule, setSchedule] = useState<WeeklyDay[]>([]); const [message, setMessage] = useState<ApiErrorState>(null);
-  useEffect(() => { const controller = new AbortController(); void apiRequest<{ weekly: WeeklyDay[] }>(`/api/staff/${id}/schedule`, { signal: controller.signal }).then((result) => setSchedule(result.weekly)).catch((reason: unknown) => setMessage(errorMessage(reason))); return () => controller.abort(); }, [id]);
-  const names = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
-  function updateDay(day: number, enabled: boolean, value: string) { const current = schedule.filter((item) => item.isoWeekday !== day); if (enabled) { const [start = '09:00', end = '18:00'] = value.split('-'); current.push({ isoWeekday: day, intervals: [{ start, end }], breaks: [] }); } setSchedule(current.sort((a,b) => a.isoWeekday-b.isoWeekday)); }
-  async function save() { if (!writable) return; try { const result = await apiRequest<{ affectedAppointmentsCount: number }>(`/api/staff/${id}/schedule`, { method: 'PUT', body: { weekly: schedule } }); setMessage(`Расписание сохранено. Будущих записей затронуто: ${result.affectedAppointmentsCount}.`); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  return <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="font-semibold">Недельный график</h2><div className="mt-3 grid gap-2">{names.map((name, index) => { const day = index + 1; const current = schedule.find((item) => item.isoWeekday === day); return <label key={day} className="grid gap-2 border-b py-2 sm:grid-cols-[1fr_auto_auto] sm:items-center"><span className="flex items-center gap-2"><input type="checkbox" checked={Boolean(current)} onChange={(event) => updateDay(day, event.target.checked, current?.intervals[0] ? `${current.intervals[0].start}-${current.intervals[0].end}` : '09:00-18:00')}/>{name}</span>{current ? <><input aria-label={`${name}: начало`} className={inputClass} type="time" value={current.intervals[0]?.start ?? '09:00'} onChange={(event) => updateDay(day, true, `${event.target.value}-${current.intervals[0]?.end ?? '18:00'}`)}/><input aria-label={`${name}: конец`} className={inputClass} type="time" value={current.intervals[0]?.end ?? '18:00'} onChange={(event) => updateDay(day, true, `${current.intervals[0]?.start ?? '09:00'}-${event.target.value}`)}/></> : <span className="text-sm text-neutral-500">Выходной</span>}</label>; })}</div><button className={`${buttonClass} mt-4`} onClick={() => { void save(); }}>Сохранить расписание</button>{message ? <p className="mt-3" role="status">{message}</p> : null}</section>;
+  const [result, setResult, error, loading, reload] = useRemote<{ weekly: WeeklyDay[] }>(`/api/staff/${id}/schedule`, { weekly: [] });
+  const [message, setMessage] = useState<UiMessage | null>(null);
+  const [saving, setSaving] = useState(false);
+  const schedule = result.weekly;
+
+  function updateDay(day: number, enabled: boolean, start: string, end: string) {
+    const existing = schedule.find((item) => item.isoWeekday === day);
+    const next = schedule.filter((item) => item.isoWeekday !== day);
+    if (enabled) {
+      const intervals = existing?.intervals.length ? [...existing.intervals] : [{ start: '09:00', end: '18:00' }];
+      intervals[0] = { start, end };
+      next.push({ isoWeekday: day, intervals, breaks: existing?.breaks ?? [] });
+    }
+    setResult({ weekly: next.sort((a, b) => a.isoWeekday - b.isoWeekday) });
+  }
+
+  async function save() {
+    if (!writable) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const response = await apiRequest<{ affectedAppointmentsCount: number }>(`/api/staff/${id}/schedule`, { method: 'PUT', body: { weekly: schedule } });
+      setMessage({ text: `Расписание сохранено. Будущих записей затронуто: ${response.affectedAppointmentsCount}.`, kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <Card className="border-border bg-card shadow-sm">
+    <CardHeader className="pb-4"><CardTitle className="text-base">Недельный график</CardTitle><CardDescription>Укажите рабочие интервалы. Изменения сохраняются для выбранного специалиста.</CardDescription></CardHeader>
+    <CardContent>
+      {loading ? <div className="grid gap-3" role="status" aria-label="Загрузка расписания">{weekdays.slice(0, 5).map((day) => <Skeleton className="h-12" key={day} />)}</div> : error ? <LoadError message={error} onRetry={reload} /> : <div className="grid gap-2">
+        {weekdays.map((name, index) => {
+          const day = index + 1;
+          const current = schedule.find((item) => item.isoWeekday === day);
+          const interval = current?.intervals[0];
+          return <div className="grid gap-2 rounded-md border border-border px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(120px,180px)] sm:items-center" key={day}>
+            <label className="flex cursor-pointer items-center gap-3" htmlFor={`schedule-day-${day}`}><Checkbox checked={Boolean(current)} disabled={!writable} id={`schedule-day-${day}`} onCheckedChange={(checked) => updateDay(day, checked === true, interval?.start ?? '09:00', interval?.end ?? '18:00')} /><span className="text-sm font-medium text-foreground">{name}</span></label>
+            {current ? <><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`start-${day}`}>С</Label><Input aria-label={`${name}: начало`} className="tabular-nums" disabled={!writable} id={`start-${day}`} type="time" value={interval?.start ?? '09:00'} onChange={(event) => updateDay(day, true, event.target.value, interval?.end ?? '18:00')} /></div><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`end-${day}`}>До</Label><Input aria-label={`${name}: конец`} className="tabular-nums" disabled={!writable} id={`end-${day}`} type="time" value={interval?.end ?? '18:00'} onChange={(event) => updateDay(day, true, interval?.start ?? '09:00', event.target.value)} /></div></> : <span className="text-sm text-muted-foreground sm:col-span-2">Выходной день</span>}
+          </div>;
+        })}
+      </div>}
+      {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+      {!loading && !error && writable ? <div className="mt-4 flex justify-end border-t border-border pt-4"><Button disabled={saving} onClick={() => { void save(); }}>{saving ? 'Сохраняем…' : 'Сохранить расписание'}</Button></div> : null}
+      {!writable ? <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">У вас есть доступ только для просмотра расписания.</p> : null}
+    </CardContent>
+  </Card>;
 }
 
 function StaffExceptionsTab({ id, writable }: { id: string; writable: boolean }) {
-  const today = new Date().toISOString().slice(0, 10); const [rows, setRows] = useState<{ date: string; kind: string; reason?: string }[]>([]); const [message, setMessage] = useState<ApiErrorState>(null);
-  useEffect(() => { const controller = new AbortController(); void apiRequest<typeof rows>(`/api/staff/${id}/exceptions?from=${today}&to=${today.slice(0,4)}-12-31`, { signal: controller.signal }).then(setRows).catch((reason: unknown) => setMessage(errorMessage(reason))); return () => controller.abort(); }, [id, today]);
-  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!writable) return; const form = new FormData(event.currentTarget); const kind = String(form.get('kind')); try { await apiRequest(`/api/staff/${id}/exceptions`, { method: 'POST', body: { date: form.get('date'), kind, intervals: kind === 'day_off' ? [] : [{ start: form.get('start'), end: form.get('end') }], breaks: [], reason: form.get('reason') || undefined } }); setMessage('Исключение сохранено.'); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  async function remove(date: string) { if (!writable) return; try { await apiRequest(`/api/staff/${id}/exceptions/${date}`, { method: 'DELETE' }); setRows(rows.filter((row) => row.date !== date)); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  return <section className="mt-4 grid gap-4"><form className="grid gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm sm:grid-cols-2" onSubmit={(event) => { void create(event); }}><h2 className="font-semibold sm:col-span-2">Исключение из расписания</h2><label className="grid gap-1">Дата<input className={inputClass} type="date" name="date" required/></label><label className="grid gap-1">Тип<select className={inputClass} name="kind"><option value="day_off">Выходной</option><option value="custom">Особый график</option></select></label><label className="grid gap-1">Начало (для особого графика)<input className={inputClass} type="time" name="start" defaultValue="10:00"/></label><label className="grid gap-1">Конец<input className={inputClass} type="time" name="end" defaultValue="16:00"/></label><label className="grid gap-1 sm:col-span-2">Причина<input className={inputClass} name="reason"/></label><button className={buttonClass}>Добавить/заменить</button></form><ul className="divide-y rounded-lg border border-neutral-200 bg-neutral-0">{rows.map((row) => <li className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2" key={row.date}><span>{row.date} · {row.kind === 'day_off' ? 'Выходной' : 'Особый график'} · {row.reason ?? ''}</span><button className={secondaryButtonClass} onClick={() => { void remove(row.date); }}>Удалить</button></li>)}</ul>{message ? <p role="status">{message}</p> : null}</section>;
+  const today = new Date().toISOString().slice(0, 10);
+  const [rows, setRows, error, loading, reload] = useRemote<StaffException[]>(`/api/staff/${id}/exceptions?from=${today}&to=${today.slice(0, 4)}-12-31`, []);
+  const [message, setMessage] = useState<UiMessage | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!writable) return;
+    setSaving(true);
+    setMessage(null);
+    const form = new FormData(event.currentTarget);
+    const kind = String(form.get('kind'));
+    try {
+      await apiRequest(`/api/staff/${id}/exceptions`, { method: 'POST', body: { date: form.get('date'), kind, intervals: kind === 'day_off' ? [] : [{ start: form.get('start'), end: form.get('end') }], breaks: [], reason: form.get('reason') || undefined } });
+      setMessage({ text: 'Исключение сохранено.', kind: 'success' });
+      reload();
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(date: string) {
+    if (!writable) return;
+    setMessage(null);
+    try {
+      await apiRequest(`/api/staff/${id}/exceptions/${date}`, { method: 'DELETE' });
+      setRows(rows.filter((row) => row.date !== date));
+      setMessage({ text: 'Исключение удалено.', kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    }
+  }
+
+  return <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.2fr)]">
+    <Card className="h-fit border-border bg-card shadow-sm">
+      <CardHeader className="pb-4"><CardTitle className="text-base">Новое исключение</CardTitle><CardDescription>Выходной или особый график на выбранную дату.</CardDescription></CardHeader>
+      <CardContent>
+        <form className="grid gap-3" onSubmit={(event) => { void create(event); }}>
+          <div className="grid gap-1.5"><Label htmlFor="exception-date">Дата</Label><Input disabled={!writable} id="exception-date" name="date" type="date" required min={today} /></div>
+          <div className="grid gap-1.5"><Label htmlFor="exception-kind">Тип исключения</Label><NativeSelect className="w-full" disabled={!writable} id="exception-kind" name="kind"><NativeSelectOption value="day_off">Выходной</NativeSelectOption><NativeSelectOption value="custom">Особый график</NativeSelectOption></NativeSelect></div>
+          <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label htmlFor="exception-start">Начало</Label><Input disabled={!writable} defaultValue="10:00" id="exception-start" name="start" type="time" /></div><div className="grid gap-1.5"><Label htmlFor="exception-end">Окончание</Label><Input disabled={!writable} defaultValue="16:00" id="exception-end" name="end" type="time" /></div></div>
+          <div className="grid gap-1.5"><Label htmlFor="exception-reason">Причина <span className="font-normal text-muted-foreground">(необязательно)</span></Label><Input disabled={!writable} id="exception-reason" name="reason" placeholder="Например, обучение" /></div>
+          {writable ? <Button disabled={saving} className="mt-1" type="submit">{saving ? 'Сохраняем…' : 'Добавить исключение'}</Button> : null}
+        </form>
+      </CardContent>
+    </Card>
+    <Card className="border-border bg-card shadow-sm">
+      <CardHeader className="pb-4"><CardTitle className="text-base">Исключения</CardTitle><CardDescription>Запланированные изменения обычного графика.</CardDescription></CardHeader>
+      <CardContent>
+        {error ? <LoadError message={error} onRetry={reload} /> : loading ? <div className="grid gap-3" role="status" aria-label="Загрузка исключений"><Skeleton className="h-14"/><Skeleton className="h-14"/></div> : rows.length ? <ul className="divide-y divide-border border-y border-border">{rows.map((row) => <li className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between" key={row.date}>
+          <div className="min-w-0"><p className="font-medium text-foreground">{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${row.date}T12:00:00Z`))}</p><p className="mt-0.5 text-sm text-muted-foreground">{row.kind === 'day_off' ? 'Выходной' : 'Особый график'}{row.reason ? ` · ${row.reason}` : ''}</p></div>
+          {writable ? <Button aria-label={`Удалить исключение: ${row.date}`} className="self-start sm:self-auto" size="small" variant="outline" onClick={() => { void remove(row.date); }}>Удалить</Button> : null}
+        </li>)}</ul> : <div className="grid min-h-36 place-items-center text-center"><div><p className="font-medium text-foreground">Исключений пока нет</p><p className="mt-1 text-sm text-muted-foreground">Здесь появятся выходные и особые рабочие дни.</p></div></div>}
+        {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+      </CardContent>
+    </Card>
+  </div>;
 }
 
 function StaffServicesTab({ id, writable }: { id: string; writable: boolean }) {
-  const [services, setServices] = useState<Service[]>([]); const [selected, setSelected] = useState<string[]>([]); const [message, setMessage] = useState<ApiErrorState>(null);
-  useEffect(() => { const controller = new AbortController(); void Promise.all([apiRequest<Service[]>('/api/services', { signal: controller.signal }), apiRequest<{ serviceIds: string[] }>(`/api/staff/${id}/services`, { signal: controller.signal })]).then(([catalog, linked]) => { setServices(catalog); setSelected(linked.serviceIds); }).catch((reason: unknown) => setMessage(errorMessage(reason))); return () => controller.abort(); }, [id]);
-  async function save() { if (!writable) return; try { await apiRequest(`/api/staff/${id}/services`, { method: 'PUT', body: { serviceIds: selected } }); setMessage('Услуги сотрудника сохранены.'); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  return <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="font-semibold">Доступные услуги</h2><ul className="mt-3 grid gap-2">{services.map((service) => <li key={service.id}><label className="flex items-center gap-2"><input type="checkbox" checked={selected.includes(service.id)} onChange={(event) => setSelected(event.target.checked ? [...selected, service.id] : selected.filter((value) => value !== service.id))}/>{service.name} · {service.durationMinutes} мин</label></li>)}</ul><button className={`${buttonClass} mt-4`} onClick={() => { void save(); }}>Сохранить</button>{message ? <p role="status" className="mt-3">{message}</p> : null}</section>;
+  const [catalog, , error, loading, reload] = useRemote<Service[]>('/api/services', []);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [message, setMessage] = useState<UiMessage | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    void apiRequest<{ serviceIds: string[] }>(`/api/staff/${id}/services`, { signal: controller.signal }).then((result) => setSelected(result.serviceIds)).catch((reason: unknown) => { if (!controller.signal.aborted) setMessage({ text: errorMessage(reason), kind: 'error' }); });
+    return () => controller.abort();
+  }, [id]);
+
+  async function save() {
+    if (!writable) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await apiRequest(`/api/staff/${id}/services`, { method: 'PUT', body: { serviceIds: selected } });
+      setMessage({ text: 'Список услуг сохранён.', kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <Card className="border-border bg-card shadow-sm">
+    <CardHeader className="pb-4"><CardTitle className="text-base">Услуги специалиста</CardTitle><CardDescription>Выберите услуги, которые этот сотрудник может проводить.</CardDescription></CardHeader>
+    <CardContent>
+      {error ? <LoadError message={error} onRetry={reload} /> : loading ? <div className="grid gap-3 sm:grid-cols-2" role="status" aria-label="Загрузка каталога услуг">{Array.from({ length: 4 }, (_, index) => <Skeleton className="h-16" key={index} />)}</div> : catalog.length ? <ul className="grid gap-2 sm:grid-cols-2">{catalog.map((service) => <li key={service.id}>
+        <label className="flex min-h-[68px] cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/50" htmlFor={`staff-service-${service.id}`}>
+          <Checkbox checked={selected.includes(service.id)} disabled={!writable || !service.isActive} id={`staff-service-${service.id}`} onCheckedChange={(checked) => setSelected((current) => checked === true ? [...current, service.id] : current.filter((value) => value !== service.id))} />
+          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-foreground">{service.name}</span><span className="mt-1 block text-xs text-muted-foreground">{service.durationMinutes} мин{service.bufferMinutes ? ` · перерыв ${service.bufferMinutes} мин` : ''}{service.isActive ? '' : ' · услуга неактивна'}</span></span>
+          {selected.includes(service.id) ? <Badge variant="outline" className="shrink-0 font-normal">Выбрана</Badge> : null}
+        </label>
+      </li>)}</ul> : <div className="grid min-h-36 place-items-center text-center"><p className="text-sm text-muted-foreground">В каталоге пока нет услуг. Сначала добавьте услугу в разделе «Услуги».</p></div>}
+      {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+      {!loading && !error && writable && catalog.length ? <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"><p aria-live="polite" className="text-xs text-muted-foreground">Выбрано: {selected.length}</p><Button disabled={saving} onClick={() => { void save(); }}>{saving ? 'Сохраняем…' : 'Сохранить услуги'}</Button></div> : null}
+      {!writable ? <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">У вас есть доступ только для просмотра услуг специалиста.</p> : null}
+    </CardContent>
+  </Card>;
 }
 
-function StaffAccessTab({ id }: { id: string }) {
-  const [rows, setRows] = useState<Member[]>([]); const [message, setMessage] = useState<ApiErrorState>(null);
-  useEffect(() => { const controller = new AbortController(); void apiRequest<Member[]>('/api/members?limit=100', { signal: controller.signal }).then((members) => setRows(members.filter((member) => member.staffId === id))).catch((reason: unknown) => setMessage(errorMessage(reason))); return () => controller.abort(); }, [id]);
-  async function update(member: Member, status: 'active'|'disabled') { try { const updated = await apiRequest<Member>(`/api/members/${member.id}`, { method: 'PATCH', body: { status } }); setRows(rows.map((row) => row.id === member.id ? updated : row)); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  async function resend(member: Member) { try { await apiRequest(`/api/members/${member.id}/resend-invite`, { method: 'POST' }); setMessage('Приглашение отправлено повторно.'); } catch (reason: unknown) { setMessage(errorMessage(reason)); } }
-  return <section className="mt-4 rounded-lg border border-neutral-200 bg-neutral-0 p-4 shadow-sm"><h2 className="font-semibold">Доступ к кабинету</h2>{rows.map((row) => <article className="mt-3 flex flex-wrap items-center justify-between gap-2 border-b py-3" key={row.id}><span>{row.user.name} · {row.user.email} · {row.status}</span><div className="flex gap-2">{row.status === 'invited' ? <button className={secondaryButtonClass} onClick={() => { void resend(row); }}>Повторить приглашение</button> : null}<button className={secondaryButtonClass} onClick={() => { void update(row, row.status === 'disabled' ? 'active' : 'disabled'); }}>{row.status === 'disabled' ? 'Включить доступ' : 'Отключить доступ'}</button></div></article>)}{rows.length === 0 ? <p className="mt-3 text-neutral-600">Доступ не предоставлен. Добавьте сотрудника с email в разделе сотрудников.</p> : null}{message ? <p className="mt-3" role="status">{message}</p> : null}</section>;
-}
+function StaffAccessTab({ id, canManage, canInvite }: { id: string; canManage: boolean; canInvite: boolean }) {
+  const [members, setMembers, error, loading, reload] = useRemote<Member[]>('/api/members?limit=100', []);
+  const [message, setMessage] = useState<UiMessage | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const rows = members.filter((member) => member.staffId === id);
 
+  async function update(member: Member, status: 'active' | 'disabled') {
+    setBusyId(member.id);
+    setMessage(null);
+    try {
+      const updated = await apiRequest<Member>(`/api/members/${member.id}`, { method: 'PATCH', body: { status } });
+      setMembers(members.map((row) => row.id === member.id ? updated : row));
+      setMessage({ text: status === 'disabled' ? 'Доступ сотрудника отключён.' : 'Доступ сотрудника включён.', kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resend(member: Member) {
+    setBusyId(member.id);
+    setMessage(null);
+    try {
+      await apiRequest(`/api/members/${member.id}/resend-invite`, { method: 'POST' });
+      setMessage({ text: 'Приглашение отправлено повторно.', kind: 'success' });
+    } catch (reason: unknown) {
+      setMessage({ text: errorMessage(reason), kind: 'error' });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const statusLabel: Record<string, string> = { active: 'Активен', invited: 'Ожидает приглашения', disabled: 'Доступ отключён' };
+
+  return <Card className="border-border bg-card shadow-sm">
+    <CardHeader className="pb-4"><CardTitle className="text-base">Доступ к кабинету</CardTitle><CardDescription>Приглашение и состояние учётной записи сотрудника.</CardDescription></CardHeader>
+    <CardContent>
+      {error ? <LoadError message={error} onRetry={reload} /> : loading ? <div className="grid gap-3" role="status" aria-label="Загрузка участников"><Skeleton className="h-16"/><Skeleton className="h-16"/></div> : rows.length ? <ul className="divide-y divide-border border-y border-border">{rows.map((member) => <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between" key={member.id}>
+        <div className="flex min-w-0 items-center gap-3"><Avatar><AvatarFallback>{initials(member.user.name)}</AvatarFallback></Avatar><div className="min-w-0"><p className="truncate text-sm font-medium text-foreground">{member.user.name}</p><p className="truncate text-xs text-muted-foreground">{member.user.email}</p><p className="mt-1 text-xs text-muted-foreground">{statusLabel[member.status] ?? member.status}</p></div></div>
+        <div className="flex flex-wrap gap-2">{member.status === 'invited' && canInvite ? <Button disabled={busyId === member.id} size="small" variant="outline" onClick={() => { void resend(member); }}><FontAwesomeIcon aria-hidden="true" icon={faPaperPlane}/>{busyId === member.id ? 'Отправляем…' : 'Повторить приглашение'}</Button> : null}{canManage ? <Button disabled={busyId === member.id} size="small" variant={member.status === 'disabled' ? 'outline' : 'secondary'} onClick={() => { void update(member, member.status === 'disabled' ? 'active' : 'disabled'); }}>{busyId === member.id ? 'Обновляем…' : member.status === 'disabled' ? 'Включить доступ' : 'Отключить доступ'}</Button> : null}</div>
+      </li>)}</ul> : <div className="grid min-h-36 place-items-center text-center"><div><p className="font-medium text-foreground">Доступ к кабинету не настроен</p><p className="mt-1 text-sm text-muted-foreground">{canInvite ? 'Добавьте email сотрудника в профиле, чтобы отправить приглашение.' : 'Для сотрудника пока нет отдельной учётной записи.'}</p></div></div>}
+      {message ? <div className="mt-4"><FormMessage message={message} /></div> : null}
+    </CardContent>
+  </Card>;
+}

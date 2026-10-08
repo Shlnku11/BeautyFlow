@@ -2,7 +2,7 @@
 
 ## 2026-10-08 — Передача: этап 4 (радикальная доработка)
 
-Текущий статус: этап 4 закрыт на 7 из 13 экранов. Подтверждённый последний коммит кода — `a880043` (`fix(services): add responsive service cards`); перед обновлением этого файла дерево было чистым. Routing/404 не начинались и остаются без изменений.
+Текущий статус: этап 4 закрыт на 8 из 13 экранов. Последняя завершённая область — Staff (список + карточка специалиста с пятью вкладками); подробная проверка добавлена ниже. Routing/404 в этой работе не менялись и остаются отложенными.
 
 Закрытые изменения:
 
@@ -14,15 +14,25 @@
 - `73cd4d3` — адаптивные оплаты до 1536px.
 - `8ba183a` — адаптивные записи до 1280px.
 - `a880043` — адаптивные услуги до 1120px.
+- Staff — адаптивный список и детальная карточка с вкладками Профиль / Расписание / Исключения / Услуги / Доступ; Chromium E2E и light/dark screenshots готовы. Коммит: будет записан в передаче после фиксации.
 
 Осталось для следующего исполнителя:
 
-- Этап 4: Staff, Dashboard, Landing, Login, Register, Settings, My-day, Public-booking, 404/routing.
+- Этап 4: Dashboard, Landing, Login, Register/Verify-email, Settings, My-day, Public-booking. 404/routing не менять до отдельного решения.
 - Этап 5: Motion + GSAP анимации (скиллы установлены, но не применены).
 - Этап 6: эскизы 24 страниц.
 - Этап 7: презентация, walkthrough, финальные скриншоты.
 
 Команды: существующий MongoDB контейнер `docs-master-architecture-md-1-3-mongo-1` на `27018` (при необходимости `docker start docs-master-architecture-md-1-3-mongo-1`; новый не создавать), затем `npm run migrate`, `npm run seed`, `npm run dev`. Проверки: `npm run typecheck && npm run lint && npm test`, `npm run test:race`, `npm run test:e2e`, `npm run test:a11y`, `npm run check:contrast`, `npm run build`. Демо-вход: `owner@demo.local` / `demo-password-123`.
+
+## 2026-10-08 — Stage 4 Staff (list + profile tabs)
+
+- Список сотрудников оформлен через shadcn primitives: плотная таблица для широких экранов и карточки до 1279px, summary, поиск по имени/email/телефону, фильтр inactive, реальные service counts из tenant services, состояния loading/error/retry/empty, доступная форма создания.
+- Карточка специалиста получила identity header и пять keyboard-operable вкладок: профиль, расписание, исключения, услуги, доступ. Формы используют labels, permission-aware read-only state, status feedback; деактивация с будущими записями подтверждается управляемым Dialog.
+- `tests/e2e/a11y/staff-management.spec.ts`: real Chromium + existing Mongo seed; owner login через UI; проверены пять ширин 320/375/768/1024/1440, обе темы, axe для списка и каждой вкладки, arrow-key tab navigation, поиск/empty/clear, required validation, network abort + retry и сохранение профиля. Staff E2E ✅ 1/1.
+- Screenshots: `docs/screenshots/staff-list-after-{light,dark}.png`, `staff-list-mobile-after-{light,dark}.png`, `staff-{profile,schedule,exceptions,services,access}-after-{light,dark}.png`.
+- Сборка/проверки этого прохода: typecheck ✅, lint ✅, Vitest 32 файла / 118 тестов ✅, race 2/2 ✅, build ✅ (upstream `use client` + крупный client chunk warning), contrast ✅, `test:a11y` 7/7 ✅, полный `test:e2e` 18/18 ✅. В промежуточном прогоне была разовая Windows screenshot file-open ошибка у payments; изолированный payments E2E, полный a11y и повторный полный E2E прошли.
+- Smoke registration locator обновлён: список с корректной кнопкой и empty-state кнопкой теперь выбирает header action, а оплаты проверяются в реальной responsive card, не desktop table. Изменения только в UI Staff, E2E и документации; backend/contracts/`.env` не тронуты.
 
 ## 2026-10-08 — Runtime/UI stabilization after partial shadcn WIP
 

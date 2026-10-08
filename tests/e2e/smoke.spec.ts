@@ -104,7 +104,7 @@ test('business owner can register and log back in using a server-side session', 
   expect(createdService).toMatchObject({ name: 'E2E haircut', durationMinutes: 30, priceMinor: 2500, staffIds: [createdStaff.id] });
   await page.goto('/app/services');
   await expect(page.getByRole('heading', { name: 'Услуги' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'E2E haircut' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'E2E haircut', exact: true })).toBeVisible();
 
   const scheduleResponse = await page.request.put(`http://localhost:3000/api/staff/${createdStaff.id}/schedule`, {
     headers: { Origin: 'http://localhost:5173' },
@@ -251,13 +251,14 @@ test('business registration through the browser form opens the owner dashboard',
   const staffName = 'Алия';
   await page.goto('/app/staff');
   await page.getByRole('heading', { name: 'Сотрудники' }).waitFor();
-  await page.getByRole('button', { name: '＋ Сотрудник' }).first().click();
-  await page.getByLabel('Имя').fill(staffName);
-  await page.getByRole('button', { name: 'Добавить', exact: true }).click();
-  await expect(page.getByRole('link', { name: staffName })).toBeVisible();
-  await page.getByRole('link', { name: staffName }).click();
+  await page.getByRole('button', { name: 'Добавить сотрудника' }).first().click();
+  await page.getByLabel('Имя сотрудника').fill(staffName);
+  await page.getByRole('button', { name: 'Добавить сотрудника', exact: true }).click();
+  const staffLink = page.getByRole('link', { name: `Открыть профиль сотрудника ${staffName}` });
+  await expect(staffLink).toBeVisible();
+  await staffLink.click();
   await page.getByRole('tab', { name: 'Расписание' }).click();
-  const monday = page.locator('label').filter({ hasText: 'Понедельник' }).locator('input[type="checkbox"]');
+  const monday = page.getByRole('checkbox', { name: 'Понедельник' });
   await monday.check();
   await page.getByLabel('Понедельник: начало').fill('09:00');
   await page.getByLabel('Понедельник: конец').fill('17:00');
@@ -273,7 +274,7 @@ test('business registration through the browser form opens the owner dashboard',
   await page.getByLabel('Цена').fill('25');
   await page.getByRole('checkbox', { name: staffName }).check();
   await page.getByRole('button', { name: 'Создать услугу' }).click();
-  await expect(page.getByRole('cell', { name: serviceName })).toBeVisible();
+  await expect(page.getByRole('cell', { name: serviceName, exact: true })).toBeVisible();
 
   const bookingDate = new Date();
   const untilMonday = (8 - bookingDate.getDay()) % 7 || 7;
@@ -319,7 +320,8 @@ test('business registration through the browser form opens the owner dashboard',
   await paymentDialog.getByLabel(/Сумма/).fill('25.00');
   await paymentDialog.getByRole('button', { name: 'Сохранить оплату' }).click();
   await expect(paymentDialog).toBeHidden();
-  await expect(page.getByRole('cell', { name: 'Оплачено' })).toBeVisible();
+  const paidPaymentCard = page.getByRole('list', { name: 'Карточки оплат' }).getByRole('listitem').filter({ hasText: 'Runtime Client' });
+  await expect(paidPaymentCard.getByText('Оплачено', { exact: true })).toBeVisible();
 
   if (!manageUrl) throw new Error('Public booking did not provide a manage link');
   await page.goto(manageUrl);

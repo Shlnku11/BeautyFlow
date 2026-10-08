@@ -4,7 +4,7 @@
 
 ### Текущий этап
 
-Этап 4 — радикальная доработка интерфейса: закрыто 7 из 13 экранов. Последний коммит кода `a880043` (`fix(services): add responsive service cards`) проверен; до обновления этой передачи рабочее дерево было чистым. Routing и 404 в этой сессии не менялись.
+Этап 4 — радикальная доработка интерфейса: закрыто 8 из 13 экранов. Staff list + profile tabs реализованы и проверены в реальном Chromium; кодовый коммит этой работы будет указан после фиксации изменений. Routing и 404 в этой сессии не менялись и остаются отложенными.
 
 ### Что сделано в текущем этапе
 
@@ -16,10 +16,11 @@
 - `73cd4d3` — адаптивные оплаты до 1536px.
 - `8ba183a` — адаптивные записи до 1280px.
 - `a880043` — адаптивные услуги до 1120px.
+- Текущая работа — Staff: responsive list, пять профильных вкладок, light/dark и mobile screenshots, axe/keyboard/error-state regression; подробности — в `PROGRESS.md` и `docs/AUDIT.md`.
 
 ### Что осталось
 
-- Этап 4: Staff, Dashboard, Landing, Login, Register, Settings, My-day, Public-booking и 404/routing. 404/routing не начинать до отдельного продолжения.
+- Этап 4: Dashboard, Landing, Login, Register/Verify-email, Settings, My-day и Public-booking. Routing/404 не менять без отдельного решения.
 - Этап 5: анимации Motion + GSAP — установленные скиллы пока не применены.
 - Этап 6: эскизы 24 страниц.
 - Этап 7: презентация, walkthrough и финальные скриншоты.
@@ -39,6 +40,12 @@
 - `npm run build`
 
 После обновления handoff отдельные проверки не запускались; см. подтверждённые результаты в записях ниже и запускайте их заново перед дальнейшими изменениями.
+
+## Обновление 2026-10-08 — Staff
+
+- Реальная MongoDB на порту 27018 использована Playwright Chromium; новый контейнер не создавался.
+- Staff list/detail проверены на 320/375/768/1024/1440px, в light/dark и axe без serious/critical; пять вкладок, arrow-key navigation, error/retry/empty/validation/save states; loading skeleton реализован. Отчёт и screenshots см. `docs/AUDIT.md` / `PROGRESS.md`.
+- Typecheck/lint ✅; unit+integration+API 118/118 ✅; race 2/2 ✅; build ✅ с upstream `use client` и large client chunk warnings; contrast ✅; `test:a11y` 7/7 ✅; полный `test:e2e` ✅ 18/18.
 
 ## Обновление 2026-10-08 — стабилизация после WIP
 
@@ -79,27 +86,27 @@
 - **Сессия не сохраняется между заходами браузера** — проверить настройки cookie (в частности Max-Age/Expires и режим persistent session) и воспроизвести повторный вход после закрытия браузера. Архитектуру cookie-сессий не менять без проверки контрактов.
 - **Google OAuth:** backend optional flow уже есть; кнопки входа через Google в UI нет. Без credentials должен оставаться безопасный fallback.
 - **Email-код при входе:** новая фича для password login, пока не реализована; код при регистрации не считать закрытием этой задачи.
-- **Shadcn/UI:** установка и миграция частичные. Компоненты и файлы перечислены выше; необходимо сначала исправить компиляцию/импорты, подключить primitives к реальным features (Table/Card/Tabs/Select/Dialog/Dropdown/Sheet/Avatar/Toast/Form), удалить старые UI-обёртки, убрать Lucide и проверить настоящие браузерные экраны.
+- **Shadcn/UI:** установка и migration частичные. Staff теперь проверен как реальный feature на shadcn primitives; в других feature ещё нужно последовательно проверить Table/Card/Tabs/Select/Dialog/Dropdown/Sheet/Avatar/Toast/Form, старые UI-обёртки и Lucide.
 - **Дизайн не соответствует Linear-референсу.** Наличие shadcn dependency само по себе ничего не подтверждает. Проверить визуально и по коду, что компоненты реально используются в `features/*`; до этого дизайн не принимать.
 
 ### P1 — после P0
 
-- Провести итоговый визуальный аудит с оценкой 0–10 каждого экрана: dashboard, calendar, customers, staff, services, payments, settings, landing, login, register, my-day, public booking и appointment modal; довести каждый экран до 10/10.
+- Провести итоговый визуальный аудит остальных экранов: dashboard, landing, login, register, settings, my-day, public booking и 404/error states. Staff list/detail закрыт текущим этапом; предыдущие responsive-переделки перечислены в `docs/AUDIT.md`.
 - Сделать скриншоты всех перечисленных экранов в light и dark темах.
 - Записать walkthrough video.
-- Прогнать полный E2E и a11y на реальном Docker runtime/Mongo replica set; сейчас Docker в последней проверке был недоступен, новый контейнер не создавать.
+- Full E2E (18/18) и a11y (7/7) теперь прошли на существующем Mongo Docker runtime на 27018. Production/staging deploy и replica-set restore всё ещё не проверены; новый контейнер не создавать.
 
 ### Проверки и следующая команда
 
-- После WIP diff команды `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:race`, `npm run build`, `npm run test:e2e`, `npm run check:contrast`, `npm run test:a11y` **не запускались**. Использовать прежние зелёные результаты только как baseline до текущей незавершённой миграции.
-- Начать с `git status`, открыть WIP-коммит и исправить client compile errors; затем проверить реальные feature screens и выполнить весь набор.
+- Latest gate после Staff: typecheck/lint ✅, unit+integration+API 118/118 ✅, race 2/2 ✅, build ✅, contrast ✅, `test:a11y` 7/7 ✅, `test:e2e` 18/18 ✅. Предыдущие записи в секциях ниже — исторические результаты recovery до этого прохода.
+- Следующее продолжение — Dashboard как следующий экран этапа 4; учитывать список оставшихся экранов в актуальной передаче выше и обновить `PROGRESS.md` после завершения.
 - Backend, API contracts, Mongo architecture and `.env` в этом WIP намеренно не менялись.
 
 ## Стек
 Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, packages/server, packages/shared.
 
-## Текущий этап
-Этапы функциональности 1–12/12 реализованы. Текущая работа — финальный UI/runtime audit после redesign-коммитов до `9d5f50d`; этот audit заменяет устаревшие статусные заметки ниже. Проект использует Inter Variable, нейтральные light/dark токены, feature-first frontend-разделение, календарные сетки day/week/month и реальные dashboard/calendar screenshots на landing. Production deployment не выполнен; остаются 5 high dev-only advisories.
+## Историческая сводка функциональности (обновлено в актуальной передаче выше)
+Этапы функциональности 1–12/12 реализованы. Этот audit продолжает UI redesign после `9d5f50d`; актуальный статус Stage 4 находится в первых разделах handoff. Проект использует Inter Variable, нейтральные light/dark токены, feature-first frontend-разделение, календарные сетки day/week/month и реальные dashboard/calendar screenshots на landing. Production deployment не выполнен; остаются 5 high dev-only advisories.
 
 ## Последний коммит кода
 `8376ab4 docs(project): add protection materials and audit updates`
@@ -136,9 +143,9 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Платёжные UI/API сценарии отдельно в E2E не проверялись; stage 9 unit/integration/race были зелёными.
 
 ## Известные проблемы / TODO
-- На текущем ноутбуке Docker Desktop daemon недоступен, поэтому существующий контейнер MongoDB на 27018 не запущен. Новый контейнер не создавать. Вследствие этого реальные login/session/CRUD/API E2E проверить нельзя; API сейчас возвращает 500 при обращении к Mongo.
-- APT-02 backend flow визуально через календарь в текущем runtime не подтверждён из-за недоступной MongoDB. Сам handler/service не показал воспроизводимую ошибку в имеющихся изолированных тестах; повторить после запуска существующего DB контейнера.
-- `/app/appointments` переведён на отдельную сгруппированную таблицу с фильтрами; проверить её в авторизованном браузерном сценарии, когда Mongo доступна.
+- Текущая проверка использовала существующий контейнер MongoDB на 27018; новый контейнер не создавался. Полный E2E/a11y прошёл через реальный Docker runtime.
+- Production/staging deployment, replica-set backup/restore, TLS/DNS/monitoring и SMTP не проверены.
+- `/app/appointments` переведён на сгруппированные строки/карточки; responsive Chromium E2E проходил в последней проверке.
 - Уведомления в topbar пока имеют честный текст «Центр уведомлений скоро появится», а не очередь пользовательских уведомлений.
 - Добавлены `docs/PROJECT_SUMMARY.md`, `docs/PRESENTATION.md`, Reveal.js deck `docs/presentation/index.html`, экспорт `docs/presentation.pdf` (14 слайдов/страниц) и команда `npm run presentation:pdf`.
 - При последующих изменениях поддерживать route×role/A/B gate в соответствии с PERMISSIONS_MATRIX.md; staging security exercise ещё не проводился.
@@ -146,7 +153,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Реальный production deployment не проверялся.
 - Build выводит предупреждения о директивах `"use client"` в зависимости React; сборка успешна.
 
-## Зелёные тесты на момент остановки
+## Исторические результаты тестов до текущего прохода
 - Текущий audit (2026-10-07): `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅ (upstream directives и chunk >500kB warnings), `npm run check:contrast` ✅, `tests/integration/payments.test.ts` 6/6 ✅ после исправления тестового диапазона на динамическую дату.
 - Full `npm test -- --maxWorkers=1` ✅ 31 файл / 115 тестов; `npm run test:race` ✅ 2/2.
 - Focused Playwright run остановлен: webServer ждёт HTTP health/readiness, потому что Mongo недоступна. В браузере вручную открыты и визуально проверены `/` (landing) и `/login`; `/app/*` требует работающей Mongo/session. В `tests/e2e/smoke.spec.ts` добавлена регрессия на таблицу записей и закрытие appointment dialog; она пока не прогнана.
@@ -185,4 +192,4 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 - Работать блоками. Коммит после каждого.
 
 ## Что дальше
-Сверить текущий layout и календарь с бизнесом на реальном устройстве, при необходимости продолжить декомпозицию CRUD `Operations.tsx`, затем пройти deploy по `docs/DEPLOY.md`: replica set, TLS, секреты, backup restore, мониторинг и реальные email пока не проверены. Решение по 5 high dev-only npm audit advisories отложено, Tailwind 4 остаётся post-MVP. Google OAuth optional и работает только после настройки credentials; без них UI показывает «Скоро», email/password и email-код не затронуты. Сохранять ограничения проекта и проверять `PROGRESS.md`.
+Продолжить этап 4 со следующего экрана — Dashboard; актуальный список хвостов записан в начале этого файла и `PROGRESS.md`. После экранов 4-го этапа перейти к Motion/GSAP, эскизам и финальным материалам. Deploy по `docs/DEPLOY.md` (replica set, TLS, секреты, backup restore, мониторинг и production email) остаётся отдельным незакрытым блоком. Решение по 5 high dev-only npm audit advisories отложено, Tailwind 4 остаётся post-MVP. Google OAuth optional и работает только после настройки credentials; без них UI показывает «Скоро», email/password и email-код не затронуты. Сохранять ограничения проекта и проверять `PROGRESS.md`.
