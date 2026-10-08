@@ -4,7 +4,7 @@
 
 ### Текущий этап
 
-Этап 4 — радикальная доработка интерфейса: закрыто 8 из 13 экранов. Staff list + profile tabs реализованы и проверены в реальном Chromium; кодовый коммит этой работы будет указан после фиксации изменений. Routing и 404 в этой сессии не менялись и остаются отложенными.
+Этап 4 — радикальная доработка интерфейса: закрыто 8 из 13 экранов. Staff list + profile tabs реализованы и проверены в реальном Chromium. Последний коммит кода: `3878b18 feat(stage-4): redesign staff screens`. Routing и 404 в этой сессии не менялись и остаются отложенными.
 
 ### Что сделано в текущем этапе
 
@@ -16,7 +16,7 @@
 - `73cd4d3` — адаптивные оплаты до 1536px.
 - `8ba183a` — адаптивные записи до 1280px.
 - `a880043` — адаптивные услуги до 1120px.
-- Текущая работа — Staff: responsive list, пять профильных вкладок, light/dark и mobile screenshots, axe/keyboard/error-state regression; подробности — в `PROGRESS.md` и `docs/AUDIT.md`.
+- `3878b18` — Staff: responsive list, пять профильных вкладок, light/dark и mobile screenshots, axe/keyboard/error-state regression; подробности — в `PROGRESS.md` и `docs/AUDIT.md`.
 
 ### Что осталось
 
@@ -109,7 +109,7 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 Этапы функциональности 1–12/12 реализованы. Этот audit продолжает UI redesign после `9d5f50d`; актуальный статус Stage 4 находится в первых разделах handoff. Проект использует Inter Variable, нейтральные light/dark токены, feature-first frontend-разделение, календарные сетки day/week/month и реальные dashboard/calendar screenshots на landing. Production deployment не выполнен; остаются 5 high dev-only advisories.
 
 ## Последний коммит кода
-`8376ab4 docs(project): add protection materials and audit updates`
+`3878b18 feat(stage-4): redesign staff screens`
 
 Предыдущие commits этого продолжения: `728884a fix(ui): improve appointment workflows and dialog behavior`, `c9eee18 docs(handoff): record runtime audit commit`. Redesign baseline до аудита: `9d5f50d WIP: design polish (tokens, layout, calendar) - limit reached`.
 
