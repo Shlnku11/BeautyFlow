@@ -278,6 +278,16 @@
 - Проверки после перестройки: typecheck ✅, lint ✅, `npm test` 31 файл / 115 тестов ✅, race 2/2 ✅, build ✅ (upstream warnings «use client» и chunk >500 kB), E2E 11/11 ✅, contrast ✅, a11y/responsive suite 1/1 ✅. Responsive E2E покрывает 320/375/768/1024/1440 px.
 - Ограничения на дату этой записи: CRUD экраны разнесены по feature-папкам; `features/operations/Operations.tsx` — barrel exports. Внутренняя декомпозиция каждого feature на `components/hooks/api/types` остаётся follow-up.
 
+## 2026-10-09 — Calendar modal stability + availability
+
+- Исправлен цикл обновлений при быстром создании записи на календаре: список видимых мастеров стабилен между рендерами, query `?create=1` обрабатывается один раз и может использоваться повторно после закрытия модалки. Typecheck после правки прошёл.
+- Устранён cold-start 500 в APT-02: перед чтением сессии runtime ожидает подключение MongoDB. Первый аутентифицированный запрос на свежем API процессе прошёл успешно.
+- 11.10.2026 — воскресенье. Мария работает по графику понедельник–суббота, исключения на воскресенье нет; свободного слота в 08:00 нет из-за выходного салона, а не занятой записи. На понедельник 12.10.2026 через UI создана запись 11:15 к Анне на стрижку со статусом «Ожидает подтверждения». Модалка закрывается кнопками; повторный update loop устранён.
+- Скриншоты результата: `docs/screenshots/bugfix/appointment-create-modal.png` и `docs/screenshots/bugfix/calendar-after-booking.png`.
+- Итоговые проверки блока: `npm run typecheck` ✅ и `npm run build` ✅. Сохранились bundler warnings об upstream `use client` директивах и главном клиентском chunk 540.84 kB.
+- Остаётся: полный аудит backend и frontend; завершить email-код при входе и регистрации; завершить Google OAuth UI; презентация для защиты.
+- Команды запуска (проект на порту **5174**, порт 5173 занят другим приложением): `docker start docs-master-architecture-md-1-3-mongo-1`, `npm run migrate`, `npm run seed`, `npm run dev`, `npm run worker` (worker в отдельном терминале).
+
 ## Runtime/design audit continuation (2026-10-07)
 
 - `/app/appointments` больше не выводит calendar API как плоский список: добавлена отдельная сгруппированная по дате таблица с поиском и фильтрами статуса, мастера, источника и периода. Действия находятся в меню строки; оплата доступна там или из диалога записи, не размножается на каждой строке.

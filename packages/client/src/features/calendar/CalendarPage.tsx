@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DateTime } from 'luxon';
 import { useLocation, useNavigate } from 'react-router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -154,6 +154,7 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const [date, setDate] = useState('');
   const [view, setView] = useState<'day' | 'week' | 'month' | 'appointments'>(initialView);
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const createQueryHandled = useRef(false);
   const [data, setData] = useState<CalendarPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -201,23 +202,29 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const day = DateTime.fromISO(activeDate || DateTime.now().setZone(zone).toISODate() || '', { zone });
   const firstDay = view === 'week' ? day.startOf('week') : day;
   const days = Array.from({ length: view === 'week' ? 7 : view === 'month' ? 35 : 1 }, (_, index) => (view === 'month' ? day.startOf('month').startOf('week') : firstDay).plus({ days: index }));
-  const visibleStaff = (data?.staff ?? []).filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.id));
+  const visibleStaff = useMemo(() => (data?.staff ?? []).filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.id)), [data?.staff, selectedStaffIds]);
   const columnsClass = days.length === 7 ? 'grid-cols-[56px_repeat(7,minmax(130px,1fr))]' : view === 'day' ? 'grid-cols-[44px_minmax(0,1fr)] sm:grid-cols-[56px_minmax(300px,1fr)]' : 'grid-cols-[56px_minmax(300px,1fr)]';
   const calendarContentWidth = view === 'day' ? 'w-full min-w-0 sm:min-w-[780px]' : 'w-full min-w-[780px]';
+  const hasCreateQuery = new URLSearchParams(location.search).has('create');
   const createAt = (dayIso: string, staff: string, minute: number) => {
     const start = DateTime.fromISO(dayIso, { zone }).startOf('day').plus({ minutes: minute });
     setCreateSlot({ date: dayIso, startAt: start.toUTC().toISO() ?? '', staffId: staff });
   };
   function toggleStaff(id: string) { setSelectedStaffIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]); }
   useEffect(() => {
-    if (!data || !canBook || !new URLSearchParams(location.search).has('create')) return;
+    if (!hasCreateQuery) {
+      createQueryHandled.current = false;
+      return;
+    }
+    if (!data || !canBook || createQueryHandled.current) return;
+    createQueryHandled.current = true;
     const current = DateTime.now().setZone(zone);
     const roundedMinute = Math.ceil((current.hour * 60 + current.minute + 1) / 15) * 15;
     const minute = Math.min(20 * 60, Math.max(dayStartMinute, roundedMinute));
     const staff = visibleStaff[0];
     createAt(current.toISODate() ?? activeDate, staff?.id ?? '', minute);
     navigate('/app/calendar', { replace: true });
-  }, [data, canBook, location.search, zone, visibleStaff, activeDate, navigate]);
+  }, [data, canBook, hasCreateQuery, zone, visibleStaff, activeDate, navigate]);
 
   return <main className="mx-auto w-full max-w-[1600px] p-4 md:p-6">
     <div className="flex flex-wrap items-center justify-between gap-4">

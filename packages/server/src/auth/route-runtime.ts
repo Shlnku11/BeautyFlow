@@ -6,6 +6,7 @@ import { Appointment, Business } from '../db/models';
 import { configureRouteRuntime, type RouteRuntime } from '../http/define-route';
 import { AuthRepository } from '../repositories/auth-repository';
 import { hashSessionToken } from './session-token';
+import { connectToDatabase } from '../db/connection';
 
 const repository = new AuthRepository();
 
@@ -19,6 +20,7 @@ export const routeRuntime: RouteRuntime = {
   async resolveTenantContext(request): Promise<TenantContext | null> {
     const token = cookieToken(request);
     if (!token) return null;
+    await connectToDatabase();
     const session = await repository.findSessionByTokenHash(hashSessionToken(token));
     if (!session || session.expiresAt <= new Date() || session.absoluteExpiresAt <= new Date()) return null;
     const [user, membership] = await Promise.all([
