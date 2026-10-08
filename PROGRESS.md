@@ -43,6 +43,13 @@
 - Evidence: `tests/e2e/a11y/customer-detail.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run test:a11y` ✅ (2/2); screenshots `docs/screenshots/customer-detail-after-light.png` and `customer-detail-after-dark.png`.
 - Remaining customer work: responsive card view for the customer list and separate master/error-state coverage. Next Stage 4 priorities stay in `docs/AUDIT.md`.
 
+## 2026-10-08 — Stage 4 customer list
+
+- Replaced the narrow-screen customer list with linked cards containing name, phone, email fallback, source, and created date formatted in the business timezone; desktop retains the compact table.
+- Added real Chromium coverage against seeded MongoDB rows for card metadata, detail navigation, expected table/card visibility and no overflow at 320/375/768/1024/1440px. Light/dark axe found no serious or critical issues. Screenshots: `docs/screenshots/customers-after-mobile-light.png` and `customers-after-mobile-dark.png`.
+- Fixed the unnamed mobile topbar “new appointment” link exposed by axe: localized accessible name and decorative icon hidden from the accessibility tree.
+- `tests/e2e/a11y/customer-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Customer empty/API-error and master-specific states remain unaudited.
+
 ## WIP 2026-10-07 — shadcn/ui migration paused
 
 - `shadcn@latest` и `radix-nova` конфигурация добавлены в `packages/client`; theme variables light/dark добавлены в `src/index.css`. Компоненты установлены/перегенерированы: Button, Input, Select, NativeSelect, Dialog, Table, Card, Badge, Tabs, Skeleton, DropdownMenu, Avatar, Sheet, Checkbox, RadioGroup, Pagination, Textarea, Label, Sonner. Часть generated classes адаптирована к Tailwind 3 и некоторые icons переведены на Font Awesome.
