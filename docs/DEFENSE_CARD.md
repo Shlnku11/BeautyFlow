@@ -22,6 +22,6 @@
 
 **Как разделены бизнесы?** У документов есть `businessId`; `tenantPlugin` ограничивает запрос активным бизнесом, а роли и permission-проверки ограничивают операции.
 
-**Что осталось?** Production-развёртывание и восстановление backup не проверены; SMTP и Google OAuth требуют настроенных credentials. Для защиты показать локальный сайт и не обещать непроверенный production deploy.
+**Что осталось?** Production-развёртывание, backup restore, SMTP-доставка и реальный Google sign-in не проверены. OAuth credentials заданы локально, но origin/consent в Google Cloud требуют проверки. Для защиты показать локальный сайт и не обещать непроверенный production deploy.
 
 Полный сценарий и ответы комиссии: [`../DEFENSE_WALKTHROUGH.md`](../DEFENSE_WALKTHROUGH.md).

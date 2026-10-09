@@ -1,6 +1,6 @@
 # BeautyFlow — сценарий защиты на 5 минут
 
-Подготовка: запустить MongoDB и приложение на `http://localhost:5174`, восстановить demo-данные и проверить свободный слот. Для входа владельца использовать `owner@demo.local` / `demo-password-123` — demo-вход завершается без ручного ввода OTP. Google OAuth оставлен выключенным с подписью «Скоро появится», так как credentials не заданы. Порт `5173` занят.
+Подготовка: запустить MongoDB и приложение на `http://localhost:5174`, проверить demo-данные и свободный слот. Для входа владельца использовать `owner@demo.local` / `demo-password-123` — demo-вход завершается без ручного ввода OTP. Google OAuth credentials добавлены в локальный `.env`, но вход через Google и разрешённый OAuth origin в этом проходе не проверялись; для стабильного показа используйте demo-аккаунт. Порт `5173` занят.
 
 ## Сценарий
 
@@ -121,7 +121,7 @@ npm run dev
 - Центр уведомлений: [светлая](docs/screenshots/modals/notifications-light.png) / [тёмная](docs/screenshots/modals/notifications-dark.png).
 - Командный поиск: [светлая](docs/screenshots/modals/command-search-light.png) / [тёмная](docs/screenshots/modals/command-search-dark.png).
 - Мобильные виды: [dashboard владельца](docs/screenshots/mobile-defense/owner-dashboard.png), [месяц календаря](docs/screenshots/mobile-defense/owner-calendar-month.png), [день мастера](docs/screenshots/mobile-defense/master-my-day.png), [публичная запись](docs/screenshots/mobile-defense/public-booking.png).
-- Исправление модалки и запись в календаре: [модалка](docs/screenshots/bugfix/appointment-create-modal.png), [календарь после создания](docs/screenshots/bugfix/calendar-after-booking.png).
+- Исправление модалки: [кадр формы создания](docs/screenshots/bugfix/appointment-create-modal.png). Исторический кадр календаря после создания сейчас отсутствует в рабочем дереве; результат лучше показать в живом календаре.
 
 Перед защитой откройте [короткую карточку](docs/DEFENSE_CARD.md); для живого демо предпочтительнее использовать данные работающего приложения, а скриншоты держать как резерв.
 
