@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090B">
+  <meta name="description" content="Интерактивная презентация BeautyFlow — SaaS CRM и онлайн-запись для салонов красоты.">
+  <title>BeautyFlow — защита проекта</title>
+  <style>
+    :root{color-scheme:dark;--bg:#09090B;--surface:#18181B;--surface-2:#202024;--border:#27272A;--text:#FAFAFA;--muted:#A1A1AA;--accent:#7C7CE8;--accent-soft:rgba(124,124,232,.14);--green:#85D4B3;--amber:#E7C98C;--red:#E99A9A;--ease-out:cubic-bezier(.23,1,.32,1);--slide-duration:400ms;font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;font-synthesis:none;text-rendering:optimizeLegibility;font-optical-sizing:auto}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--text)}
+    body{font-size:clamp(14px,1.08vw,17px);line-height:1.5;background:radial-gradient(ellipse at 78% 13%,rgba(124,124,232,.10),transparent 34%),radial-gradient(ellipse at 5% 86%,rgba(124,124,232,.07),transparent 31%),var(--bg)}
+    button{font:inherit;color:inherit}
+    button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    .progress-track{position:fixed;z-index:20;top:0;left:0;width:100%;height:3px;background:rgba(255,255,255,.06)}
+    .progress-value{height:100%;width:100%;background:linear-gradient(90deg,#7777dc,var(--accent));transform:scaleX(0);transform-origin:left;transition:transform 260ms ease}
+    .topbar{position:fixed;z-index:10;top:0;left:0;right:0;height:78px;padding:18px clamp(20px,4vw,64px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.055);background:rgba(9,9,11,.72);backdrop-filter:blur(18px)}
+    .brand{display:inline-flex;align-items:center;gap:11px;text-decoration:none;color:var(--text);font-weight:650;letter-spacing:-.03em}
+    .brand-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#8585f4,#5c5cc2);box-shadow:0 6px 22px rgba(124,124,232,.24)}
+    .brand-mark svg{width:21px;height:21px}
+    .brand-name{font-size:15px}
+    .brand-caption{margin-left:8px;color:var(--muted);font-size:12px;font-weight:450;letter-spacing:0}
+    .top-actions{display:flex;align-items:center;gap:8px}
+    .icon-button,.nav-button{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:12px;cursor:pointer;transition:background 180ms ease,border-color 180ms ease,color 180ms ease}
+    .icon-button{width:40px;height:40px;color:#D4D4D8}
+    .icon-button svg,.nav-button svg{width:18px;height:18px}
+    .icon-button:hover,.nav-button:hover:not(:disabled){background:var(--accent-soft);border-color:rgba(124,124,232,.42);color:#fff}
+    .stage{position:fixed;inset:78px 0 78px;display:grid;place-items:center;padding:16px clamp(14px,3.2vw,52px)}
+    .slide{position:relative;display:none;width:min(1480px,100%);height:100%;max-height:calc(100vh - 112px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3F3F46 transparent;padding:clamp(20px,3.2vw,52px);border:1px solid rgba(255,255,255,.065);border-radius:26px;background:linear-gradient(145deg,rgba(24,24,27,.94),rgba(15,15,18,.94));box-shadow:0 34px 100px rgba(0,0,0,.28)}
+    .slide.active{display:flex;flex-direction:column;animation:slide-arrive var(--slide-duration) var(--ease-out) both}
+    @keyframes slide-arrive{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .slide-inner{display:flex;flex:1;min-height:0;flex-direction:column;justify-content:center;gap:clamp(18px,2.3vh,28px)}
+    .eyebrow{display:flex;align-items:center;gap:10px;margin:0;color:#B7B7F4;font-size:11px;font-weight:650;letter-spacing:.15em;text-transform:uppercase}
+    .eyebrow:before{content:"";width:23px;height:1px;background:var(--accent)}
+    h1,h2,h3,p{margin-top:0}
+    h1,h2,h3{letter-spacing:-.055em}
+    h1{max-width:940px;margin-bottom:0;font-size:clamp(42px,7vw,92px);line-height:.99;font-weight:690}
+    h2{margin-bottom:0;font-size:clamp(30px,4.1vw,54px);line-height:1.08;font-weight:650}
+    h3{margin-bottom:8px;font-size:clamp(17px,1.55vw,22px);line-height:1.18;font-weight:620}
+    .lead{max-width:740px;margin:0;color:#C4C4CC;font-size:clamp(17px,2vw,25px);line-height:1.48;letter-spacing:-.025em}
+    .muted{color:var(--muted)}
+    .small{font-size:13px;color:var(--muted)}
+    .slide-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+    .slide-heading .heading-copy{display:grid;gap:12px}
+    .slide-number{color:#4E4E57;font-size:clamp(50px,9vw,112px);font-weight:700;line-height:.8;letter-spacing:-.09em;font-variant-numeric:tabular-nums}
+    .glass-card{border:1px solid var(--border);border-radius:18px;background:linear-gradient(145deg,rgba(38,38,43,.82),rgba(24,24,27,.92));box-shadow:0 12px 34px rgba(0,0,0,.14)}
+    .hover-card{transition:transform 220ms var(--ease-out),border-color 220ms ease,box-shadow 220ms ease}
+    @media(hover:hover) and (pointer:fine){.hover-card:hover{transform:translateY(-4px);border-color:rgba(124,124,232,.5);box-shadow:0 18px 42px rgba(0,0,0,.28)}.feature-icon:hover{transform:scale(1.05)}}
+    .icon-tile{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(124,124,232,.22);border-radius:13px;background:var(--accent-soft);color:#B8B8FF}
+    .icon-tile svg{width:21px;height:21px;transition:transform 180ms ease}
+    .feature-icon{transition:transform 180ms ease}
+    .footer{position:fixed;z-index:10;left:0;right:0;bottom:0;height:78px;padding:13px clamp(20px,4vw,64px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;border-top:1px solid rgba(255,255,255,.055);background:rgba(9,9,11,.78);backdrop-filter:blur(18px)}
+    .key-hint{display:flex;align-items:center;gap:8px;color:#8E8E98;font-size:11px;white-space:nowrap}
+    kbd{padding:3px 6px;border:1px solid #3A3A41;border-radius:6px;background:#18181B;color:#D4D4D8;font:600 10px Inter,ui-sans-serif,sans-serif;box-shadow:0 1px 0 #3A3A41}
+    .dots{display:flex;align-items:center;justify-content:center;gap:7px}
+    .dot{width:7px;height:7px;padding:0;border:0;border-radius:999px;background:#45454D;cursor:pointer;transition:width 180ms ease,background 180ms ease,transform 180ms ease}
+    .dot[aria-current="true"]{width:24px;background:var(--accent)}
+    @media(hover:hover) and (pointer:fine){.dot:hover{transform:scale(1.25);background:#B7B7F4}}
+    .nav-cluster{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+    .slide-count{min-width:62px;text-align:center;color:#D4D4D8;font-size:12px;font-variant-numeric:tabular-nums}
+    .nav-button{width:38px;height:38px;color:#D4D4D8}
+    .nav-button:disabled{opacity:.35;cursor:default}
+    .hero{min-height:100%;display:grid;place-items:center;text-align:center}
+    .hero-content{display:grid;justify-items:center;gap:28px;max-width:1000px}
+    .hero-logo{width:88px;height:88px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.14);border-radius:28px;background:linear-gradient(145deg,#8787f0,#5a5ac1);box-shadow:0 22px 70px rgba(124,124,232,.32)}
+    .hero-logo svg{width:54px;height:54px}
+    .hero h1{font-size:clamp(58px,10vw,132px)}
+    .hero .lead{max-width:710px}
+    .hero-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:4px}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.025);color:#D4D4D8;font-size:12px}
+    .chip-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 12px rgba(133,212,179,.5)}
+    .problem-grid,.feature-grid,.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .problem-card{min-height:200px;padding:21px;display:flex;flex-direction:column;justify-content:space-between}
+    .problem-card p,.feature-card p,.metric-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+    .feature-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .feature-card{min-height:150px;padding:19px;display:grid;align-content:start;gap:13px}
+    .feature-head{display:flex;align-items:center;gap:12px}
+    .feature-head h3{margin:0}
+    .split{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(250px,.8fr);align-items:center;gap:clamp(22px,4vw,62px)}
+    .split.reverse{grid-template-columns:minmax(250px,.82fr) minmax(0,1.18fr)}
+    .screenshot-frame{position:relative;min-width:0;padding:9px;border:1px solid #3D3D46;border-radius:20px;background:#101013;box-shadow:0 24px 70px rgba(0,0,0,.36);overflow:hidden}
+    .screenshot-frame:before{content:"";position:absolute;z-index:1;top:9px;left:9px;right:9px;height:34px;border-bottom:1px solid rgba(24,24,27,.10);border-radius:12px 12px 0 0;background:rgba(250,250,250,.94)}
+    .window-dots{position:absolute;z-index:2;top:21px;left:23px;display:flex;gap:5px}
+    .window-dots i{width:6px;height:6px;border-radius:50%;background:#D4D4D8}
+    .screenshot-frame img{display:block;width:100%;height:clamp(250px,42vh,440px);margin-top:34px;border-radius:0 0 11px 11px;object-fit:cover;object-position:top center;background:#F4F2F1}
+    .screenshot-frame.tall img{height:clamp(260px,48vh,500px)}
+    .screenshot-frame.compact img{height:190px;margin-top:24px}
+    .screenshot-frame.compact:before{top:9px;height:24px}
+    .screenshot-frame.compact .window-dots{top:18px;left:20px}
+    .screenshot-frame.compact .window-dots i{width:5px;height:5px}
+    .caption{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--muted);font-size:11px}
+    .step-list{display:grid;gap:12px;margin:20px 0 0;padding:0;list-style:none}
+    .step-list li{display:flex;align-items:center;gap:12px;color:#D4D4D8;font-size:14px}
+    .step-no{width:27px;height:27px;flex:0 0 auto;display:grid;place-items:center;border:1px solid rgba(124,124,232,.27);border-radius:9px;background:var(--accent-soft);color:#C4C4FF;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+    .metric-card{min-height:198px;padding:20px;display:flex;flex-direction:column;gap:15px}
+    .metric-value{color:#C5C5FF;font-size:clamp(28px,4vw,52px);font-weight:680;line-height:1;letter-spacing:-.07em;font-variant-numeric:tabular-nums}
+    .metric-label{color:#E4E4E7;font-size:14px;font-weight:620}
+    .metric-note{margin-top:auto!important}
+    .architecture{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:12px}
+    .arch-card{min-height:180px;padding:21px;display:grid;align-content:space-between;gap:18px}
+    .arch-card .arch-id{color:#9C9CA8;font-size:11px;font-weight:650;letter-spacing:.13em;text-transform:uppercase}
+    .arch-card strong{display:block;font-size:clamp(18px,2vw,25px);letter-spacing:-.04em}
+    .arch-card span{color:var(--muted);font-size:12px}
+    .arch-arrow{color:#7777DC;font-size:24px}
+    .layer-strip{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-top:16px}
+    .layer{padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.025);color:#D4D4D8;font-size:12px}
+    .tree-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(250px,.75fr);gap:18px;min-height:0}
+    .tree-panel{max-height:min(57vh,610px);overflow:auto;padding:16px;border:1px solid var(--border);border-radius:16px;background:#101013;scrollbar-width:thin;scrollbar-color:#3F3F46 transparent}
+    .tree-panel details{margin:3px 0}
+    .tree-panel summary{width:fit-content;cursor:pointer;list-style:none;color:#D4D4D8;font-size:12px;font-weight:580}
+    .tree-panel summary::-webkit-details-marker{display:none}
+    .tree-panel summary:before{content:"▸";display:inline-block;width:17px;color:#9292ED;transition:transform 160ms ease}
+    .tree-panel details[open]>summary:before{transform:rotate(90deg)}
+    .tree-children{margin:5px 0 8px 10px;padding:0 0 0 14px;border-left:1px solid #303038;list-style:none}
+    .tree-file{width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:2px;margin:3px 0;padding:7px 9px;border:1px solid transparent;border-radius:9px;background:transparent;text-align:left;cursor:pointer}
+    .tree-file:hover,.tree-file[aria-current="true"]{border-color:rgba(124,124,232,.25);background:var(--accent-soft)}
+    .tree-file code{color:#D7D7FF;font:500 11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+    .tree-file span{color:#85858F;font-size:10px;line-height:1.35}
+    .file-detail{align-self:stretch;padding:clamp(18px,2.5vw,30px);display:flex;flex-direction:column;justify-content:space-between;gap:20px}
+    .file-detail .icon-tile{width:46px;height:46px}
+    .file-path{display:block;margin:14px 0;color:#C9C9FF;font:500 12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+    .technology-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+    .technology{min-height:105px;padding:16px;display:grid;align-content:space-between;gap:12px}
+    .tech-wordmark{width:34px;height:34px;display:grid;place-items:center;border:1px solid rgba(124,124,232,.25);border-radius:10px;background:var(--accent-soft);color:#C8C8FF;font-size:12px;font-weight:700;letter-spacing:-.06em}
+    .technology strong{font-size:13px;letter-spacing:-.02em}
+    .technology small{display:block;margin-top:2px;color:#8F8F99;font-size:10px}
+    .tech-note{margin:0;color:#A1A1AA;font-size:11px}
+    .demo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .demo-shot{padding:8px}
+    .demo-shot img{height:clamp(130px,20vh,220px)!important}
+    .demo-label{display:flex;justify-content:space-between;align-items:center;padding:9px 3px 2px;color:#E4E4E7;font-size:12px}
+    .demo-label span:last-child{color:#8F8F99;font-size:10px}
+    .demo-url{display:inline-flex;align-items:center;gap:9px;padding:12px 15px;border:1px solid rgba(124,124,232,.33);border-radius:12px;background:var(--accent-soft);color:#D9D9FF;text-decoration:none;font-size:13px;font-weight:600}
+    .demo-url:hover{background:rgba(124,124,232,.22)}
+    .final{min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:24px}
+    .final h2{max-width:950px;font-size:clamp(40px,6.7vw,84px)}
+    .final-status{display:inline-flex;align-items:center;gap:10px;width:fit-content;padding:9px 13px;border:1px solid rgba(133,212,179,.25);border-radius:999px;background:rgba(133,212,179,.08);color:#BDE9D6;font-size:12px}
+    .roadmap{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
+    .footer-note{justify-self:start;color:#85858F;font-size:11px}
+    dialog{max-width:min(520px,calc(100vw - 32px));padding:0;border:1px solid #393942;border-radius:18px;background:#18181B;color:var(--text);box-shadow:0 30px 80px rgba(0,0,0,.55)}
+    dialog::backdrop{background:rgba(0,0,0,.65);backdrop-filter:blur(4px)}
+    .dialog-body{padding:24px}
+    .dialog-body h2{font-size:24px}
+    .dialog-body p{color:#A1A1AA;font-size:14px}
+    .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+    .dialog-close{padding:9px 13px;border:1px solid #393942;border-radius:10px;background:#222226;cursor:pointer}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:1000px){.problem-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.technology-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.architecture{gap:7px}.arch-card{padding:16px}.split,.split.reverse{grid-template-columns:minmax(0,1.05fr) minmax(230px,.95fr)}}
+    @media(max-width:700px){.topbar{height:62px;padding:10px 15px}.brand-caption{display:none}.brand-mark{width:30px;height:30px}.stage{inset:62px 0 68px;padding:9px}.slide{max-height:calc(100dvh - 86px);padding:20px 16px;border-radius:18px}.slide-inner{gap:18px}.footer{height:68px;padding:9px 12px;grid-template-columns:auto 1fr auto;gap:8px}.key-hint{display:none}.dots{gap:5px}.dot{width:5px;height:5px}.dot[aria-current="true"]{width:18px}.nav-cluster{gap:5px}.nav-button{width:34px;height:34px}.slide-count{min-width:45px;font-size:11px}.icon-button{width:36px;height:36px}.slide-heading{align-items:center}.slide-number{font-size:54px}.problem-grid,.feature-grid,.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.problem-card{min-height:155px;padding:14px}.feature-card{min-height:130px;padding:14px;gap:9px}.feature-head{align-items:flex-start}.feature-head h3{font-size:15px}.feature-card p,.problem-card p,.metric-card p{font-size:11px}.icon-tile{width:35px;height:35px}.icon-tile svg{width:18px;height:18px}.split,.split.reverse{grid-template-columns:1fr;gap:16px}.split .visual{order:2}.split .copy{order:1}.screenshot-frame img,.screenshot-frame.tall img{height:clamp(200px,30dvh,300px)}.architecture{grid-template-columns:1fr;gap:7px}.arch-card{min-height:88px;grid-template-columns:auto 1fr;align-items:center}.arch-card .arch-id{grid-column:1/-1}.arch-card strong{font-size:17px}.arch-arrow{transform:rotate(90deg);justify-self:center;font-size:18px}.tree-layout{grid-template-columns:1fr}.tree-panel{max-height:34dvh}.file-detail{min-height:160px}.technology-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.technology{min-height:88px;padding:11px}.demo-grid{grid-template-columns:1fr;gap:8px}.demo-shot img{height:170px!important}.demo-grid .demo-shot:nth-child(n+2){display:none}.final h2{font-size:clamp(42px,11vw,64px)}.lead{font-size:17px}.hero-content{gap:20px}.hero-logo{width:68px;height:68px;border-radius:22px}.hero-logo svg{width:42px;height:42px}}
+    @media(max-width:380px){.problem-card{min-height:140px}.technology-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dots{gap:4px}.dot{width:4px;height:4px}.dot[aria-current="true"]{width:14px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" class="sr-only" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-brand" viewBox="0 0 24 24"><path d="M5 18V6h4.1l2.9 4.1L14.9 6H19v12h-3V10.6l-4 5.2-4-5.2V18H5Z" fill="currentColor"/></symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M7.5 3.5v3M16.5 3.5v3M4 9h16M8 12h2M14 12h2M8 16h2"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 2"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H20v16H7.5A2.5 2.5 0 0 0 5 21V5.5ZM5 17a2.5 2.5 0 0 1 2.5-2.5H20M9 7h7M9 10h7"/></symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A5.5 5.5 0 0 1 9 13h1a5.5 5.5 0 0 1 5.5 5.5V20M16 5.5a3 3 0 0 1 0 5.8M18 14a4.5 4.5 0 0 1 3 4.2V20"/></symbol>
+    <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M4 6.5h15a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h13"/><path d="M16 13h5M16.5 13a.5.5 0 1 0 0 .01"/></symbol>
+    <symbol id="icon-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></symbol>
+    <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 19.5V5M4 19.5h17M7 15l4-4 3 2 5-6"/><path d="M16 7h3v3"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2ZM19 16l1 2.5 2.5 1-2.5 1L19 23l-1-2.5-2.5-1 2.5-1 1-2.5Z"/></symbol>
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7M8 12h13"/></symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path d="m9.5 5 7 7-7 7M16 12H3"/></symbol>
+    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M8 4H4v4M16 4h4v4M4 16v4h4M20 16v4h-4"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.4 1.8c-1.2 1.1-1.9 1.4-1.9 3M12 17.3v.1"/></symbol>
+  </svg>
+
+  <div class="progress-track" role="progressbar" aria-label="Прогресс презентации" aria-valuemin="1" aria-valuemax="12" aria-valuenow="1"><div class="progress-value"></div></div>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="BeautyFlow — к началу презентации">
+      <span class="brand-mark"><svg viewBox="0 0 24 24"><use href="#icon-brand"/></svg></span><span class="brand-name">BeautyFlow</span><span class="brand-caption">Проект к защите</span>
+    </a>
+    <div class="top-actions">
+      <button class="icon-button" id="help-button" type="button" aria-label="Открыть подсказку по клавишам"><svg viewBox="0 0 24 24"><use href="#icon-help"/></svg></button>
+      <button class="icon-button" id="fullscreen-button" type="button" aria-label="Полноэкранный режим"><svg viewBox="0 0 24 24"><use href="#icon-expand"/></svg></button>
+    </div>
+  </header>
+
+  <main class="stage" id="presentation" aria-live="off">
+    <section class="slide active" data-slide="1" aria-label="Слайд 1: BeautyFlow">
+      <div class="hero"><div class="hero-content">
+        <span class="hero-logo"><svg viewBox="0 0 24 24"><use href="#icon-brand"/></svg></span>
+        <p class="eyebrow">Рабочее пространство салона</p>
+        <h1>BeautyFlow</h1>
+        <p class="lead">SaaS CRM для салонов красоты — команда, запись и финансы в одном потоке.</p>
+        <div class="hero-meta"><span class="chip"><i class="chip-dot"></i> Интерактивная презентация</span><span class="chip">Vite · React 19 · Express 5 · MongoDB</span></div>
+      </div></div>
+    </section>
+
+    <section class="slide" data-slide="2" aria-label="Слайд 2: Проблема">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Проблема</p><h2>Ручная координация не выдерживает темп салона</h2></div><span class="slide-number">01</span></div>
+        <div class="problem-grid">
+          <article class="problem-card glass-card hover-card"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-calendar"/></svg></span><div><h3>Овербукинги</h3><p>Две записи на одного мастера превращают расписание в конфликт.</p></div></article>
+          <article class="problem-card glass-card hover-card"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-book"/></svg></span><div><h3>Бумажные журналы</h3><p>Изменения теряются между звонками, таблицами и заметками.</p></div></article>
+          <article class="problem-card glass-card hover-card"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-bell"/></svg></span><div><h3>Забытые напоминания</h3><p>Ручная переписка отнимает время и повышает число пропусков.</p></div></article>
+          <article class="problem-card glass-card hover-card"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-users"/></svg></span><div><h3>Потеря истории</h3><p>Контакты и предпочтения клиента остаются в разных местах.</p></div></article>
+        </div>
+        <p class="small">Итог — команда тратит внимание на синхронизацию вместо работы с клиентом.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="3" aria-label="Слайд 3: Решение">
+      <div class="slide-inner split">
+        <div class="copy"><p class="eyebrow">Решение</p><h2>Весь рабочий день — в одной системе</h2><p class="lead" style="margin-top:18px">Онлайн-запись, календарь, оплаты и уведомления связаны с командой и клиентской историей.</p><div class="layer-strip" style="justify-content:flex-start"><span class="layer">Одно расписание</span><span class="layer">Единые данные</span><span class="layer">Понятные действия</span></div></div>
+        <div class="visual"><div class="screenshot-frame"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="dashboard.png" src="presentation-assets/dashboard.png" alt="Панель владельца BeautyFlow: KPI, выручка и ближайшие записи"><div class="caption"><span>Обзор владельца</span><span>Dashboard</span></div></div></div>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="4" aria-label="Слайд 4: Ключевые функции">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Ключевые функции</p><h2>Из ежедневных задач — в ясный процесс</h2></div><span class="slide-number">02</span></div>
+        <div class="feature-grid">
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-clock"/></svg></span><h3>Онлайн-запись</h3></div><p>Клиент выбирает свободный слот и получает ссылку для управления визитом.</p></article>
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-calendar"/></svg></span><h3>Календарь мастеров</h3></div><p>День, неделя и месяц с учётом графиков и занятости команды.</p></article>
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-users"/></svg></span><h3>Клиентская база</h3></div><p>Контакты, заметки и история визитов в tenant-безопасной карточке.</p></article>
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-wallet"/></svg></span><h3>Оплаты и возвраты</h3></div><p>Операции привязаны к визиту, клиенту, сумме и способу оплаты.</p></article>
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-mail"/></svg></span><h3>Email-уведомления</h3></div><p>Очередь доставки поддерживает повторы, дедупликацию и worker.</p></article>
+          <article class="feature-card glass-card hover-card"><div class="feature-head"><span class="icon-tile feature-icon"><svg viewBox="0 0 24 24"><use href="#icon-chart"/></svg></span><h3>Аналитика владельца</h3></div><p>Сводка по выручке, визитам, отменам и динамике клиентов.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="5" aria-label="Слайд 5: Публичная запись">
+      <div class="slide-inner split reverse">
+        <div class="visual"><div class="screenshot-frame tall"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="public-booking.png" src="presentation-assets/public-booking.png" alt="Форма публичной онлайн-записи салона BeautyFlow"><div class="caption"><span>Публичная страница салона</span><span>/b/demo-salon</span></div></div></div>
+        <div class="copy"><p class="eyebrow">Клиентский путь</p><h2>Записаться можно без звонка</h2><p class="lead" style="margin-top:18px">Форма ведёт клиента от выбора услуги до подтверждения визита, а сервер ещё раз проверяет слот при сохранении.</p><ol class="step-list"><li><span class="step-no">01</span>Услуга и мастер</li><li><span class="step-no">02</span>Дата и доступное время</li><li><span class="step-no">03</span>Контакты и подтверждение</li></ol></div>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="6" aria-label="Слайд 6: Календарь мастера">
+      <div class="slide-inner split">
+        <div class="copy"><p class="eyebrow">Календарь мастера</p><h2>Сетка показывает загрузку, а не догадки</h2><p class="lead" style="margin-top:18px">День, неделя и месяц помогают видеть рабочие окна, записи и статусы команды.</p><div class="layer-strip" style="justify-content:flex-start"><span class="layer">Статусы визита</span><span class="layer">Перенос записи</span><span class="layer">Конфликты защищены</span></div><p class="small" style="margin-top:14px">Перетаскивание карточек не реализовано; перенос выполняется через действие записи.</p></div>
+        <div class="visual"><div class="screenshot-frame"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="calendar.png" src="presentation-assets/calendar.png" alt="Недельный календарь BeautyFlow с несколькими мастерами и статусами визитов"><div class="caption"><span>Недельный календарь</span><span>Расписание команды</span></div></div></div>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="7" aria-label="Слайд 7: Технические решения">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Надёжность под нагрузкой</p><h2>Правила бронирования проверяет сервер</h2></div><span class="slide-number">03</span></div>
+        <div class="metric-grid">
+          <article class="metric-card glass-card hover-card"><span class="icon-tile"><svg viewBox="0 0 24 24"><use href="#icon-lock"/></svg></span><div class="metric-value">01</div><div class="metric-label">occupiedKeys</div><p class="metric-note">Уникальный multikey-индекс не даёт мастеру занять пересекающиеся интервалы.</p></article>
+          <article class="metric-card glass-card hover-card"><span class="icon-tile"><svg viewBox="0 0 24 24"><use href="#icon-shield"/></svg></span><div class="metric-value">4 слоя</div><div class="metric-label">Изоляция tenant-данных</div><p class="metric-note">Контекст ctx, tenantPlugin, проверки ссылок между сущностями и тесты tenant A ↔ B.</p></article>
+          <article class="metric-card glass-card hover-card"><span class="icon-tile"><svg viewBox="0 0 24 24"><use href="#icon-spark"/></svg></span><div class="metric-value">1 / 20</div><div class="metric-label">Защита от гонок</div><p class="metric-note">В race-сценарии один запрос фиксирует слот, остальные получают 409 Conflict.</p></article>
+          <article class="metric-card glass-card hover-card"><span class="icon-tile"><svg viewBox="0 0 24 24"><use href="#icon-chart"/></svg></span><div class="metric-value">125 + 23</div><div class="metric-label">Автоматизированные проверки</div><p class="metric-note">125 Vitest-тестов и 23 Playwright E2E-сценария по актуальному списку проекта. Статус последнего полного прогона указан в отчёте.</p></article>
+        </div>
+        <p class="small">Race-набор отдельно проверяет ровно один успешный захват времени среди 20 конкурентных запросов.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="8" aria-label="Слайд 8: Архитектура">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Архитектура</p><h2>Monorepo с разделённой ответственностью</h2></div><span class="slide-number">04</span></div>
+        <div class="architecture">
+          <article class="arch-card glass-card"><span class="arch-id">01 · интерфейс</span><strong>packages/client</strong><span>Vite · React 19 · TypeScript</span></article><span class="arch-arrow" aria-hidden="true">→</span>
+          <article class="arch-card glass-card"><span class="arch-id">02 · API</span><strong>packages/server</strong><span>Express 5 · Mongoose · MongoDB</span></article><span class="arch-arrow" aria-hidden="true">→</span>
+          <article class="arch-card glass-card"><span class="arch-id">03 · контракты</span><strong>packages/shared</strong><span>Zod-схемы · DTO · типы</span></article>
+        </div>
+        <div class="layer-strip"><span class="layer">Route</span><span class="muted">→</span><span class="layer">Service</span><span class="muted">→</span><span class="layer">Repository</span><span class="muted">→</span><span class="layer">Model</span></div>
+        <p class="small" style="text-align:center">Валидация и правила предметной области остаются в серверном контуре, общий пакет задаёт формы данных.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="9" aria-label="Слайд 9: Структура файлов">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Структура проекта</p><h2>Папки отражают поток ответственности</h2></div><span class="slide-number">05</span></div>
+        <div class="tree-layout">
+          <div class="tree-panel" role="tree" aria-label="Интерактивное дерево ключевых файлов">
+            <details open><summary>packages/</summary><ul class="tree-children">
+              <li><details><summary>client/src/</summary><ul class="tree-children">
+                <li><button class="tree-file" type="button" data-path="packages/client/src/app/router.tsx" data-description="Связывает URL приложения с публичными, auth- и рабочими экранами."><code>app/router.tsx</code><span>маршруты и защита экранов</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/client/src/features/calendar/CalendarPage.tsx" data-description="Отображает календарь, фильтры мастеров, интервалы и карточки записей."><code>features/calendar/CalendarPage.tsx</code><span>календарь команды</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/client/src/features/public-booking/PublicBooking.tsx" data-description="Публичный поток записи клиента и экран управления визитом по ссылке."><code>features/public-booking/PublicBooking.tsx</code><span>онлайн-запись клиента</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/client/src/features/dashboard/Dashboard.tsx" data-description="Сводные показатели владельца и ближайшие визиты."><code>features/dashboard/Dashboard.tsx</code><span>панель владельца</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/client/src/lib/api-client.ts" data-description="Единый fetch-клиент с session cookie, JSON, типизированными ошибками и CSRF-правилами клиента."><code>lib/api-client.ts</code><span>HTTP-клиент приложения</span></button></li>
+              </ul></details></li>
+              <li><details open><summary>server/src/</summary><ul class="tree-children">
+                <li><button class="tree-file" type="button" data-path="packages/server/src/http/define-express-route.ts" data-description="Общий pipeline: rate limit → Origin/CSRF → context/auth → RBAC → Zod → handler."><code>http/define-express-route.ts</code><span>обвязка API-маршрутов</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/http/appointment-routes.ts" data-description="HTTP-контракт создания, чтения, переноса и смены статуса записи."><code>http/appointment-routes.ts</code><span>эндпоинты визитов</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/services/appointment-service.ts" data-description="Проверяет ссылки, доступность, статусы и атомарно фиксирует жизненный цикл визита."><code>services/appointment-service.ts</code><span>правила записи</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/repositories/appointment-repository.ts" data-description="Tenant-scoped запросы и сохранение Appointment в MongoDB."><code>repositories/appointment-repository.ts</code><span>операции с данными визита</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/domain/booking-engine/occupancy.ts" data-description="Строит ключи занятости по мастеру и пятиминутным интервалам, включая буфер услуги."><code>domain/booking-engine/occupancy.ts</code><span>occupiedKeys и блокировка пересечений</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/domain/booking-engine/slots.ts" data-description="Собирает кандидаты времени из рабочих интервалов и отфильтровывает пересечения."><code>domain/booking-engine/slots.ts</code><span>вычисление свободных слотов</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/db/plugins/tenant.ts" data-description="Добавляет tenant-фильтры к поддерживаемым операциям Mongoose."><code>db/plugins/tenant.ts</code><span>tenantPlugin и защита запросов</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/db/transactions.ts" data-description="Оборачивает связанные операции MongoDB в транзакцию с ограниченными повторами transient ошибок."><code>db/transactions.ts</code><span>withTransaction и retry</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/auth/session-token.ts" data-description="Создаёт случайный session token и его криптографический hash для хранения."><code>auth/session-token.ts</code><span>cookie-сессии и HMAC/hash</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/services/auth-service.ts" data-description="Регистрация, Argon2id, email OTP, login OTP, сессии и текущий пользователь."><code>services/auth-service.ts</code><span>auth-flow и Argon2id</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/server/src/db/models/appointments.ts" data-description="Mongoose-схема Appointment, статусы, индексы и уникальность occupiedKeys."><code>db/models/appointments.ts</code><span>схема и индексы записи</span></button></li>
+              </ul></details></li>
+              <li><details><summary>shared/src/</summary><ul class="tree-children">
+                <li><button class="tree-file" type="button" data-path="packages/shared/src/schemas/appointments.ts" data-description="Строгие Zod-схемы запросов и статусов записи."><code>schemas/appointments.ts</code><span>валидация общей формы данных</span></button></li>
+                <li><button class="tree-file" type="button" data-path="packages/shared/src/types/tenant-context.ts" data-description="Типы tenant и public context, передаваемые через серверный pipeline."><code>types/tenant-context.ts</code><span>контекст доступа и tenant</span></button></li>
+              </ul></details></li>
+            </ul></details>
+          </div>
+          <aside class="file-detail glass-card" aria-live="polite"><div><span class="icon-tile"><svg viewBox="0 0 24 24"><use href="#icon-book"/></svg></span><p class="eyebrow" style="margin-top:17px">Выбранный файл</p><code class="file-path" id="file-path">packages/server/src/domain/booking-engine/occupancy.ts</code><p id="file-description" class="small">Строит ключи занятости по мастеру и пятиминутным интервалам, включая буфер услуги.</p></div><span class="chip">Папка раскрывается нажатием</span></aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="10" aria-label="Слайд 10: Технологии">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Технологии</p><h2>Инструменты под задачи проекта</h2></div><span class="slide-number">06</span></div>
+        <div class="technology-grid">
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">V</span><div><strong>Vite</strong><small>dev server / build</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">R</span><div><strong>React 19</strong><small>интерфейс</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">TS</span><div><strong>TypeScript</strong><small>общие типы</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">E5</span><div><strong>Express 5</strong><small>HTTP API</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">M</span><div><strong>MongoDB 8</strong><small>документы + транзакции</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">mg</span><div><strong>Mongoose</strong><small>модели / плагины</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">Z</span><div><strong>Zod</strong><small>runtime validation</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">TW</span><div><strong>Tailwind CSS</strong><small>стили приложения</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">UI</span><div><strong>shadcn/ui</strong><small>библиотека UI-компонентов</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">PW</span><div><strong>Playwright</strong><small>браузерные сценарии</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">VT</span><div><strong>Vitest</strong><small>unit / integration</small></div></article>
+          <article class="technology glass-card hover-card"><span class="tech-wordmark">M+G</span><div><strong>Motion + GSAP</strong><small>интерактивность лендинга</small></div></article>
+        </div>
+        <p class="tech-note">Motion и GSAP используются на лендинге; интерактивность этой автономной презентации сделана нативным CSS и JavaScript.</p>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="11" aria-label="Слайд 11: Демо">
+      <div class="slide-inner">
+        <div class="slide-heading"><div class="heading-copy"><p class="eyebrow">Живая демонстрация</p><h2>Посмотрите продукт в работе</h2></div><span class="slide-number">07</span></div>
+        <div class="demo-grid">
+          <article class="demo-shot glass-card"><div class="screenshot-frame compact"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="calendar.png" src="presentation-assets/calendar.png" alt="Календарь BeautyFlow"></div><div class="demo-label"><span>Календарь</span><span>расписание</span></div></article>
+          <article class="demo-shot glass-card"><div class="screenshot-frame compact"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="dashboard.png" src="presentation-assets/dashboard.png" alt="Dashboard BeautyFlow"></div><div class="demo-label"><span>Dashboard</span><span>показатели</span></div></article>
+          <article class="demo-shot glass-card"><div class="screenshot-frame compact"><span class="window-dots"><i></i><i></i><i></i></span><img data-asset="public-booking.png" src="presentation-assets/public-booking.png" alt="Публичная запись BeautyFlow"></div><div class="demo-label"><span>Публичная запись</span><span>клиентский путь</span></div></article>
+        </div>
+        <a class="demo-url" href="http://localhost:5174" target="_blank" rel="noreferrer"><span class="chip-dot"></span> Смотрите вживую: localhost:5174 <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="12" aria-label="Слайд 12: Итог">
+      <div class="final">
+        <span class="hero-logo"><svg viewBox="0 0 24 24"><use href="#icon-brand"/></svg></span>
+        <p class="eyebrow">BeautyFlow · итог</p>
+        <h2>Готов к защите.<br>Салон работает в одном потоке.</h2>
+        <p class="lead">Онлайн-запись, расписание, команда, клиентская база и оплаты собраны в одном SaaS-продукте.</p>
+        <span class="final-status"><i class="chip-dot"></i> Локальный сценарий демо проверен</span>
+        <div><p class="small">Перед production-запуском отдельно настраиваются и проверяются SMTP, DNS/TLS, резервное копирование и production OAuth.</p><div class="roadmap"><span class="chip">SMS / push</span><span class="chip">Онлайн-эквайринг</span><span class="chip">Нативное мобильное приложение</span></div></div>
+      </div>
+    </section>
+    <p class="sr-only" id="slide-announcer" aria-live="polite">Слайд 1 из 12</p>
+  </main>
+
+  <footer class="footer">
+    <div class="key-hint"><kbd>←</kbd><kbd>→</kbd><span>листать</span><kbd>Space</kbd><span>дальше</span><kbd>Home</kbd><kbd>End</kbd><span>начало / конец</span></div>
+    <nav class="dots" id="slide-dots" aria-label="Переход к слайду"></nav>
+    <div class="nav-cluster"><button class="nav-button" id="previous-button" type="button" aria-label="Предыдущий слайд"><svg viewBox="0 0 24 24"><use href="#icon-arrow-left"/></svg></button><span class="slide-count" id="slide-count" aria-hidden="true">01 / 12</span><button class="nav-button" id="next-button" type="button" aria-label="Следующий слайд"><svg viewBox="0 0 24 24"><use href="#icon-arrow-right"/></svg></button></div>
+  </footer>
+
+  <dialog id="keys-dialog" aria-labelledby="keys-title">
+    <div class="dialog-body"><p class="eyebrow">Управление</p><h2 id="keys-title">Клавиши презентации</h2><p><kbd>←</kbd> и <kbd>→</kbd> — назад и вперёд. <kbd>Space</kbd> — следующий слайд. <kbd>Home</kbd> / <kbd>End</kbd> — начало / конец. <kbd>Esc</kbd> закрывает это окно или выходит из полного экрана.</p><div class="dialog-actions"><button class="dialog-close" id="close-help" type="button">Понятно</button></div></div>
+  </dialog>
+
+  <script>
+    (() => {
+      const slides = [...document.querySelectorAll('.slide')];
+      const dots = document.querySelector('#slide-dots');
+      const count = document.querySelector('#slide-count');
+      const progress = document.querySelector('.progress-value');
+      const progressTrack = document.querySelector('.progress-track');
+      const announcer = document.querySelector('#slide-announcer');
+      const helpDialog = document.querySelector('#keys-dialog');
+      let current = 0;
+
+      const assetRoot = location.protocol === 'file:'
+        ? new URL('./presentation-assets/', location.href).href
+        : '/presentation-assets/';
+      document.querySelectorAll('img[data-asset]').forEach((image) => {
+        image.src = `${assetRoot}${image.dataset.asset}`;
+      });
+      if ('FontFace' in window) {
+        const ranges = [
+          ['U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD', 'inter-latin.woff2'],
+          ['U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116', 'inter-cyrillic.woff2'],
+        ];
+        ranges.forEach(([unicodeRange, file]) => {
+          const face = new FontFace('Inter', `url("${assetRoot}${file}")`, { weight: '100 900', style: 'normal', unicodeRange });
+          face.load().then((loaded) => document.fonts.add(loaded)).catch(() => {});
+        });
+      }
+
+      slides.forEach((slide, index) => {
+        const dot = document.createElement('button');
+        dot.className = 'dot';
+        dot.type = 'button';
+        dot.setAttribute('aria-label', `Перейти к слайду ${index + 1}`);
+        dot.addEventListener('click', () => showSlide(index));
+        dots.append(dot);
+      });
+
+      function showSlide(nextIndex) {
+        current = Math.max(0, Math.min(slides.length - 1, nextIndex));
+        slides.forEach((slide, index) => {
+          const active = index === current;
+          slide.classList.toggle('active', active);
+          slide.setAttribute('aria-hidden', String(!active));
+          if (active) {
+            slide.scrollTop = 0;
+            slide.classList.remove('active');
+            requestAnimationFrame(() => {
+              slide.classList.add('active');
+            });
+          }
+        });
+        [...dots.children].forEach((dot, index) => {
+          if (index === current) dot.setAttribute('aria-current', 'true');
+          else dot.removeAttribute('aria-current');
+        });
+        count.textContent = `${String(current + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+        progress.style.transform = `scaleX(${(current + 1) / slides.length})`;
+        progressTrack.setAttribute('aria-valuenow', String(current + 1));
+        announcer.textContent = `Слайд ${current + 1} из ${slides.length}`;
+        const slideTitle = slides[current].getAttribute('aria-label')?.replace(/^Слайд \d+: /, '');
+        document.title = current === 0 ? 'BeautyFlow — защита проекта' : `${slideTitle} · BeautyFlow`;
+        document.querySelector('#previous-button').disabled = current === 0;
+        document.querySelector('#next-button').disabled = current === slides.length - 1;
+      }
+
+      document.querySelector('#previous-button').addEventListener('click', () => showSlide(current - 1));
+      document.querySelector('#next-button').addEventListener('click', () => showSlide(current + 1));
+      document.querySelector('.brand').addEventListener('click', (event) => { event.preventDefault(); showSlide(0); });
+      document.querySelector('#help-button').addEventListener('click', () => helpDialog.showModal());
+      document.querySelector('#close-help').addEventListener('click', () => helpDialog.close());
+      helpDialog.addEventListener('click', (event) => { if (event.target === helpDialog) helpDialog.close(); });
+      document.querySelector('#fullscreen-button').addEventListener('click', async () => {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+        } catch { /* Fullscreen may be blocked by browser policy; slide navigation still works. */ }
+      });
+      document.querySelectorAll('.tree-file').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.tree-file').forEach((item) => item.removeAttribute('aria-current'));
+          button.setAttribute('aria-current', 'true');
+          document.querySelector('#file-path').textContent = button.dataset.path;
+          document.querySelector('#file-description').textContent = button.dataset.description;
+        });
+      });
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          if (helpDialog.open) helpDialog.close();
+          else if (document.fullscreenElement) void document.exitFullscreen();
+          else showSlide(0);
+          return;
+        }
+        if (helpDialog.open) return;
+        const target = event.target;
+        if (target instanceof HTMLElement && target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        if (event.key === ' ' && target instanceof HTMLElement && target.closest('button,summary,a')) return;
+        if (target instanceof HTMLElement && target.closest('.tree-panel') && ['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') { event.preventDefault(); showSlide(current + 1); }
+        else if (event.key === 'ArrowLeft' || event.key === 'PageUp') { event.preventDefault(); showSlide(current - 1); }
+        else if (event.key === 'Home') { event.preventDefault(); showSlide(0); }
+        else if (event.key === 'End') { event.preventDefault(); showSlide(slides.length - 1); }
+      });
+      showSlide(0);
+    })();
+  </script>
+</body>
+</html>
