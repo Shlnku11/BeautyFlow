@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: resolve(import.meta.dirname),
+  envDir: resolve(import.meta.dirname, '../..'),
   server: { port: 5174, strictPort: true, proxy: { '/api': 'http://localhost:3000' } },
   preview: { port: 4173 },
   resolve: { alias: [
