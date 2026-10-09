@@ -1,5 +1,4 @@
-﻿{
-  "installCommand": "npm ci",
+{
   "buildCommand": "npm run build --workspace @next-appointments/client",
   "outputDirectory": "dist/client",
   "rewrites": [
