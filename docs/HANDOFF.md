@@ -232,3 +232,13 @@ Vite + React + Express 5 + MongoDB 8.0 + Node 24. Monorepo: packages/client, pac
 
 ## Что дальше
 Продолжить этап 4 со следующего экрана — Dashboard; актуальный список хвостов записан в начале этого файла и `PROGRESS.md`. После экранов 4-го этапа перейти к Motion/GSAP, эскизам и финальным материалам. Deploy по `docs/DEPLOY.md` (replica set, TLS, секреты, backup restore, мониторинг и production email) остаётся отдельным незакрытым блоком. Решение по 5 high dev-only npm audit advisories отложено, Tailwind 4 остаётся post-MVP. Google OAuth optional и работает только после настройки credentials; без них UI показывает «Скоро», email/password и email-код не затронуты. Сохранять ограничения проекта и проверять `PROGRESS.md`.
+
+## Latest local runtime handoff — 2026-10-09
+
+- Vite reads the repository-root `.env` via `envDir`; current local project URL is `http://localhost:5174`. API proxy remains `localhost:3000`.
+- Start with `npm run dev`; it starts API, client and `dev:notifications` together. Do not start a second worker while this command is running. Current health: `http://localhost:3000/api/health` → `{"status":"ok","db":"up"}`.
+- The local ignored `.env` contains user-provided Google OAuth and Atlas credentials. SRV DNS failed here; the explicitly supplied Atlas seed-host URI works. Never copy credential values into tracked files or reports.
+- `EMAIL_FROM_ADDRESS`/`SMTP_USER` are `protocdx@gmail.com`; SMTP password is blank pending the user's secret. SMTP delivery and Google OAuth consent flow remain unverified.
+- Verification in this handoff: typecheck ✅; Playwright `/login` smoke ✅ (1/1); full E2E not rerun. The `docs/DEFENSE_WALKTHROUGH.md` file exists; prefer its checked routes and demo account instructions.
+- Cleanup was not performed. `outputs/`, `tmp/`, and `work/` are absent. The Playwright-generated ignored `test-results/` directory is disposable. No `.log`, `.tmp`, or `.bak` candidates were found outside dependencies. At start, tracked screenshot files with `*-after-*`/`*-before-*` names were already marked deleted; they were left unchanged. Inventory candidate list is in the current task report.
+- Latest commit: `4338a969e7bc00177878f26ef4ff542d44739718` (`fix(client): read root env file`). Working tree still contains the pre-existing screenshot deletions; do not stage them without the user's instruction.

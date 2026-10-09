@@ -318,3 +318,13 @@
 - Focused checks passed: typecheck, lint, and unit/API/route-registry tests (3 files / 9 tests). A targeted Playwright Chromium business-owner workflow passed (1 test). Full verification suite was not run after the latest changes.
 - Local port 5173 is owned by `sales-dashboard`; use port 5174 for this project. Set `DEV_APP_BASE_URL=http://localhost:5174` for an isolated E2E/dev environment where needed. Do not stop the other application.
 - MongoDB: reuse `docs-master-architecture-md-1-3-mongo-1` on port 27018. Do not create another container or edit `.env`.
+
+## Runtime configuration and handoff — 2026-10-09
+
+- `packages/client/vite.config.ts` now sets `envDir` to the repository root so Vite reads root `.env`; committed as `4338a969e7bc00177878f26ef4ff542d44739718`.
+- Local ignored `.env` is configured for port `5174`, `TRUSTED_PROXY_HOPS=1`, the user-provided Google OAuth credentials and MongoDB Atlas seed host. The Atlas SRV lookup failed on this machine; the explicit seed-host URI supplied by the user connects successfully. Credential values are intentionally not recorded here.
+- `EMAIL_FROM_ADDRESS` and `SMTP_USER` are `protocdx@gmail.com`; SMTP password remains blank for the user to supply. Actual SMTP/OTP delivery was not verified in this pass.
+- `npm run dev` is running API, Vite client and the bundled notification worker. `GET http://localhost:3000/api/health` returned `{"status":"ok","db":"up"}`; `/login` returned HTTP 200 and the Playwright login smoke test passed (1/1).
+- `npm run typecheck` passed. The full E2E suite was not run in this pass; OAuth consent/sign-in was not tested against Google.
+- Cleanup was inventory-only: no files were removed. `outputs/`, `tmp/`, and `work/` are absent; Playwright created ignored `test-results/.last-run.json`. No repository `.log`, `.tmp`, or `.bak` files were found outside dependencies. The tracked screenshot deletions already present at start remain untouched and uncommitted.
+- Before the defense, provide SMTP settings if email delivery is part of the live demo, review the proposed screenshot cleanup, and run the full E2E suite if time permits.
