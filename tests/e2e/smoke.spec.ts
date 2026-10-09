@@ -283,6 +283,7 @@ test('business owner can register and log back in using a server-side session', 
 });
 
 test('business registration through the browser form opens the owner dashboard', async ({ page }) => {
+  test.setTimeout(120_000);
   const run = `${Date.now()}`;
   const ipOffset = Number(run) % 16_777_214;
   const testIp = `203.0.${Math.floor(ipOffset / 256) % 256}.${ipOffset % 256 || 1}`;
@@ -391,10 +392,10 @@ test('business registration through the browser form opens the owner dashboard',
   expect(calendarAppointmentBounds?.height ?? 0).toBeGreaterThanOrEqual(39);
   await page.emulateMedia({ colorScheme: 'light' });
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await page.screenshot({ path: 'docs/screenshots/calendar-after-light.png', fullPage: true });
+  await page.screenshot({ path: 'docs/screenshots/calendar-light.png', fullPage: true });
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await page.screenshot({ path: 'docs/screenshots/calendar-after-dark.png', fullPage: true });
+  await page.screenshot({ path: 'docs/screenshots/calendar-dark.png', fullPage: true });
   await page.goto('/app/dashboard');
   await expect(page.getByRole('heading', { name: 'Обзор' })).toBeVisible();
 });

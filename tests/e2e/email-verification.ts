@@ -10,7 +10,7 @@ async function pendingVerificationCode(email: string): Promise<string> {
   await client.connect();
   try {
     const notification = await client.db(databaseName).collection('notifications').findOne(
-      { kind: 'email_verification', status: 'scheduled', 'recipient.email': email },
+      { kind: 'email_verification', status: { $in: ['scheduled', 'sent'] }, 'recipient.email': email },
       { sort: { scheduledFor: -1 } },
     );
     const code = notification?.templateData && typeof notification.templateData === 'object'
@@ -31,7 +31,7 @@ async function pendingLoginCode(email: string): Promise<string> {
   await client.connect();
   try {
     const notification = await client.db(databaseName).collection('notifications').findOne(
-      { kind: 'login_verification', status: 'scheduled', 'recipient.email': email },
+      { kind: 'login_verification', status: { $in: ['scheduled', 'sent'] }, 'recipient.email': email },
       { sort: { scheduledFor: -1 } },
     );
     const code = notification?.templateData && typeof notification.templateData === 'object'

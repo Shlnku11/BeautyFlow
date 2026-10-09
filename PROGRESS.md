@@ -1,13 +1,14 @@
 # Progress
 
-## 2026-10-09 — E2E и подготовка к защите
+## 2026-10-09 — Финальный прогон и подготовка к защите
 
-- Исправление календарной модалки и причины отказа по слоту закрыто: модалка стабильна, запись из календаря проверена отдельным браузерным сценарием — свободный слот → форма → успешное сохранение → карточка в сетке. Регрессия добавлена в `tests/e2e/smoke.spec.ts`.
-- Полный Playwright E2E на порту 5174: **21/21 за 5,1 минуты**. Дополнительно проверено UI-создание записи адресно: **1/1**.
-- Качество: typecheck ✅; lint ✅; `npm test -- --maxWorkers=1` — **34 файла / 125 тестов ✅**; `npm run test:race` — **2/2 ✅**; `npm run check:contrast` ✅; `npm run build` ✅. Сборка выдаёт предупреждения dependency `use client` и client chunk >500 kB; самый большой текущий chunk — 540.84 kB. Оптимизацию bundle отложить после защиты.
-- Playwright обновил light/dark скриншоты: landing, login, dashboard, calendar, public booking, payments, staff, customers; пары сохранены в `docs/screenshots/`. Сценарий защиты на 5 минут с URL, действиями и речью: [`DEFENSE_WALKTHROUGH.md`](DEFENSE_WALKTHROUGH.md).
-- Порт **5174**; 5173 не трогали. Backend, API contracts, data model, `tenantPlugin`, `occupiedKeys`, `withTransaction` не менялись. Новые функции, PDF и анимации в этот блок не добавлялись.
-- После защиты остаются: полный аудит frontend + backend; довести email-код на входе и регистрации; завершить Google OAuth UI/проверку credentials; собрать презентацию.
+- E2E: **23/23 за 5,1 минуты** на порту 5174, включая вход demo owner/master, email-OTP-регистрацию, изоляцию tenant, race-сценарий и создание записи из свободного календарного слота. 23 проверки включают две отдельные demo-account регрессии.
+- Исправлены причины E2E flaky: публичные landing/login/register и booking снимаются в гостевой сессии отдельно от owner; OTP helper читает активные scheduled-коды, а проверка приглашений принимает состояния `scheduled` и `sent`; Playwright запускается без фонового worker, который удаляет одноразовый код после доставки. В dashboard skeleton исправлена serious axe-проблема: доступное имя теперь связано с `role="status"`.
+- Quality gates: typecheck ✅; lint ✅; `npm test -- --maxWorkers=1` — **34 файла / 125 тестов ✅**; `npm run test:race` — **2/2 ✅**; `npm run check:contrast` ✅; `npm run build` ✅. Build по-прежнему сообщает о `use client` dependency directives и крупнейшем клиентском chunk **540.84 kB**; bundle-переразбиение отложено после защиты.
+- Playwright обновил светлые/тёмные кадры landing, login, dashboard, calendar, public booking, payments, staff и customers. Финальный индекс: [`docs/screenshots/README.md`](docs/screenshots/README.md); walkthrough на 5 минут: [`DEFENSE_WALKTHROUGH.md`](DEFENSE_WALKTHROUGH.md), шпаргалка: [`docs/DEFENSE_CARD.md`](docs/DEFENSE_CARD.md).
+- В `.env` проверены `APP_BASE_URL=http://localhost:5174` и `TRUSTED_PROXY_HOPS=1`; файл остаётся игнорируемым и не попадёт в коммит. Порт 5173 не трогали. Backend/API contracts/data model, `tenantPlugin`, `occupiedKeys`, `withTransaction` не менялись.
+- Cleanup: `.gitignore` покрывает `outputs/`, `test-results/`, `dist/`, `tmp/`, `work/` и временные файлы. Фактическое удаление этих директорий и старых промежуточных скриншотов было отклонено автоматической проверкой команд; они остаются локально и требуют ручной очистки.
+- Для защиты готов локальный запуск. После неё остаются полный аудит backend/frontend, production-проверка email и настройка Google OAuth credentials; OAuth кнопка корректно показывает «Скоро появится». Bundle optimization и production deploy — отдельные последующие задачи.
 
 ## 2026-10-08 — Реконструкция UI, блок 1 (Landing)
 
@@ -16,7 +17,7 @@
 - Первый экран перестроен в одну колонку: Inter Variable, заголовок 64px, отступы и позиция близки к Linear. Dashboard превью 60.4% viewport и уходит ниже первого экрана.
 - Для темы Light/Dark используются реальные снимки продукта: `packages/client/public/images/dashboard-{light,dark}.png` и `calendar-{light,dark}.png`. Добавлены demo-секция с календарём и 4-колоночный футер; CTA тёмный с одной основной кнопкой. Тексты — из `packages/shared/src/i18n/ru.ts`.
 - Сохранено сравнение 32 исходных различий и зафиксировано 5 оставшихся продуктовых отличий (BeautyFlow бренд/фиолетовый акцент, русская салонная навигация, реальное содержимое CRM, отсутствие Linear-specific overlay, заданная ширина превью 60.4% против ~92%). Результат не объявляется 10/10; подробный score — `docs/AUDIT.md`.
-- Реальные Playwright кадры: `docs/screenshots/landing-after-{light,dark}.png` и `landing-full-after-{light,dark}.png`; side-by-side: `docs/comparison/landing-linear-vs-ours-after.png`.
+- Реальные Playwright кадры сохранены как `docs/screenshots/landing-{light,dark}.png`; финальное сравнение Linear: `docs/comparison/landing-linear-vs-ours-after.png`.
 - Качество: typecheck ✅, lint ✅, unit/integration 32 файла / 118 тестов ✅, build ✅, contrast ✅, landing E2E 4/4 ✅. Полный E2E 18/21: оставшиеся сбои/флейки относятся к axe timeout записей/оплат и payments fixture со ссылкой на недоступную запись; auth smoke timeout после 20 параллельных запросов. Все три подробно описаны в блоке Stage 4 Landing аудита. Полный `test:a11y` отдельно не запускался.
 - На машине `localhost:5173` занят процессом отдельного `sales-dashboard`; он не тронут. Playwright поддерживает `E2E_APP_ORIGIN`, по умолчанию `http://localhost:5173`; подтверждённый прогон лендинга выполнен на `http://localhost:5174` с тестовым API на `3000`.
 
@@ -52,7 +53,7 @@
 - Список сотрудников оформлен через shadcn primitives: плотная таблица для широких экранов и карточки до 1279px, summary, поиск по имени/email/телефону, фильтр inactive, реальные service counts из tenant services, состояния loading/error/retry/empty, доступная форма создания.
 - Карточка специалиста получила identity header и пять keyboard-operable вкладок: профиль, расписание, исключения, услуги, доступ. Формы используют labels, permission-aware read-only state, status feedback; деактивация с будущими записями подтверждается управляемым Dialog.
 - `tests/e2e/a11y/staff-management.spec.ts`: real Chromium + existing Mongo seed; owner login через UI; проверены пять ширин 320/375/768/1024/1440, обе темы, axe для списка и каждой вкладки, arrow-key tab navigation, поиск/empty/clear, required validation, network abort + retry и сохранение профиля. Staff E2E ✅ 1/1.
-- Screenshots: `docs/screenshots/staff-list-after-{light,dark}.png`, `staff-list-mobile-after-{light,dark}.png`, `staff-{profile,schedule,exceptions,services,access}-after-{light,dark}.png`.
+- Скриншоты сведены к актуальным парным кадрам ключевых экранов: `docs/screenshots/staff-{light,dark}.png`; прочие промежуточные варианты удалены.
 - Сборка/проверки этого прохода: typecheck ✅, lint ✅, Vitest 32 файла / 118 тестов ✅, race 2/2 ✅, build ✅ (upstream `use client` + крупный client chunk warning), contrast ✅, `test:a11y` 7/7 ✅, полный `test:e2e` 18/18 ✅. В промежуточном прогоне была разовая Windows screenshot file-open ошибка у payments; изолированный payments E2E, полный a11y и повторный полный E2E прошли.
 - Smoke registration locator обновлён: список с корректной кнопкой и empty-state кнопкой теперь выбирает header action, а оплаты проверяются в реальной responsive card, не desktop table. Изменения только в UI Staff, E2E и документации; backend/contracts/`.env` не тронуты.
 
@@ -74,7 +75,7 @@
 ## 2026-10-08 — Stage 3 visual/runtime audit
 
 - Added `docs/AUDIT.md` with 14 screen-state families, scores for design/structure/type/states/responsive/dark/a11y, architecture/runtime/tests/performance/security ratings, concrete defects, and a prioritized Stage 4 plan.
-- Captured 42 real Chromium baseline images (light/dark): landing, login, register/verify, dashboard, calendar day/week/month, appointments, customer list/detail, staff list/detail, services, payments, settings, master my-day, public booking/completion/manage, appointment modal. Stored in `docs/screenshots/audit-before/`.
+- Captured 42 real Chromium baseline images (light/dark): landing, login, register/verify, dashboard, calendar day/week/month, appointments, customer list/detail, staff list/detail, services, payments, settings, master my-day, public booking/completion/manage, appointment modal. Those historical baseline files were removed during final cleanup; findings remain in `docs/AUDIT.md`.
 - Live findings: calendar grid events collapse because dynamic Tailwind row placement classes are not emitted; customer detail prints untranslated database keys, ISO timestamps, and unformatted minor units; payments table wraps columns severely; demo owner/master are unverified and show a persistent banner; appointment modal showed a generic error during reschedule view. Public booking and manage flow completed in Chromium.
 - Stage 3 test evidence: typecheck ✅, lint ✅, Vitest 31 files / 115 tests ✅, race 2/2 ✅, build ✅, migrate ✅, full Chromium E2E 11/11 ✅, a11y suite 1/1 ✅, contrast ✅. Axe checked 13 key routes in light/dark; responsive checks covered 320/375/768/1024/1440, mobile navigation, skip-link, Escape and keyboard-only public booking. Full E2E uncovered and then verified fixes for sandbox Skeleton ARIA, inactive tab contrast (4.39:1 → darker muted foreground), and ambiguous dialog-close locator. Initial client bundle remains 1,257.12 kB minified / 365.26 kB gzip; FPS/production trace not measured.
 - Stage 4 must fix the audit P0s before motion work. External app setup uses real seeded demo rows in the local development database; no hardcoded mock was added to runtime.
@@ -83,7 +84,7 @@
 
 - Fixed week/day appointment-card placement. Tailwind row-start and row-span utilities are statically enumerated through row 52, with matching `gridRow`/`gridRowStart` theme values; the production CSS was checked for rows 25 and 52. Removed runtime-generated arbitrary classes.
 - Calendar card now fits a 30-minute booking, exposes full appointment context to assistive tech, and shows the master when duration allows. Real Chromium regression completed registration, staff/service/schedule setup and public booking, then asserted a visible 40px grid card.
-- Captured after images: `docs/screenshots/calendar-after-light.png` and `calendar-after-dark.png`. Targeted card E2E ✅ (1/1), typecheck ✅, lint ✅, build ✅. Static placement classes confirmed in production CSS.
+- Captured after images were consolidated as `docs/screenshots/calendar-light.png` and `calendar-dark.png`. Targeted card E2E ✅ (1/1), typecheck ✅, lint ✅, build ✅. Static placement classes confirmed in production CSS.
 
 ## 2026-10-08 — Stage 4 calendar mobile + collision layout
 
@@ -96,13 +97,13 @@
 
 - Replaced raw summary object keys with Russian KPI labels; appointment statuses and payment methods/statuses are localized. Customer created date, visits, and payment timestamps use the business timezone; monetary values use the currency formatter. No API contract, model, or backend code changed.
 - Mobile history/payment rows now stack without forcing desktop-width columns. A Chromium E2E uses the seeded owner and MongoDB data, confirms a visit row and localized screen values, checks light/dark axe, and asserts no horizontal overflow at 320/375/768/1024/1440px.
-- Evidence: `tests/e2e/a11y/customer-detail.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run test:a11y` ✅ (2/2); screenshots `docs/screenshots/customer-detail-after-light.png` and `customer-detail-after-dark.png`.
+- Evidence: `tests/e2e/a11y/customer-detail.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run test:a11y` ✅ (2/2); current paired screenshots are indexed in `docs/screenshots/README.md`.
 - Remaining customer work: responsive card view for the customer list and separate master/error-state coverage. Next Stage 4 priorities stay in `docs/AUDIT.md`.
 
 ## 2026-10-08 — Stage 4 customer list
 
 - Replaced the narrow-screen customer list with linked cards containing name, phone, email fallback, source, and created date formatted in the business timezone; desktop retains the compact table.
-- Added real Chromium coverage against seeded MongoDB rows for card metadata, detail navigation, expected table/card visibility and no overflow at 320/375/768/1024/1440px. Light/dark axe found no serious or critical issues. Screenshots: `docs/screenshots/customers-after-mobile-light.png` and `customers-after-mobile-dark.png`.
+- Added real Chromium coverage against seeded MongoDB rows for card metadata, detail navigation, expected table/card visibility and no overflow at 320/375/768/1024/1440px. Light/dark axe found no serious or critical issues. Screenshots are consolidated into the current gallery in `docs/screenshots/README.md`.
 - Fixed the unnamed mobile topbar “new appointment” link exposed by axe: localized accessible name and decorative icon hidden from the accessibility tree.
 - `tests/e2e/a11y/customer-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Customer empty/API-error and master-specific states remain unaudited.
 
@@ -116,19 +117,19 @@
 
 - Replaced the narrow-shell payment rows with responsive cards through 1535px; retained the nine-column table once the content shell can fit it at 1536px. Cards label transaction date, appointment time, method, amount, refunded total, staff member, customer and service, plus the existing permitted actions and a mobile empty state.
 - All payment dates now use the active business timezone. Replaced raw customer/appointment database IDs in temporary missing-detail fallbacks with readable labels.
-- Real Chromium test checks seeded payment actions/content, no page overflow at 320/375/768/1024/1439/1440/1535/1536px, no table-region overflow at desktop width, and axe in both themes. Evidence screenshots: `docs/screenshots/payments-after-mobile-{light,dark}.png` and `payments-after-wide-{light,dark}.png`.
+- Real Chromium test checks seeded payment actions/content, no page overflow at 320/375/768/1024/1439/1440/1535/1536px, no table-region overflow at desktop width, and axe in both themes. Current paired screenshots: `docs/screenshots/payments-{light,dark}.png`.
 - `tests/e2e/a11y/payments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅. Appointment and service lists still need responsive table treatment.
 
 ## 2026-10-08 — Stage 4 appointments responsive layout
 
 - Added day-grouped appointment cards for shells narrower than 1280px; cards keep customer, time, service, master, price, source, status and details action. Payment links retain the existing permission/status gate. The desktop table and appointment detail dialog remain in use on wide layouts.
-- Real Chromium checked cards/table at 320/375/768/1024/1279/1280/1440px, no page overflow, no internal table overflow at desktop, appointment details navigation, and axe in light/dark. Screenshots: `docs/screenshots/appointments-after-mobile-light.png` and `appointments-after-mobile-dark.png`.
+- Real Chromium checked cards/table at 320/375/768/1024/1279/1280/1440px, no page overflow, no internal table overflow at desktop, appointment details navigation, and axe in light/dark. Historical screenshots were consolidated; see `docs/screenshots/README.md` for the retained gallery.
 - `tests/e2e/a11y/appointments-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅. Services list remains to be made responsive.
 
 ## 2026-10-08 — Stage 4 services responsive layout
 
 - Replaced the narrow-shell service rows with cards below 1120px. Cards expose full service description, duration, buffer, price, assigned staff names, active state, online-booking state, and contextual edit action. The desktop table remains above that breakpoint.
-- Chromium used seeded MongoDB service/staff data, checked edit dialog, cards/table at 320/375/768/1023/1119/1120/1280/1440px, no page overflow, no inner table overflow, and axe in light/dark. Evidence: `docs/screenshots/services-after-mobile-light.png` and `services-after-mobile-dark.png`.
+- Chromium used seeded MongoDB service/staff data, checked edit dialog, cards/table at 320/375/768/1023/1119/1120/1280/1440px, no page overflow, no inner table overflow, and axe in light/dark. Historical screenshots were consolidated; see `docs/screenshots/README.md` for the retained gallery.
 - `tests/e2e/a11y/services-list.spec.ts` ✅ (1/1), `npm run typecheck` ✅, `npm run lint` ✅, `npm run build` ✅, `npm run check:contrast` ✅. Service loading/error and filtered-empty states remain unverified.
 
 ## WIP 2026-10-07 — shadcn/ui migration paused

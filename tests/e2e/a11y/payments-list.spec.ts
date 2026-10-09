@@ -71,13 +71,11 @@ test('payment cards fit tablet and phone layouts and preserve payment actions', 
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), theme).toEqual([]);
-    await page.screenshot({ path: `docs/screenshots/payments-after-mobile-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 
   await page.setViewportSize({ width: 1536, height: 1000 });
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    await page.screenshot({ path: `docs/screenshots/payments-after-wide-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 });

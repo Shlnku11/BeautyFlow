@@ -47,7 +47,6 @@ test('customer list cards fit phones and preserve all contact metadata', async (
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), theme).toEqual([]);
-    await page.screenshot({ path: `docs/screenshots/customers-after-mobile-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 
   await cards.getByRole('link').first().click();

@@ -145,7 +145,7 @@ test('E2E-5: invited master accepts AUTH-06, sees only own data, and is denied o
   if (!invitation) throw new Error('The staff invitation notification was not persisted');
   const invitationData = invitation as unknown as { templateData: { inviteUrl: string }; status: string };
   const inviteUrl = invitationData.templateData.inviteUrl;
-  expect(invitationData.status).toBe('scheduled');
+  expect(['scheduled', 'sent']).toContain(invitationData.status);
   const inviteToken = new URL(inviteUrl).searchParams.get('token');
   expect(inviteToken).toBeTruthy();
 

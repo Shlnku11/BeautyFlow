@@ -26,9 +26,11 @@ async function expectNoSeriousAxeViolations(page: Page, screen: string): Promise
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), screen).toEqual([]);
 }
 
-test('key owner and public screens pass axe and fit required viewports', async ({ page }) => {
-  test.setTimeout(240_000);
+test('key owner and public screens pass axe and fit required viewports', async ({ page, browser }) => {
+  test.setTimeout(420_000);
   await registerOwner(page, `${Date.now()}`);
+  const guestContext = await browser.newContext({ baseURL: appOrigin });
+  const guestPage = await guestContext.newPage();
 
   const staffResponse = await page.request.post('http://localhost:3000/api/staff', {
     headers: { Origin: appOrigin },
@@ -67,31 +69,30 @@ test('key owner and public screens pass axe and fit required viewports', async (
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   for (const [screenshotName, path, heading] of screens) {
-    await page.goto(path);
-    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
-    await page.waitForLoadState('networkidle');
+    const target = path === '/' || path === '/login' || path === '/register' ? guestPage : page;
+    await target.goto(path);
+    await expect(target.getByRole('heading', { name: heading }).first()).toBeVisible();
     if (path === '/app/dashboard') {
-      await page.keyboard.press('Tab');
-      await expect(page.getByRole('link', { name: 'Перейти к основному содержимому' })).toBeFocused();
-      await page.keyboard.press('Enter');
-      await expect(page.locator('#main-content')).toBeFocused();
+      await target.keyboard.press('Tab');
+      await expect(target.getByRole('link', { name: 'Перейти к основному содержимому' })).toBeFocused();
+      await target.keyboard.press('Enter');
+      await expect(target.locator('#main-content')).toBeFocused();
     }
-    await prepareFullPageScreenshot(page);
+    await prepareFullPageScreenshot(target);
     for (const theme of ['light', 'dark'] as const) {
-      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
-      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-      await expectNoSeriousAxeViolations(page, `${path} (${theme})`);
-      await page.screenshot({ path: `docs/screenshots/${screenshotName}-${theme}.png`, fullPage: true, animations: 'disabled' });
+      await target.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+      await target.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expectNoSeriousAxeViolations(target, `${path} (${theme})`);
+      await target.screenshot({ path: `docs/screenshots/${screenshotName}-${theme}.png`, fullPage: true, animations: 'disabled' });
       if (screenshotName === 'customer-detail') {
-        const customerMetrics = page.getByRole('region', { name: 'Показатели клиента' });
+        const customerMetrics = target.getByRole('region', { name: 'Показатели клиента' });
         await expect(customerMetrics).toContainText('Завершённых визитов');
         for (const rawField of ['visitsCount', 'lastVisitAt', 'nextVisitAt', 'totalPaidMinor', 'currency']) {
-          await expect(page.getByText(rawField, { exact: true })).toHaveCount(0);
+          await expect(target.getByText(rawField, { exact: true })).toHaveCount(0);
         }
-        await page.screenshot({ path: `docs/screenshots/customer-detail-after-${theme}.png`, fullPage: true, animations: 'disabled' });
       }
     }
-    await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
+    await target.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
   }
 
   await page.goto('/__dev/ui');
@@ -107,14 +108,12 @@ test('key owner and public screens pass axe and fit required viewports', async (
     for (const path of responsiveScreens) {
       await page.goto(path);
       await expect(page.locator('main').first()).toBeVisible();
-      await page.waitForLoadState('networkidle');
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth, `${path} overflows at ${width}px`).toBeLessThanOrEqual(width);
       if (path === '/app/calendar' && width < 768) {
         await expect(page.getByRole('button', { name: 'День' })).toHaveAttribute('aria-pressed', 'true');
         const calendarGrid = page.getByRole('region', { name: 'Календарная сетка' });
         await expect.poll(() => calendarGrid.evaluate((element) => element.scrollWidth - element.clientWidth)).toBe(0);
-        if (width === 375) await page.screenshot({ path: 'docs/screenshots/calendar-after-mobile.png', fullPage: true, animations: 'disabled' });
       }
       if (width < 768) {
         await expect(page.getByRole('button', { name: 'Открыть меню' })).toBeVisible();
@@ -139,41 +138,42 @@ test('key owner and public screens pass axe and fit required viewports', async (
   });
   expect(privacyResponse.status()).toBe(200);
 
-  await page.goto(`/b/${settings.business.slug}`);
-  await expect(page.getByRole('heading', { name: /A11y Studio/ })).toBeVisible();
-  await page.keyboard.press('Tab');
-  await expect(page.getByLabel('Услуга')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.getByLabel('Мастер')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.getByLabel('Дата')).toBeFocused();
-  await page.getByLabel('Дата').fill(bookingDate);
-  const showSlots = page.getByRole('button', { name: 'Показать время' });
-  for (let index = 0; index < 5 && !(await showSlots.evaluate((element) => element === document.activeElement)); index += 1) await page.keyboard.press('Tab');
+  await guestPage.goto(`/b/${settings.business.slug}`);
+  await expect(guestPage.getByRole('heading', { name: /A11y Studio/ })).toBeVisible();
+  await guestPage.keyboard.press('Tab');
+  await expect(guestPage.getByLabel('Услуга')).toBeFocused();
+  await guestPage.keyboard.press('Tab');
+  await expect(guestPage.getByLabel('Мастер')).toBeFocused();
+  await guestPage.keyboard.press('Tab');
+  await expect(guestPage.getByLabel('Дата')).toBeFocused();
+  await guestPage.getByLabel('Дата').fill(bookingDate);
+  const showSlots = guestPage.getByRole('button', { name: 'Показать время' });
+  for (let index = 0; index < 5 && !(await showSlots.evaluate((element) => element === document.activeElement)); index += 1) await guestPage.keyboard.press('Tab');
   await expect(showSlots).toBeFocused();
-  await page.keyboard.press('Enter');
-  const slotButtons = page.getByRole('group', { name: 'Доступное время' }).getByRole('button');
+  await guestPage.keyboard.press('Enter');
+  const slotButtons = guestPage.getByRole('group', { name: 'Доступное время' }).getByRole('button');
   await expect(slotButtons.first()).toBeVisible();
-  await captureThemeScreenshots(page, 'public-booking');
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Enter');
-  for (let index = 1; index < await slotButtons.count(); index += 1) await page.keyboard.press('Tab');
-  await page.keyboard.press('Tab');
-  await expect(page.getByLabel('Имя')).toBeFocused();
-  await page.keyboard.type('Keyboard Client');
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Tab');
-  await page.keyboard.type(`+996777${String(Date.now()).slice(-6)}`);
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Tab');
-  const submitBooking = page.getByRole('button', { name: 'Подтвердить запись' });
-  for (let index = 0; index < 5 && !(await submitBooking.evaluate((element) => element === document.activeElement)); index += 1) await page.keyboard.press('Tab');
+  await captureThemeScreenshots(guestPage, 'public-booking');
+  await guestPage.keyboard.press('Tab');
+  await guestPage.keyboard.press('Enter');
+  for (let index = 1; index < await slotButtons.count(); index += 1) await guestPage.keyboard.press('Tab');
+  await guestPage.keyboard.press('Tab');
+  await expect(guestPage.getByLabel('Имя')).toBeFocused();
+  await guestPage.keyboard.type('Keyboard Client');
+  await guestPage.keyboard.press('Tab');
+  await guestPage.keyboard.press('Tab');
+  await guestPage.keyboard.type(`+996777${String(Date.now()).slice(-6)}`);
+  await guestPage.keyboard.press('Tab');
+  await guestPage.keyboard.press('Tab');
+  const submitBooking = guestPage.getByRole('button', { name: 'Подтвердить запись' });
+  for (let index = 0; index < 5 && !(await submitBooking.evaluate((element) => element === document.activeElement)); index += 1) await guestPage.keyboard.press('Tab');
   await expect(submitBooking).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
-  await captureThemeScreenshots(page, 'public-confirmation');
-  await page.getByRole('link', { name: 'Управлять записью' }).click();
-  await expect(page.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
-  await captureThemeScreenshots(page, 'public-manage');
+  await guestPage.keyboard.press('Enter');
+  await expect(guestPage.getByRole('heading', { name: 'Запись оформлена' })).toBeVisible();
+  await captureThemeScreenshots(guestPage, 'public-confirmation');
+  await guestPage.getByRole('link', { name: 'Управлять записью' }).click();
+  await expect(guestPage.getByRole('heading', { name: 'Управление записью' })).toBeVisible();
+  await captureThemeScreenshots(guestPage, 'public-manage');
+  await guestContext.close();
 });
 

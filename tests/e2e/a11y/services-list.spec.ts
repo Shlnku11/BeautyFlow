@@ -74,7 +74,6 @@ test('service cards fit narrow shells and preserve editing details', async ({ pa
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), theme).toEqual([]);
-    await page.screenshot({ path: `docs/screenshots/services-after-mobile-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 
   await card.getByRole('button', { name: `Изменить услугу: ${service.name}` }).click();

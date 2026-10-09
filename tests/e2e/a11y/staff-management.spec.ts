@@ -66,13 +66,11 @@ test('staff list and profile tabs are responsive, keyboard accessible, and usabl
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await expectNoSeriousAxeViolations(page, `staff list (${theme})`);
-    await page.screenshot({ path: `docs/screenshots/staff-list-after-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
   await page.setViewportSize({ width: 375, height: 812 });
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    await page.screenshot({ path: `docs/screenshots/staff-list-mobile-after-${theme}.png`, animations: 'disabled' });
   }
 
   await page.getByLabel('Поиск сотрудников').fill('такого-сотрудника-нет');
@@ -125,7 +123,6 @@ test('staff list and profile tabs are responsive, keyboard accessible, and usabl
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await expectNoSeriousAxeViolations(page, `staff ${tab.label} (${theme})`);
-      await page.screenshot({ path: `docs/screenshots/staff-${tab.screenshot}-after-${theme}.png`, fullPage: true, animations: 'disabled' });
     }
   }
 

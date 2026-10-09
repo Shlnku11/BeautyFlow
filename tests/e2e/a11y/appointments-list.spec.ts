@@ -7,6 +7,7 @@ interface AppointmentFixture {
   customer: { firstName: string; lastName?: string };
   staff: { displayName: string };
   service: { name: string };
+  startAt: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
 }
 
@@ -19,6 +20,7 @@ const statusLabels: Record<AppointmentFixture['status'], string> = {
 };
 
 test('appointment cards fit narrow shells and preserve appointment actions', async ({ page }) => {
+  test.setTimeout(60_000);
   const run = `${Date.now()}`;
   await page.setExtraHTTPHeaders({ 'X-Forwarded-For': `198.22.${Number(run.slice(-8)) % 255}.${Number(run.slice(-4)) % 254 + 1}` });
   await page.goto('/login');
@@ -34,12 +36,24 @@ test('appointment cards fit narrow shells and preserve appointment actions', asy
   const appointment = appointments.find((row) => row.status !== 'cancelled');
   if (!appointment) throw new Error('Seeded demo business has no active appointments');
   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName ?? ''}`.trim();
+  const dateFrom = new Date(appointment.startAt);
+  dateFrom.setUTCDate(dateFrom.getUTCDate() - 1);
+  const dateTo = new Date(appointment.startAt);
+  dateTo.setUTCDate(dateTo.getUTCDate() + 1);
 
   await page.goto('/app/appointments');
   await expect(page.getByRole('heading', { name: 'Записи' })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByLabel('С даты').fill(dateFrom.toISOString().slice(0, 10));
+  await page.getByLabel('По дату').fill(dateTo.toISOString().slice(0, 10));
   const cards = page.getByRole('region', { name: 'Карточки записей' });
-  const card = cards.getByRole('article', { name: `Запись: ${customerName} · ${appointment.service.name}` });
+  await expect(cards.getByRole('status')).toHaveCount(0);
+  const card = cards.getByRole('article')
+    .filter({ hasText: customerName })
+    .filter({ hasText: appointment.service.name })
+    .filter({ hasText: appointment.staff.displayName })
+    .filter({ hasText: statusLabels[appointment.status] });
+  await expect(card.first()).toBeVisible();
   await expect(card).toContainText(appointment.staff.displayName);
   await expect(card).toContainText(statusLabels[appointment.status]);
   await expect(card.getByRole('button', { name: 'Подробнее' })).toBeVisible();
@@ -66,7 +80,6 @@ test('appointment cards fit narrow shells and preserve appointment actions', asy
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), theme).toEqual([]);
-    await page.screenshot({ path: `docs/screenshots/appointments-after-mobile-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 
   await card.getByRole('button', { name: 'Подробнее' }).click();

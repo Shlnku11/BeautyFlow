@@ -100,7 +100,7 @@ details > summary::-webkit-details-marker { display: none; }
 .landing-preview-event.amber { border-color: #b1823e; background: #f7f0e4; color: #5c461f; }
 .landing-preview-event.empty { border: 1px dashed var(--border-subtle); background: var(--surface-app); }
 .landing-preview-event.short { min-height: 35px; }
-.landing-preview-note { position: absolute; right: -24px; bottom: 37px; display: flex; align-items: center; gap: 11px; min-width: 218px; border: 1px solid var(--border-subtle); border-radius: 13px; background: var(--surface-solid); padding: 11px 12px; box-shadow: var(--shadow-md); animation: landing-float 7s ease-in-out infinite; }
+.landing-preview-note { position: absolute; right: -24px; bottom: 37px; display: flex; align-items: center; gap: 11px; min-width: 218px; border: 1px solid var(--border-subtle); border-radius: 13px; background: var(--surface-solid); padding: 11px 12px; color: var(--text-primary); box-shadow: var(--shadow-md); animation: landing-float 7s ease-in-out infinite; }
 .landing-preview-note-icon { display: grid; width: 33px; height: 33px; place-items: center; border-radius: 10px; background: var(--color-primary-50); color: var(--color-primary-700); }
 .landing-preview-note > span:nth-child(2) { display: grid; gap: 3px; }
 .landing-preview-note b { font-size: 10px; }

@@ -5,7 +5,7 @@
 ## Как проверялось
 
 - Playwright Chromium, реальные URL и API; owner и master вошли через формы, регистрация прошла до экрана подтверждения email, публичную запись создал клиент и открыл manage-ссылку.
-- Сняты light/dark screenshots для 13 семейств экранов, включая day/week/month календарь, detail pages и appointment modal: [`docs/screenshots/audit-before/`](screenshots/audit-before/).
+- На этапе аудита были сняты light/dark screenshots для 13 семейств экранов, включая day/week/month календарь, detail pages и appointment modal. Исторические кадры baseline удалены при финальной уборке; выводы аудита оставлены в этом документе.
 - Основные сравнения — предоставленные эталонные изображения dashboard/calendar и публичные интерфейсы [Linear](https://linear.app/), [Vercel](https://vercel.com/) и [Stripe](https://stripe.com/). У эталонов плотная, хорошо отсканированная сетка; видимые действия рядом с записью; чёткие заголовки и статусы; содержимое таблиц не распадается на сырые значения.
 - Исторический recovery baseline был `npm test` 31/115, E2E 11/11 и `test:a11y` 1/1. Последний gate после Staff: typecheck/lint ✅, Vitest 32 файла / 118 тестов ✅, race 2/2 ✅, build ✅, contrast ✅, полный Chromium E2E 18/18 ✅ и `test:a11y` 7/7 ✅. Staff проверен отдельно на 320/375/768/1024/1440px, в обеих темах, включая все пять вкладок.
 
@@ -36,24 +36,24 @@
 - Исправлено runtime-позиционирование appointment cards: Tailwind utilities перечислены статически для grid rows 1–52; `gridRow` и `gridRowStart` расширены теми же диапазонами. Удалены интерполированные `row-start-[${...}]` / `row-span-[${...}]`, из-за которых карточки исчезали/схлопывались после purge.
 - 30-минутная запись теперь занимает 40px и остаётся читаемой: время с клиентом и услуга видны, имя мастера доступно в `aria-label` и tooltip; при более длинной записи имя мастера также видно строкой. В полном контексте карточки сохранены действия открытия записи и цвет мастера.
 - Реальный Chromium E2E создал запись через публичную форму, открыл неделю с выбранной датой, проверил карточку внутри `Календарная сетка` и её высоту ≥39px. `npm run typecheck`, lint и build прошли.
-- До: [`calendar-week-light.png`](screenshots/audit-before/calendar-week-light.png), [`calendar-week-dark.png`](screenshots/audit-before/calendar-week-dark.png). После: [`calendar-after-light.png`](screenshots/calendar-after-light.png), [`calendar-after-dark.png`](screenshots/calendar-after-dark.png).
+- До: исторические кадры baseline удалены при уборке. Актуальный календарь: [`calendar-light.png`](screenshots/calendar-light.png), [`calendar-dark.png`](screenshots/calendar-dark.png).
 - Первый частичный результат получил D7 / S7 / T7 / St7 / R4 / Dark8 / A11y8. В последующем проходе закрыты мобильная ширина и пересечение двух записей разных мастеров; текущая оценка календаря: D8 / S9 / T8 / St8 / R8 / Dark8 / A8. Пустой день теперь показывает ясное «На этот период записей нет»; полноценная keyboard navigation по слотам всё ещё не аудирована.
 - На мобильном автоматически выбирается «День», а внутренний grid не требует горизонтальной прокрутки: Chromium проверяет это на 320 и 375px. На широком экране отдельный E2E создаёт две реальные Mongo-записи на общий слот, подтверждает разные горизонтальные bounds и отменяет записи после проверки. `assignCalendarLanes` повторно использует дорожки после окончания и раскладывает overlap-группы по отдельным колонкам.
-- В ближайших записях переход к оплате больше не переносится посимвольно; на мобильном список складывается в вертикальные строки. У метки начала дня 08:00 убрано обрезание верхней строки. После: [`calendar-after-mobile.png`](screenshots/calendar-after-mobile.png), [`calendar-overlap-light.png`](screenshots/calendar-overlap-light.png), [`calendar-overlap-dark.png`](screenshots/calendar-overlap-dark.png).
+- В ближайших записях переход к оплате больше не переносится посимвольно; на мобильном список складывается в вертикальные строки. У метки начала дня 08:00 убрано обрезание верхней строки. Текущая пара календаря: [`calendar-light.png`](screenshots/calendar-light.png), [`calendar-dark.png`](screenshots/calendar-dark.png).
 - После этой работы полный gate зелёный: Vitest 32 файла / 118 тестов, race 2/2, typecheck, lint, production build, contrast, Chromium E2E 13/13 и a11y/responsive 2/2. Build предупреждает о большом едином JS chunk (1,261.02 kB minified / 366.43 kB gzip) и dependency `use client` directives; это отдельные последующие задачи.
 
 ## Stage 4 — карточка клиента (2026-10-08)
 
 - Заменены backend keys на человекочитаемые русские показатели; история переводит статусы и показывает локальную дату/время в поясе бизнеса. Оплаты показывают локализованный способ/статус, сумму в валюте и бизнес-время операции. API и модель не менялись.
 - Сводка визуально разделена на четыре показателя. История и оплаты на ширине `<640px` складываются в понятные вертикальные строки; Chromium проверил отсутствие горизонтального overflow на 320 / 375 / 768 / 1024 / 1440px, обе темы и отсутствие serious/critical axe violations. E2E использует session/API/данные seeded MongoDB, не runtime mock.
-- После: [`customer-detail-after-light.png`](screenshots/customer-detail-after-light.png), [`customer-detail-after-dark.png`](screenshots/customer-detail-after-dark.png). Выделенный E2E ✅ 1/1; typecheck ✅. Customer list по-прежнему нуждается в responsive card view.
+- Скриншоты Customer detail сведены к актуальной галерее; выделенный E2E ✅ 1/1; typecheck ✅. Customer list по-прежнему нуждается в responsive card view.
 
 ## Stage 4 — список клиентов (2026-10-08)
 
 - На ширине менее 768px таблица заменяется ссылочными карточками, сохраняющими имя, телефон, email (или явное отсутствие email), источник и дату добавления в бизнес-часовом поясе. Desktop сохраняет плотную таблицу и источник «Онлайн-запись».
 - Проверка использует seeded MongoDB данные и реальный Chromium: открывает карточку, сверяет метаданные, отсутствие горизонтального overflow на 320 / 375 / 768 / 1024 / 1440px и видимость правильного представления на каждой ширине. Axe light/dark не нашёл serious/critical нарушений.
 - Во время проверки найден и исправлен общий a11y дефект topbar: мобильная иконка новой записи имела пустое accessible name. Ссылка получила локализованное имя, декоративная иконка скрыта от accessibility tree.
-- После: [`customers-after-mobile-light.png`](screenshots/customers-after-mobile-light.png), [`customers-after-mobile-dark.png`](screenshots/customers-after-mobile-dark.png). `tests/e2e/a11y/customer-list.spec.ts` ✅ 1/1, typecheck ✅, lint ✅. API error/empty и master-specific состояния остаются отдельной проверкой.
+- Текущие кадры списка клиентов: [`customers-light.png`](screenshots/customers-light.png), [`customers-dark.png`](screenshots/customers-dark.png). `tests/e2e/a11y/customer-list.spec.ts` ✅ 1/1, typecheck ✅, lint ✅. API error/empty и master-specific состояния остаются отдельной проверкой.
 
 ## Stage 4 — локальный demo verification state (2026-10-08)
 
@@ -65,19 +65,19 @@
 
 - На ширинах менее 1536px каждая оплата показывается карточкой с локальным статусом, клиентом и услугой, business-timezone датами оплаты/визита, методом, суммой, возвратом, автором и доступным действием. Пустая выборка теперь имеет сообщение и на mobile. Технические IDs больше не используются вместо имени клиента/записи при временно недоступной связи.
 - Девятиколоночная таблица остаётся для viewport от 1536px, где реальный Chromium подтвердил отсутствие внутренней прокрутки. На 320 / 375 / 768 / 1024 / 1439 / 1440 / 1535 / 1536px проверено отсутствие горизонтального page overflow и верное переключение между карточками/таблицей; axe light/dark на 375px — без serious/critical.
-- Скриншоты: [`payments-after-mobile-light.png`](screenshots/payments-after-mobile-light.png), [`payments-after-mobile-dark.png`](screenshots/payments-after-mobile-dark.png), [`payments-after-wide-light.png`](screenshots/payments-after-wide-light.png), [`payments-after-wide-dark.png`](screenshots/payments-after-wide-dark.png). `tests/e2e/a11y/payments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅.
+- Текущие кадры оплат: [`payments-light.png`](screenshots/payments-light.png), [`payments-dark.png`](screenshots/payments-dark.png). `tests/e2e/a11y/payments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅.
 
 ## Stage 4 — список записей (2026-10-08)
 
 - В узком shell список сохраняет группировку по бизнес-дате, но вместо широких строк показывает карточки с клиентом, услугой, мастером, локальным временем/суммой, источником и статусом. «Подробнее» открывает прежнюю detail panel; переход к оплате остаётся только для разрешённой роли и некancelled записи.
 - Таблица появляется от 1280px. Реальный Chromium проверил отсутствие page overflow и переключение представления на 320 / 375 / 768 / 1024 / 1279 / 1280 / 1440px, и отсутствие внутреннего overflow у desktop-таблицы. Карточки прошли axe в светлой и тёмной теме.
-- Скриншоты: [`appointments-after-mobile-light.png`](screenshots/appointments-after-mobile-light.png), [`appointments-after-mobile-dark.png`](screenshots/appointments-after-mobile-dark.png). `tests/e2e/a11y/appointments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; production build ✅.
+- Исторические кадры списка записей удалены после проверки; E2E остаётся в `tests/e2e/a11y/appointments-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; production build ✅.
 
 ## Stage 4 — список услуг (2026-10-08)
 
 - Ниже 1120px services table заменяется карточками с названием/описанием, длительностью и перерывом, ценой, именами назначенных мастеров, активностью и состоянием онлайн-записи. Контекстное «Изменить услугу: …» открывает существующий edit dialog; desktop table остаётся на широком shell.
 - Seeded MongoDB Chromium E2E проверяет карточку и edit dialog, переключение представлений и отсутствие page overflow на 320 / 375 / 768 / 1023 / 1119 / 1120 / 1280 / 1440px; desktop table не имеет внутреннего overflow; axe light/dark — без serious/critical.
-- Скриншоты: [`services-after-mobile-light.png`](screenshots/services-after-mobile-light.png), [`services-after-mobile-dark.png`](screenshots/services-after-mobile-dark.png). `tests/e2e/a11y/services-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; build ✅; contrast ✅. Error/loading and filtered-empty states remain unverified.
+- Исторические кадры списка услуг удалены после проверки; `tests/e2e/a11y/services-list.spec.ts` ✅ 1/1; typecheck ✅; lint ✅; build ✅; contrast ✅. Error/loading and filtered-empty states remain unverified.
 
 ### Причины ключевых оценок
 
@@ -166,7 +166,7 @@ P0: календарная сетка/мобильный день/пересеч
 - `tests/e2e/a11y/staff-management.spec.ts` работает в Chromium с существующими seeded Mongo данными: ширины 320 / 375 / 768 / 1024 / 1440px; axe без serious/critical для списка и пяти вкладок в light/dark; подтверждена клавиатурная навигация tabs; проверены поиск/empty/clear, required field, network abort + retry и профильное сохранение. Staff E2E ✅ 1/1.
 - Полный `npm run test:a11y` ✅ 7/7 (включает все вкладки Staff). `npm run typecheck`, `npm run lint`, `npm test` ✅ 32 файла / 118 тестов, `npm run test:race` ✅ 2/2, `npm run build` ✅ и `npm run check:contrast` ✅. Build по-прежнему выдаёт upstream `use client` notices и предупреждение о большом client chunk.
 - Полный `npm run test:e2e` ✅ 18/18. В промежуточном прогоне встретилась разовая Windows screenshot file-open ошибка в Payments; payment test, `test:a11y` 7/7 и повторный полный E2E прошли.
-- Скриншоты после: [Staff list light](screenshots/staff-list-after-light.png), [Staff list dark](screenshots/staff-list-after-dark.png), [Staff mobile light](screenshots/staff-list-mobile-after-light.png), [Staff mobile dark](screenshots/staff-list-mobile-after-dark.png). Для каждой вкладки есть light/dark пара: profile, schedule, exceptions, services и access в `docs/screenshots/`.
+- Текущие кадры Staff: [светлая тема](screenshots/staff-light.png) и [тёмная тема](screenshots/staff-dark.png). Дополнительные состояния удалены при консолидации каталога скриншотов.
 
 ## Stage 4 — Landing (2026-10-08)
 
@@ -176,7 +176,7 @@ P0: календарная сетка/мобильный день/пересеч
 |---:|---:|---:|---:|---:|---:|---:|
 | 8/10 | 8/10 | 9/10 | 7/10 | 9/10 | 9/10 | 8/10 |
 
-Оценка не 10/10: side-by-side с реальной публичной страницей Linear оставляет пять заметных различий. Они документированы в [`comparison/landing-before.md`](comparison/landing-before.md): собственный BeautyFlow бренд и фиолетовый акцент, салонная русская навигация/копирайт, CRM-содержимое продукта, отсутствие Linear-specific assistant overlay, а также обязательная ширина превью 60–70% вместо ~92% эталона. По заданию нельзя подменять продукт чужим UI или нарушать установленный размер превью.
+Оценка не 10/10: side-by-side с публичной страницей Linear оставляет пять заметных различий. Это собственный BeautyFlow бренд и фиолетовый акцент, салонная русская навигация/копирайт, CRM-содержимое продукта, отсутствие Linear-specific assistant overlay и ширина превью 60–70% вместо ~92% эталона. Они сохранены в финальном сравнении; продуктовый UI не подменяется чужим.
 
 ### Что изменилось
 
@@ -186,7 +186,7 @@ P0: календарная сетка/мобильный день/пересеч
 
 ### Сравнение и проверка
 
-- До: 32 записанных измеримых различия. После: [Linear vs BeautyFlow](comparison/landing-linear-vs-ours-after.png); финальные кадры: [light](screenshots/landing-after-light.png), [dark](screenshots/landing-after-dark.png), полные страницы: `landing-full-after-{light,dark}.png`.
+- До: 32 записанных измеримых различия. После: [Linear vs BeautyFlow](comparison/landing-linear-vs-ours-after.png); финальные кадры: [light](screenshots/landing-light.png), [dark](screenshots/landing-dark.png).
 - Chromium E2E лендинга ✅ 4/4: корневой route без навигационного цикла, тема dashboard-preview, axe serious/critical в обеих темах, overflow/заголовок при 320 / 375 / 768 / 1024 / 1440px. Ручная проверка размеров подтвердила ширину документа ровно по viewport.
 - typecheck ✅, lint ✅, `npm test` ✅ (32 файла / 118 тестов), build ✅, contrast ✅. Build по-прежнему предупреждает о крупных client JS 1,296.97 kB / 374.70 kB gzip и upstream `use client` директивах.
 - Полный E2E на нашем клиенте `http://localhost:5174` (порт 5173 занят отдельным Sales Control/reference процессом) — 18/21 прошли; 3 теста не зелёные: axe timeout в appointments, payment-list fixture с записью, которая отображается как «Запись недоступна», и owner auth smoke timeout на последующем запросе после 20-way race. E2E retries подтвердили нестабильность; не считаю полный набор зелёным. `test:a11y` как отдельная команда не запускался.

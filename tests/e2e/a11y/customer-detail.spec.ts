@@ -44,7 +44,6 @@ test('customer detail uses localized values and passes axe in both themes', asyn
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? '')), theme).toEqual([]);
-    await page.screenshot({ path: `docs/screenshots/customer-detail-after-${theme}.png`, fullPage: true, animations: 'disabled' });
   }
 
   for (const width of [320, 375, 768, 1024, 1440]) {
