@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb';
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+import { DEV_DEMO_LOGIN_EMAILS } from '../../packages/shared/src/constants';
 
 async function pendingVerificationCode(email: string): Promise<string> {
   const uri = process.env.MONGODB_URI;
@@ -57,7 +58,13 @@ export async function verifyRegistrationEmail(page: Page, email: string): Promis
 }
 
 export async function verifyLoginEmail(page: Page, email: string): Promise<void> {
-  await page.getByRole('heading', { name: 'Подтвердите вход' }).waitFor();
+  if (DEV_DEMO_LOGIN_EMAILS.some((demoEmail) => demoEmail === email.toLowerCase())) {
+    await page.waitForURL(/\/app(?:\/dashboard)?$/);
+    return;
+  }
+
+  const verificationHeading = page.getByRole('heading', { name: 'Подтвердите вход' });
+  await expect(verificationHeading).toBeVisible();
   await fillVerificationCells(page, await pendingLoginCode(email));
   await page.getByRole('button', { name: 'Подтвердить и войти' }).click();
   await page.waitForURL(/\/app(?:\/dashboard)?$/);

@@ -25,12 +25,12 @@ test('root opens the public landing page without a redirect loop', async ({ page
 test('landing dashboard preview follows the active color scheme', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
-  const preview = page.locator('#top picture img');
-  await expect(preview).toHaveAttribute('alt', /Обзор BeautyFlow/);
-  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => new URL(image.currentSrc).pathname)).toBe('/images/dashboard-light.png');
+  const preview = page.getByRole('img', { name: 'Предварительный вид календаря BeautyFlow' });
+  await expect(preview).toBeVisible();
+  await expect.poll(() => preview.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 254, 253)');
 
   await page.emulateMedia({ colorScheme: 'dark' });
-  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => new URL(image.currentSrc).pathname)).toBe('/images/dashboard-dark.png');
+  await expect.poll(() => preview.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(33, 29, 35)');
 });
 
 test('landing has no serious or critical accessibility violations in either theme', async ({ page }) => {
@@ -48,6 +48,7 @@ test('landing stays within narrow and desktop viewport widths', async ({ page })
   for (const width of [320, 375, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     const dimensions = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth, heading: document.querySelector('h1')?.scrollWidth, headingClient: document.querySelector('h1')?.clientWidth }));
     expect(dimensions.document, `document overflow at ${width}px`).toBeLessThanOrEqual(width);
     expect(dimensions.heading, `heading overflow at ${width}px`).toBeLessThanOrEqual(dimensions.headingClient ?? 0);
@@ -219,6 +220,22 @@ test('business owner can register and log back in using a server-side session', 
     data: { ...appointmentRequest, startAt: '2030-06-10T03:30:00.000Z' },
   })));
   expect(raceRequests.map((response) => response.status()).sort((a, b) => a - b)).toEqual([201, ...Array.from({ length: 19 }, () => 409)]);
+
+  await page.reload();
+  await page.getByLabel('Дата').fill('2030-06-10');
+  await page.getByRole('button', { name: 'Неделя' }).click();
+  const freeSlot = page.getByRole('button', { name: /Создать запись .*10:00.*E2E Staff/ });
+  await expect(freeSlot).toBeVisible();
+  await freeSlot.focus();
+  await freeSlot.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Новая запись' })).toBeVisible();
+  await page.getByLabel(/Клиент/).selectOption(customerData.id);
+  await page.getByLabel(/Услуга/).selectOption(createdService.id);
+  const createDialog = page.getByRole('dialog', { name: 'Новая запись' });
+  await createDialog.getByLabel('Мастер').selectOption(createdStaff.id);
+  await createDialog.getByRole('button', { name: 'Создать запись' }).click();
+  await expect(page.getByRole('dialog', { name: 'Новая запись' })).toBeHidden();
+  await expect(page.getByRole('button', { name: /10:00 · E2E Client · E2E haircut · E2E Staff/ })).toBeVisible();
 
   const settingsResponse = await page.request.get('http://localhost:3000/api/settings');
   expect(settingsResponse.status()).toBe(200);

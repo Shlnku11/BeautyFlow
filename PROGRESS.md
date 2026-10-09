@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-09 — E2E и подготовка к защите
+
+- Исправление календарной модалки и причины отказа по слоту закрыто: модалка стабильна, запись из календаря проверена отдельным браузерным сценарием — свободный слот → форма → успешное сохранение → карточка в сетке. Регрессия добавлена в `tests/e2e/smoke.spec.ts`.
+- Полный Playwright E2E на порту 5174: **21/21 за 5,1 минуты**. Дополнительно проверено UI-создание записи адресно: **1/1**.
+- Качество: typecheck ✅; lint ✅; `npm test -- --maxWorkers=1` — **34 файла / 125 тестов ✅**; `npm run test:race` — **2/2 ✅**; `npm run check:contrast` ✅; `npm run build` ✅. Сборка выдаёт предупреждения dependency `use client` и client chunk >500 kB; самый большой текущий chunk — 540.84 kB. Оптимизацию bundle отложить после защиты.
+- Playwright обновил light/dark скриншоты: landing, login, dashboard, calendar, public booking, payments, staff, customers; пары сохранены в `docs/screenshots/`. Сценарий защиты на 5 минут с URL, действиями и речью: [`DEFENSE_WALKTHROUGH.md`](DEFENSE_WALKTHROUGH.md).
+- Порт **5174**; 5173 не трогали. Backend, API contracts, data model, `tenantPlugin`, `occupiedKeys`, `withTransaction` не менялись. Новые функции, PDF и анимации в этот блок не добавлялись.
+- После защиты остаются: полный аудит frontend + backend; довести email-код на входе и регистрации; завершить Google OAuth UI/проверку credentials; собрать презентацию.
+
 ## 2026-10-08 — Реконструкция UI, блок 1 (Landing)
 
 Статус: блок лендинга завершён и закоммичен; общий редизайн страниц продолжается по очереди из `docs/comparison/` и исходного задания. Этот раздел новее передачи ниже: Landing больше не считается незавершённым.

@@ -152,7 +152,10 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const location = useLocation();
   const navigate = useNavigate();
   const [date, setDate] = useState('');
-  const [view, setView] = useState<'day' | 'week' | 'month' | 'appointments'>(initialView);
+  const [view, setView] = useState<'day' | 'week' | 'month' | 'appointments'>(() => {
+    const isNarrow = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches;
+    return isNarrow && initialView !== 'appointments' ? 'day' : initialView;
+  });
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const createQueryHandled = useRef(false);
   const [data, setData] = useState<CalendarPayload | null>(null);
@@ -163,6 +166,15 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
   const businessTimezone = session.data?.active.business.timezone ?? 'UTC';
   const activeDate = date || DateTime.now().setZone(businessTimezone).toISODate() || '';
+
+  useEffect(() => {
+    const narrowViewport = window.matchMedia('(max-width: 767px)');
+    const syncView = () => {
+      if (narrowViewport.matches) setView((current) => current === 'appointments' ? current : 'day');
+    };
+    narrowViewport.addEventListener('change', syncView);
+    return () => narrowViewport.removeEventListener('change', syncView);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
