@@ -1,6 +1,7 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { DateTime } from 'luxon';
 import { connectToDatabase, disconnectFromDatabase } from '../../packages/server/src/db/connection';
 import { up as createIndexes } from '../../packages/server/migrations/000_init';
 import { PublicBookingService } from '../../packages/server/src/services/public-booking-service';
@@ -16,7 +17,8 @@ describe('public booking and manage links', () => {
   let serviceB: mongoose.Types.ObjectId;
   const service = new PublicBookingService();
   const context = (): PublicContext => ({ businessId: businessA.toString(), source: 'slug' });
-  const startAt = '2026-10-10T04:00:00.000Z';
+  let startAt = '';
+  let bookingDate = '';
   const bookingInput = { serviceId: '', staffId: '', startAt, customer: { firstName: 'Public Client', phone: '+996555222333', email: 'public@example.test' }, acceptPrivacy: true, website: '' };
 
   beforeAll(async () => {
@@ -32,6 +34,11 @@ describe('public booking and manage links', () => {
 
   beforeEach(async () => {
     await Promise.all(Object.values(mongoose.connection.collections).map((collection) => collection.deleteMany({})));
+    const today = DateTime.now().setZone('Asia/Bishkek').startOf('day');
+    const daysUntilSaturday = (6 - today.weekday + 7) % 7 || 7;
+    const nextSaturday = today.plus({ days: daysUntilSaturday });
+    bookingDate = nextSaturday.toISODate() ?? '';
+    startAt = nextSaturday.set({ hour: 10, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO() ?? '';
     businessA = new mongoose.Types.ObjectId(); businessB = new mongoose.Types.ObjectId();
     await Business.create([{ _id: businessA, name: 'Business A', slug: 'public-a', timezone: 'Asia/Bishkek', currency: 'KGS', countryCode: 'KG', status: 'active', phone: '+996312111111', address: 'A street' }, { _id: businessB, name: 'Business B', slug: 'public-b', timezone: 'Asia/Bishkek', currency: 'KGS', countryCode: 'KG', status: 'active' }]);
     await Settings.create([{ businessId: businessA }, { businessId: businessB }]);
@@ -41,7 +48,7 @@ describe('public booking and manage links', () => {
     staffA = staff._id; serviceA = treatment._id; serviceB = foreignTreatment._id;
     await StaffService.create({ businessId: businessA, staffId: staffA, serviceId: serviceA });
     await StaffSchedule.create({ businessId: businessA, staffId: staffA, weekly: [{ isoWeekday: 6, intervals: [{ start: '10:00', end: '12:00' }], breaks: [] }] });
-    Object.assign(bookingInput, { serviceId: serviceA.toString(), staffId: staffA.toString() });
+    Object.assign(bookingInput, { serviceId: serviceA.toString(), staffId: staffA.toString(), startAt });
   });
 
   afterAll(async () => { await disconnectFromDatabase(); await replSet.stop(); });
@@ -50,7 +57,7 @@ describe('public booking and manage links', () => {
     expect(await service.profile(context())).toMatchObject({ slug: 'public-a', timezone: 'Asia/Bishkek', consent: { required: true } });
     expect(await service.services(context())).toHaveLength(1);
     expect(await service.staff(context(), serviceA.toString())).toHaveLength(1);
-    expect((await service.slots(context(), { serviceId: serviceA.toString(), staffId: staffA.toString(), date: '2026-10-10' })).slots).toContainEqual({ startAt });
+    expect((await service.slots(context(), { serviceId: serviceA.toString(), staffId: staffA.toString(), date: bookingDate })).slots).toContainEqual({ startAt });
     const foreignCustomer = await Customer.create({ businessId: businessB, firstName: 'Business B Client', phone: '+996555222333', phoneNormalized: '+996555222333', searchTokens: ['business b client'], source: 'internal' });
     const first = await service.book(context(), bookingInput, 'public-idempotency-01');
     const repeated = await service.book(context(), bookingInput, 'public-idempotency-01');

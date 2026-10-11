@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { MVP_ROUTE_CONTRACTS } from '@/server/http/route-contracts';
+import { MVP_ROUTE_CONTRACTS, OPTIONAL_EXTENSION_ROUTE_CONTRACTS } from '@/server/http/route-contracts';
 import { IMPLEMENTED_AUTH_ROUTE_IDS } from '@/server/http/auth-routes';
 import { IMPLEMENTED_STAFF_ROUTE_IDS } from '@/server/http/staff-routes';
 import { IMPLEMENTED_SERVICE_ROUTE_IDS } from '@/server/http/service-routes';
@@ -16,6 +16,9 @@ import { IMPLEMENTED_CALENDAR_ROUTE_IDS } from '@/server/http/calendar-routes';
 import { IMPLEMENTED_NOTIFICATION_ROUTE_IDS } from '@/server/http/notification-routes';
 import { IMPLEMENTED_PAYMENT_ROUTE_IDS } from '@/server/http/payment-routes';
 import { IMPLEMENTED_DASHBOARD_ROUTE_IDS } from '@/server/http/dashboard-routes';
+import { IMPLEMENTED_INBOX_NOTIFICATION_ROUTE_IDS } from '@/server/http/inbox-notification-routes';
+import { IMPLEMENTED_INVENTORY_ROUTE_IDS } from '@/server/http/inventory-routes';
+import { IMPLEMENTED_WAITLIST_ROUTE_IDS } from '@/server/http/waitlist-routes';
 
 const implementedRouteIds = new Set([
   'SYS-01',
@@ -50,5 +53,10 @@ describe('MVP Express route registry', () => {
   it('has a concrete route handler for all 68 MVP endpoints', () => {
     expect(implementedRouteIds.size).toBe(68);
     expect(implementedRouteIds).toEqual(new Set(MVP_ROUTE_CONTRACTS.map((route) => route.id)));
+  });
+
+  it('registers every optional notification, inventory, and waitlist route', () => {
+    const implemented = new Set([...IMPLEMENTED_INBOX_NOTIFICATION_ROUTE_IDS, ...IMPLEMENTED_INVENTORY_ROUTE_IDS, ...IMPLEMENTED_WAITLIST_ROUTE_IDS]);
+    expect(implemented).toEqual(new Set(OPTIONAL_EXTENSION_ROUTE_CONTRACTS.map((route) => route.id)));
   });
 });

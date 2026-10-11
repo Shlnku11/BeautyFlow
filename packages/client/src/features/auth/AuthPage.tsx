@@ -5,7 +5,7 @@ import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faCalendarCheck, faEye, faEyeSlash, faLock, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { ru } from '@/shared/i18n/ru';
-import { GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES, DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 
-type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'accept-invite';
 type AuthLocationState = { flow?: 'login' | 'register'; email?: string; loginToken?: string; notice?: string };
 
 function AuthFrame({ children, wide = false, headerHref, headerText }: { children: ReactNode; wide?: boolean; headerHref?: string; headerText?: string }) {
@@ -297,9 +297,37 @@ function ResetPasswordPage() {
   return <AuthFrame headerHref="/login" headerText={ru.auth.backToLogin}><Card className="rounded-xl border-border/80 bg-card shadow-sm"><CardHeader className="px-6 pb-3 pt-7"><CardTitle className="text-[22px] tracking-tight">{ru.auth.resetTitle}</CardTitle><CardDescription>{ru.auth.resetDescription}</CardDescription></CardHeader><CardContent className="px-6 pb-7"><form className="grid gap-4" onSubmit={(event) => { void submit(event); }}><Field id="password" label={ru.auth.password} hint={ru.auth.passwordRequirement}><Input id="password" autoComplete="new-password" name="password" type="password" minLength={10} maxLength={128} required/></Field><AuthError>{error}</AuthError><Button className="w-full" type="submit" disabled={isSubmitting}>{isSubmitting ? '…' : ru.auth.resetSubmit}</Button><Link className="text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" to="/login">{ru.auth.backToLogin}</Link></form></CardContent></Card></AuthFrame>;
 }
 
+function AcceptInvitePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const token = new URLSearchParams(location.search).get('token') ?? '';
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    const form = new FormData(event.currentTarget);
+    const parsed = AcceptInviteSchema.safeParse({ token, name: form.get('name'), password: form.get('password') });
+    if (!parsed.success) { setError(ru.errors.VALIDATION_ERROR); return; }
+    setSubmitting(true);
+    try {
+      await apiRequest('/api/auth/accept-invite', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      await queryClient.resetQueries({ queryKey: ['session'] });
+      navigate('/app', { replace: true });
+    } catch (reason: unknown) {
+      setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  return <AuthFrame headerHref="/login" headerText={ru.auth.backToLogin}><Card className="rounded-xl border-border/80 bg-card shadow-sm"><CardHeader className="px-6 pb-3 pt-7"><CardTitle className="text-[22px] tracking-tight">Принять приглашение</CardTitle><CardDescription>Укажите имя и задайте пароль для входа в BeautyFlow.</CardDescription></CardHeader><CardContent className="px-6 pb-7"><form className="grid gap-4" onSubmit={(event) => { void submit(event); }}><Field id="name" label="Ваше имя"><Input id="name" autoComplete="name" name="name" required minLength={2} maxLength={120}/></Field><Field id="password" label={ru.auth.password} hint={ru.auth.passwordRequirement}><Input id="password" autoComplete="new-password" name="password" type="password" minLength={10} maxLength={128} required/></Field><AuthError>{error}</AuthError><Button className="w-full" type="submit" disabled={submitting || !token}>{submitting ? 'Сохраняем…' : 'Создать пароль и войти'}</Button></form></CardContent></Card></AuthFrame>;
+}
+
 export function AuthPage({ register = false, mode }: { register?: boolean; mode?: AuthMode }) {
   if (mode === 'verify') return <VerificationPage/>;
   if (mode === 'forgot') return <ForgotPasswordPage/>;
   if (mode === 'reset') return <ResetPasswordPage/>;
+  if (mode === 'accept-invite') return <AcceptInvitePage/>;
   return <AuthForm register={register}/>;
 }

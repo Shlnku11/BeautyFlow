@@ -19,8 +19,8 @@ export class StaffRepository {
     return Staff.findOne({ _id: id, businessId: ctx.businessId, isDeleted: false }).session(session).lean().exec();
   }
 
-  createInTransaction(ctx: TenantContext, input: { displayName: string; bio?: string | undefined; color: StaffDocument['color']; phone?: string | undefined; email?: string | undefined; acceptsOnlineBooking: boolean; displayOrder?: number | undefined }, session: ClientSession) {
-    const data: Record<string, unknown> = { businessId: new Types.ObjectId(ctx.businessId), displayName: input.displayName, color: input.color, acceptsOnlineBooking: input.acceptsOnlineBooking };
+  createInTransaction(ctx: TenantContext, input: { displayName: string; bio?: string | undefined; color: StaffDocument['color']; phone?: string | undefined; email?: string | undefined; acceptsOnlineBooking: boolean; hourlyRateMinor: number; displayOrder?: number | undefined }, session: ClientSession) {
+    const data: Record<string, unknown> = { businessId: new Types.ObjectId(ctx.businessId), displayName: input.displayName, color: input.color, acceptsOnlineBooking: input.acceptsOnlineBooking, hourlyRateMinor: input.hourlyRateMinor };
     if (input.bio !== undefined) data.bio = input.bio;
     if (input.phone !== undefined) data.phone = input.phone;
     if (input.email !== undefined) data.email = input.email;

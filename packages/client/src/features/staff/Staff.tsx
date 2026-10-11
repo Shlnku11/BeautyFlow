@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 type ApiErrorState = string | null;
 type UiMessage = { text: string; kind: 'success' | 'error' };
-type Staff = { id: string; displayName: string; email?: string; phone?: string; bio?: string; color: string; isActive: boolean; acceptsOnlineBooking: boolean; serviceIds?: string[] };
+type Staff = { id: string; displayName: string; email?: string; phone?: string; bio?: string; color: string; isActive: boolean; acceptsOnlineBooking: boolean; hourlyRateMinor: number; serviceIds?: string[] };
 type Service = { id: string; name: string; description?: string; durationMinutes: number; bufferMinutes: number; priceMinor: number; currency: string; onlineBookingEnabled: boolean; isActive: boolean; staffIds: string[] };
 type Member = { id: string; user: { name: string; email: string }; role: string; status: string; staffId?: string };
 interface WeeklyDay { isoWeekday: number; intervals: { start: string; end: string }[]; breaks: { start: string; end: string }[]; }
@@ -179,6 +179,7 @@ export function StaffPage() {
           displayName: form.get('displayName'), email: form.get('email') || undefined,
           phone: form.get('phone') || undefined, color: form.get('color'),
           acceptsOnlineBooking: form.has('acceptsOnlineBooking'),
+          hourlyRateMinor: Math.round(Number(form.get('hourlyRate')) * 100),
         },
       });
       setRows([staff, ...rows]);
@@ -282,6 +283,7 @@ export function StaffPage() {
           <div className="grid gap-1.5"><Label htmlFor="new-staff-phone">Телефон</Label><Input id="new-staff-phone" name="phone" type="tel" autoComplete="tel" placeholder="+996 …" /></div>
           <div className="grid gap-1.5"><Label htmlFor="new-staff-color">Цвет календаря</Label><NativeSelect className="w-full" defaultValue="violet" id="new-staff-color" name="color"><NativeSelectOption value="violet">Фиолетовый</NativeSelectOption><NativeSelectOption value="teal">Бирюзовый</NativeSelectOption><NativeSelectOption value="blue">Синий</NativeSelectOption><NativeSelectOption value="green">Зелёный</NativeSelectOption><NativeSelectOption value="amber">Янтарный</NativeSelectOption><NativeSelectOption value="rose">Розовый</NativeSelectOption><NativeSelectOption value="orange">Оранжевый</NativeSelectOption><NativeSelectOption value="slate">Серый</NativeSelectOption></NativeSelect></div>
         </div>
+        <div className="grid gap-1.5"><Label htmlFor="new-staff-hourly-rate">Оплата за час ({session.data?.active.business.currency ?? 'KGS'})</Label><Input id="new-staff-hourly-rate" name="hourlyRate" type="number" min="0" step="0.01" defaultValue="0" inputMode="decimal"/><p className="text-xs text-muted-foreground">Начисление считается по фактическому времени открытой смены.</p></div>
         <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border p-3" htmlFor="new-staff-online">
           <Checkbox defaultChecked id="new-staff-online" name="acceptsOnlineBooking" />
           <span><span className="block text-sm font-medium">Принимает онлайн-запись</span><span className="mt-0.5 block text-xs text-muted-foreground">Клиенты смогут выбрать специалиста на странице записи.</span></span>
@@ -319,6 +321,7 @@ export function StaffDetailPage() {
       displayName: form.get('displayName'), email: form.get('email') || undefined,
       phone: form.get('phone') || undefined, bio: form.get('bio') || undefined,
       color: form.get('color'), acceptsOnlineBooking: form.has('acceptsOnlineBooking'),
+      hourlyRateMinor: Math.round(Number(form.get('hourlyRate')) * 100),
       ...(canDeactivate ? { isActive: form.has('isActive') } : {}),
     };
     try {
@@ -395,6 +398,7 @@ export function StaffDetailPage() {
                     <div className="grid gap-1.5"><Label htmlFor="staff-email">Email</Label><Input autoComplete="email" defaultValue={staff.email} disabled={!canWrite} id="staff-email" name="email" type="email" placeholder="name@example.com" /></div>
                     <div className="grid gap-1.5"><Label htmlFor="staff-phone">Телефон</Label><Input autoComplete="tel" defaultValue={staff.phone} disabled={!canWrite} id="staff-phone" name="phone" type="tel" placeholder="+996 …" /></div>
                     <div className="grid gap-1.5"><Label htmlFor="staff-color">Цвет в календаре</Label><NativeSelect className="w-full" defaultValue={staff.color} disabled={!canWrite} id="staff-color" name="color">{['amber','blue','green','orange','rose','slate','teal','violet'].map((color) => <NativeSelectOption key={color} value={color}>{staffColorLabels[color]}</NativeSelectOption>)}</NativeSelect></div>
+                    <div className="grid gap-1.5"><Label htmlFor="staff-hourly-rate">Оплата за час ({session.data?.active.business.currency ?? 'KGS'})</Label><Input id="staff-hourly-rate" name="hourlyRate" type="number" min="0" step="0.01" defaultValue={(staff.hourlyRateMinor / 100).toFixed(2)} disabled={!canWrite} inputMode="decimal"/></div>
                   </div>
                   <div className="grid gap-1.5"><Label htmlFor="staff-bio">О специалисте</Label><Textarea defaultValue={staff.bio} disabled={!canWrite} id="staff-bio" name="bio" placeholder="Опыт, специализация и важная информация для клиентов." rows={4} /></div>
                   <div className="grid gap-2 rounded-md border border-border p-3">
@@ -436,15 +440,45 @@ function StaffScheduleTab({ id, writable }: { id: string; writable: boolean }) {
   const [saving, setSaving] = useState(false);
   const schedule = result.weekly;
 
-  function updateDay(day: number, enabled: boolean, start: string, end: string) {
+  function updateDay(day: number, enabled: boolean) {
     const existing = schedule.find((item) => item.isoWeekday === day);
     const next = schedule.filter((item) => item.isoWeekday !== day);
-    if (enabled) {
-      const intervals = existing?.intervals.length ? [...existing.intervals] : [{ start: '09:00', end: '18:00' }];
-      intervals[0] = { start, end };
-      next.push({ isoWeekday: day, intervals, breaks: existing?.breaks ?? [] });
-    }
+    if (enabled) next.push(existing ?? { isoWeekday: day, intervals: [{ start: '09:00', end: '18:00' }], breaks: [] });
     setResult({ weekly: next.sort((a, b) => a.isoWeekday - b.isoWeekday) });
+  }
+
+  function patchDay(day: number, transform: (value: WeeklyDay) => WeeklyDay) {
+    const existing = schedule.find((item) => item.isoWeekday === day);
+    if (!existing) return;
+    setResult({ weekly: schedule.map((item) => item.isoWeekday === day ? transform(item) : item) });
+  }
+
+  function addInterval(day: number) {
+    patchDay(day, (value) => {
+      if (value.intervals.length >= 3) return value;
+      const interval = [...value.intervals].sort((a, b) => a.start.localeCompare(b.start)).find((item) => item.end > item.start);
+      if (!interval) return value;
+      const startMinutes = Number(interval.start.slice(0, 2)) * 60 + Number(interval.start.slice(3));
+      const endMinutes = Number(interval.end.slice(0, 2)) * 60 + Number(interval.end.slice(3));
+      const middle = Math.floor(((startMinutes + endMinutes) / 2) / 5) * 5;
+      if (middle - startMinutes < 30 || endMinutes - middle < 30) return value;
+      const time = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      return { ...value, intervals: value.intervals.map((item) => item === interval ? { ...item, end: time(middle) } : item).concat({ start: time(middle), end: interval.end }) };
+    });
+  }
+
+  function addBreak(day: number) {
+    patchDay(day, (value) => {
+      if (value.breaks.length >= 5) return value;
+      const interval = value.intervals[0];
+      if (!interval) return value;
+      const startMinutes = Number(interval.start.slice(0, 2)) * 60 + Number(interval.start.slice(3));
+      const endMinutes = Number(interval.end.slice(0, 2)) * 60 + Number(interval.end.slice(3));
+      const middle = Math.floor(((startMinutes + endMinutes) / 2) / 5) * 5;
+      if (middle - startMinutes < 15 || endMinutes - middle < 15) return value;
+      const time = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      return { ...value, breaks: [...value.breaks, { start: time(middle), end: time(Math.min(middle + 30, endMinutes)) }] };
+    });
   }
 
   async function save() {
@@ -468,10 +502,11 @@ function StaffScheduleTab({ id, writable }: { id: string; writable: boolean }) {
         {weekdays.map((name, index) => {
           const day = index + 1;
           const current = schedule.find((item) => item.isoWeekday === day);
-          const interval = current?.intervals[0];
-          return <div className="grid gap-2 rounded-md border border-border px-3 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(120px,180px)_minmax(120px,180px)] sm:items-center" key={day}>
-            <label className="flex cursor-pointer items-center gap-3" htmlFor={`schedule-day-${day}`}><Checkbox checked={Boolean(current)} disabled={!writable} id={`schedule-day-${day}`} onCheckedChange={(checked) => updateDay(day, checked === true, interval?.start ?? '09:00', interval?.end ?? '18:00')} /><span className="text-sm font-medium text-foreground">{name}</span></label>
-            {current ? <><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`start-${day}`}>С</Label><Input aria-label={`${name}: начало`} className="tabular-nums" disabled={!writable} id={`start-${day}`} type="time" value={interval?.start ?? '09:00'} onChange={(event) => updateDay(day, true, event.target.value, interval?.end ?? '18:00')} /></div><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`end-${day}`}>До</Label><Input aria-label={`${name}: конец`} className="tabular-nums" disabled={!writable} id={`end-${day}`} type="time" value={interval?.end ?? '18:00'} onChange={(event) => updateDay(day, true, interval?.start ?? '09:00', event.target.value)} /></div></> : <span className="text-sm text-muted-foreground sm:col-span-2">Выходной день</span>}
+          return <div className="grid gap-3 rounded-md border border-border px-3 py-3" key={day}>
+            <label className="flex cursor-pointer items-center gap-3" htmlFor={`schedule-day-${day}`}><Checkbox checked={Boolean(current)} disabled={!writable} id={`schedule-day-${day}`} onCheckedChange={(checked) => updateDay(day, checked === true)} /><span className="text-sm font-medium text-foreground">{name}</span></label>
+            {current ? <><div className="grid gap-2">{current.intervals.map((interval, intervalIndex) => <div className="grid items-end gap-2 sm:grid-cols-[minmax(100px,1fr)_minmax(120px,180px)_minmax(120px,180px)_auto]" key={`${day}-${intervalIndex}`}><span className="pb-2 text-xs text-muted-foreground">{current.intervals.length > 1 ? `Интервал ${intervalIndex + 1}` : 'Рабочее время'}</span><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`start-${day}-${intervalIndex}`}>С</Label><Input aria-label={`${name}, интервал ${intervalIndex + 1}: начало`} className="tabular-nums" disabled={!writable} id={`start-${day}-${intervalIndex}`} type="time" value={interval.start} onChange={(event) => patchDay(day, (value) => ({ ...value, intervals: value.intervals.map((row, index) => index === intervalIndex ? { ...row, start: event.target.value } : row) }))} /></div><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`end-${day}-${intervalIndex}`}>До</Label><Input aria-label={`${name}, интервал ${intervalIndex + 1}: конец`} className="tabular-nums" disabled={!writable} id={`end-${day}-${intervalIndex}`} type="time" value={interval.end} onChange={(event) => patchDay(day, (value) => ({ ...value, intervals: value.intervals.map((row, index) => index === intervalIndex ? { ...row, end: event.target.value } : row) }))} /></div><Button aria-label={`Удалить интервал ${intervalIndex + 1}, ${name}`} className="mb-0.5" disabled={!writable || current.intervals.length <= 1} size="icon-sm" type="button" variant="ghost" onClick={() => patchDay(day, (value) => ({ ...value, intervals: value.intervals.filter((_, index) => index !== intervalIndex), breaks: value.breaks.filter((item) => !(item.start >= interval.start && item.end <= interval.end)) }))}>×</Button></div>)}</div>
+              <div className="grid gap-2 border-t border-border pt-2">{current.breaks.map((breakTime, breakIndex) => <div className="grid items-end gap-2 sm:grid-cols-[minmax(100px,1fr)_minmax(120px,180px)_minmax(120px,180px)_auto]" key={`${day}-break-${breakIndex}`}><span className="pb-2 text-xs text-muted-foreground">Перерыв {breakIndex + 1}</span><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`break-start-${day}-${breakIndex}`}>С</Label><Input aria-label={`${name}, перерыв ${breakIndex + 1}: начало`} className="tabular-nums" disabled={!writable} id={`break-start-${day}-${breakIndex}`} type="time" value={breakTime.start} onChange={(event) => patchDay(day, (value) => ({ ...value, breaks: value.breaks.map((row, index) => index === breakIndex ? { ...row, start: event.target.value } : row) }))} /></div><div className="grid gap-1"><Label className="text-xs text-muted-foreground" htmlFor={`break-end-${day}-${breakIndex}`}>До</Label><Input aria-label={`${name}, перерыв ${breakIndex + 1}: конец`} className="tabular-nums" disabled={!writable} id={`break-end-${day}-${breakIndex}`} type="time" value={breakTime.end} onChange={(event) => patchDay(day, (value) => ({ ...value, breaks: value.breaks.map((row, index) => index === breakIndex ? { ...row, end: event.target.value } : row) }))} /></div><Button aria-label={`Удалить перерыв ${breakIndex + 1}, ${name}`} size="icon-sm" type="button" variant="ghost" disabled={!writable} onClick={() => patchDay(day, (value) => ({ ...value, breaks: value.breaks.filter((_, index) => index !== breakIndex) }))}>×</Button></div>)}</div>
+              <div className="flex flex-wrap gap-2"><Button disabled={!writable || current.intervals.length >= 3} size="small" type="button" variant="outline" onClick={() => addInterval(day)}>Добавить интервал</Button><Button disabled={!writable || current.breaks.length >= 5 || current.intervals.length === 0} size="small" type="button" variant="outline" onClick={() => addBreak(day)}>Добавить перерыв</Button></div></> : <span className="text-sm text-muted-foreground">Выходной день</span>}
           </div>;
         })}
       </div>}

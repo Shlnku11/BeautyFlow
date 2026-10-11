@@ -3,6 +3,7 @@ import { connectToDatabase, disconnectFromDatabase } from '@/server/db/connectio
 import { getEnv } from '@/server/config/env';
 import { logger } from '@/server/http/logger';
 import { runNotificationBatch } from '@/server/notifications/run-batch';
+import { DataRetentionService } from '@/server/services/data-retention-service';
 
 function pause(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -11,6 +12,8 @@ function pause(milliseconds: number): Promise<void> {
 async function main(): Promise<void> {
   const env = getEnv();
   await connectToDatabase();
+  const retention = new DataRetentionService();
+  let retentionRunDay = '';
   let stopping = false;
   process.once('SIGINT', () => { stopping = true; });
   process.once('SIGTERM', () => { stopping = true; });
@@ -23,6 +26,16 @@ async function main(): Promise<void> {
         if (summary.claimed > 0) logger.info(summary, 'notification batch completed');
       } catch (error: unknown) {
         logger.error({ err: error }, 'notification batch failed');
+      }
+      const day = now.toISOString().slice(0, 10);
+      if (day !== retentionRunDay) {
+        retentionRunDay = day;
+        try {
+          const summary = await retention.run(now);
+          if (summary.customersAnonymized > 0) logger.info(summary, 'customer retention cleanup completed');
+        } catch (error: unknown) {
+          logger.error({ err: error }, 'customer retention cleanup failed');
+        }
       }
       if (!stopping) await pause(env.WORKER_POLL_INTERVAL_SECONDS * 1000);
     }

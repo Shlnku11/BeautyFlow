@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import type { PublicContext, TenantContext } from '@/shared/types/tenant-context';
 import { getEnv } from '../config/env';
 import { Session } from '../db/models';
-import { Appointment, Business } from '../db/models';
+import { Appointment, Business, Shift } from '../db/models';
 import { configureRouteRuntime, type RouteRuntime } from '../http/define-route';
 import { AuthRepository } from '../repositories/auth-repository';
 import { hashSessionToken } from './session-token';
@@ -45,6 +45,10 @@ export const routeRuntime: RouteRuntime = {
     // DATA_MODEL_MONGODB §12: the opaque manage token is globally unique, so its tenant cannot be known until lookup.
     const appointment = await Appointment.collection.findOne({ manageTokenHash: hashSessionToken(token), manageTokenExpiresAt: { $gt: new Date() } }, { projection: { businessId: 1 } });
     return appointment ? { businessId: appointment.businessId.toString(), source: 'token' } : null;
+  },
+  async hasActiveShift(context) {
+    if (!context.staffId) return false;
+    return Boolean(await Shift.exists({ businessId: context.businessId, staffId: context.staffId, closedAt: { $exists: false } }).exec());
   },
 };
 

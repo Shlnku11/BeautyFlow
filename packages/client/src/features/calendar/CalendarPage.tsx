@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
-import { useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { ru } from '@/shared/i18n/ru';
@@ -149,6 +150,7 @@ const staffDotClass: Record<string, string> = { violet: 'bg-staff-violet', teal:
 
 export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | 'week' | 'appointments' }) {
   const session = useSession();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const [date, setDate] = useState('');
@@ -158,14 +160,36 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
   });
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const createQueryHandled = useRef(false);
-  const [data, setData] = useState<CalendarPayload | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
   const [createSlot, setCreateSlot] = useState<{ date: string; startAt: string; staffId: string } | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null);
   const businessTimezone = session.data?.active.business.timezone ?? 'UTC';
+  const businessId = session.data?.active.businessId ?? '';
   const activeDate = date || DateTime.now().setZone(businessTimezone).toISODate() || '';
+  const calendarQuery = useQuery({
+    queryKey: ['calendar', businessId, session.data?.active.role, session.data?.active.staffId ?? null, view, activeDate, businessTimezone],
+    enabled: Boolean(businessId && activeDate),
+    queryFn: async ({ signal }) => {
+      const loadWeek = (weekDate: string) => {
+        const params = new URLSearchParams({ view: view === 'month' || view === 'appointments' ? 'week' : view, date: weekDate });
+        return apiRequest<CalendarPayload>(`/api/calendar?${params}`, { signal });
+      };
+      if (view !== 'month') return loadWeek(activeDate);
+      const month = DateTime.fromISO(activeDate, { zone: businessTimezone });
+      const monthStart = month.startOf('month').startOf('week');
+      const lastWeekStart = month.endOf('month').startOf('week');
+      const weekCount = Math.floor(lastWeekStart.diff(monthStart, 'weeks').weeks) + 1;
+      const weeks = await Promise.all(Array.from({ length: weekCount }, (_, index) => loadWeek(monthStart.plus({ weeks: index }).toISODate() ?? activeDate)));
+      const first = weeks[0];
+      if (!first) throw new Error('Calendar month response is empty');
+      const last = weeks.at(-1) ?? first;
+      return { ...first, range: { ...first.range, to: last.range.to }, appointments: [...new Map(weeks.flatMap((week) => week.appointments).map((appointment) => [appointment.id, appointment])).values()], blockedPeriods: [...new Map(weeks.flatMap((week) => week.blockedPeriods).map((block) => [block.id, block])).values()], workingIntervals: weeks.flatMap((week) => week.workingIntervals) };
+    },
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+  });
+  const data = calendarQuery.data ?? null;
+  const loading = calendarQuery.isPending;
+  const error = calendarQuery.error ? calendarQuery.error instanceof ApiClientError ? calendarQuery.error.message : ru.errors.INTERNAL : null;
 
   useEffect(() => {
     const narrowViewport = window.matchMedia('(max-width: 767px)');
@@ -176,31 +200,10 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
     return () => narrowViewport.removeEventListener('change', syncView);
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    const calendarDate = date || DateTime.now().setZone(businessTimezone).toISODate() || '';
-    const loadWeek = (weekDate: string) => {
-      const params = new URLSearchParams({ view: view === 'month' || view === 'appointments' ? 'week' : view, date: weekDate });
-      return apiRequest<CalendarPayload>(`/api/calendar?${params}`, { signal: controller.signal });
-    };
-    const request = view === 'month'
-      ? (() => {
-          const monthStart = DateTime.fromISO(calendarDate).startOf('month').startOf('week');
-          return Promise.all(Array.from({ length: 5 }, (_, index) => loadWeek(monthStart.plus({ days: index * 7 }).toISODate() ?? calendarDate))).then((weeks): CalendarPayload => {
-            const first = weeks[0];
-            if (!first) throw new Error('Calendar month response is empty');
-            const last = weeks.at(-1) ?? first;
-            return { ...first, range: { ...first.range, to: last.range.to }, appointments: [...new Map(weeks.flatMap((week) => week.appointments).map((appointment) => [appointment.id, appointment])).values()], blockedPeriods: [...new Map(weeks.flatMap((week) => week.blockedPeriods).map((block) => [block.id, block])).values()], workingIntervals: weeks.flatMap((week) => week.workingIntervals) };
-          });
-        })()
-      : loadWeek(calendarDate);
-    void request.then(setData).catch((reason: unknown) => {
-      if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : ru.errors.INTERNAL);
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [date, view, refresh, businessTimezone]);
+  function refreshCalendar() {
+    void queryClient.invalidateQueries({ queryKey: ['calendar', businessId] });
+    void queryClient.invalidateQueries({ queryKey: ['appointments', 'list', businessId] });
+  }
 
   function shiftDate(amount: number) {
     const zone = data?.range.timezone ?? 'UTC';
@@ -329,10 +332,10 @@ export function CalendarPage({ initialView = 'week' }: { initialView?: 'day' | '
         </div>
       </section> : null}
       {view !== 'appointments' ? <div className="mt-4 flex flex-wrap gap-2">{data.load.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staffId)).map((item) => <div className="rounded-md border border-neutral-200 bg-neutral-0 px-3 py-2 text-xs" key={item.staffId}>{data.staff.find((member) => member.id === item.staffId)?.displayName ?? 'Мастер'} <span className="ml-2 text-neutral-500">{item.loadPercent === null ? '—' : `${item.loadPercent}% загрузка`}</span></div>)}</div> : null}
-      {(view === 'appointments' || view !== 'month') ? <section className="mt-5"><h2 className="text-sm font-semibold">{view === 'appointments' ? 'Все записи' : 'Ближайшие записи'}</h2><ul className="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">{data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)).map((item) => <li className="grid gap-1 px-2 py-3 text-[13px] sm:min-h-12 sm:grid-cols-[100px_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3 sm:py-0" key={item.id}><time className="tabular-nums text-neutral-500" dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: zone }).format(new Date(item.startAt))}</time><button className="min-w-0 truncate text-left font-medium hover:underline" onClick={() => setSelectedAppointment(item.id)}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</button><span className="truncate text-neutral-500">{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <a className="whitespace-nowrap text-primary-700" href={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</a> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-sm text-neutral-500">На этот период записей нет.</p> : null}</section> : null}
+      {(view === 'appointments' || view !== 'month') ? <section className="mt-5"><h2 className="text-sm font-semibold">{view === 'appointments' ? 'Все записи' : 'Ближайшие записи'}</h2><ul className="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">{data.appointments.filter((item) => selectedStaffIds.length === 0 || selectedStaffIds.includes(item.staff.id)).map((item) => <li className="grid gap-1 px-2 py-3 text-[13px] sm:min-h-12 sm:grid-cols-[100px_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3 sm:py-0" key={item.id}><time className="tabular-nums text-neutral-500" dateTime={item.startAt}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: zone }).format(new Date(item.startAt))}</time><button className="min-w-0 truncate text-left font-medium hover:underline" onClick={() => setSelectedAppointment(item.id)}>{item.customer.firstName} {item.customer.lastName ?? ''} · {item.service.name}</button><span className="truncate text-neutral-500">{item.staff.displayName} · {item.status}</span>{session.data?.permissions.includes('payments:create') && item.status !== 'cancelled' ? <Link className="whitespace-nowrap text-primary-700" to={`/app/payments?appointmentId=${encodeURIComponent(item.id)}`}>＋ Принять оплату</Link> : null}</li>)}</ul>{data.appointments.length === 0 ? <p className="mt-3 text-sm text-neutral-500">На этот период записей нет.</p> : null}</section> : null}
     </> : null}
-    {createSlot && data ? <AppointmentCreateDialog date={createSlot.date} startAt={createSlot.startAt} timezone={zone} staff={data.staff} preselectedStaffId={createSlot.staffId} onClose={() => setCreateSlot(null)} onCreated={() => setRefresh((value) => value + 1)} /> : null}
-    {selectedAppointment && data ? <AppointmentDetailDialog id={selectedAppointment} timezone={zone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelectedAppointment(null)} onChanged={() => setRefresh((value) => value + 1)} /> : null}
+    {createSlot && data ? <AppointmentCreateDialog date={createSlot.date} startAt={createSlot.startAt} timezone={zone} staff={data.staff} preselectedStaffId={createSlot.staffId} onClose={() => setCreateSlot(null)} onCreated={refreshCalendar} /> : null}
+    {selectedAppointment && data ? <AppointmentDetailDialog id={selectedAppointment} timezone={zone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelectedAppointment(null)} onChanged={refreshCalendar} /> : null}
   </main>;
 }
 

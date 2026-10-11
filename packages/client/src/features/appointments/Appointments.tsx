@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEllipsis } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { ApiClientError, apiRequest } from '@/lib/api-client';
+import { formatMoneySafe } from '@/lib/format';
 import { useSession } from '@/hooks/use-session';
 import { AppointmentDetailDialog } from '@/components/data/AppointmentDialogs';
 
@@ -16,7 +18,7 @@ interface AppointmentRow {
   startAt: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   source: 'internal' | 'public';
-  serviceSnapshot: { priceMinor: number; currency: string };
+  serviceSnapshot?: { priceMinor?: number; currency?: string };
 }
 
 const statusLabels: Record<AppointmentRow['status'], string> = { pending: 'Ожидает', confirmed: 'Подтверждена', completed: 'Завершена', cancelled: 'Отменена', no_show: 'Неявка' };
@@ -24,9 +26,10 @@ const statusClasses: Record<AppointmentRow['status'], string> = { pending: 'bord
 
 export function AppointmentsPage() {
   const session = useSession();
+  const queryClient = useQueryClient();
   const timezone = session.data?.active.business.timezone ?? 'UTC';
-  const [rows, setRows] = useState<AppointmentRow[]>([]);
-  const [staff, setStaff] = useState<{ id: string; displayName: string }[]>([]);
+  const businessId = session.data?.active.businessId ?? '';
+  const isMaster = session.data?.active.role === 'master';
   const [status, setStatus] = useState('');
   const [staffId, setStaffId] = useState('');
   const [source, setSource] = useState('');
@@ -34,27 +37,29 @@ export function AppointmentsPage() {
   const [to, setTo] = useState('');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    const params = new URLSearchParams({ limit: '100' });
-    if (status) params.set('status', status);
-    if (staffId) params.set('staffId', staffId);
-    if (source) params.set('source', source);
-    if (from) params.set('from', DateTime.fromISO(from, { zone: timezone }).startOf('day').toUTC().toISO() ?? '');
-    if (to) params.set('to', DateTime.fromISO(to, { zone: timezone }).plus({ days: 1 }).startOf('day').toUTC().toISO() ?? '');
-    void Promise.all([
-      apiRequest<AppointmentRow[]>(`/api/appointments?${params}`, { signal: controller.signal }),
-      apiRequest<{ id: string; displayName: string }[]>('/api/staff?limit=100', { signal: controller.signal }),
-    ]).then(([appointments, members]) => { setRows(appointments); setStaff(members); setError(null); }).catch((reason: unknown) => {
-      if (!controller.signal.aborted) setError(reason instanceof ApiClientError ? reason.message : 'Не удалось загрузить записи.');
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [status, staffId, source, from, to, timezone, refresh]);
+  const appointmentsQuery = useQuery({
+    queryKey: ['appointments', 'list', businessId, session.data?.active.role, session.data?.active.staffId ?? null, { status, staffId, source, from, to, timezone }],
+    enabled: Boolean(businessId),
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({ limit: '100' });
+      if (status) params.set('status', status);
+      if (staffId && !isMaster) params.set('staffId', staffId);
+      if (source) params.set('source', source);
+      if (from) params.set('from', DateTime.fromISO(from, { zone: timezone }).startOf('day').toUTC().toISO() ?? '');
+      if (to) params.set('to', DateTime.fromISO(to, { zone: timezone }).plus({ days: 1 }).startOf('day').toUTC().toISO() ?? '');
+      const [appointments, staff] = await Promise.all([
+        apiRequest<AppointmentRow[]>(`/api/appointments?${params}`, { signal }),
+        isMaster ? Promise.resolve([] as { id: string; displayName: string }[]) : apiRequest<{ id: string; displayName: string }[]>('/api/staff?limit=100', { signal }),
+      ]);
+      return { appointments, staff };
+    },
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+  });
+  const rows = appointmentsQuery.data?.appointments ?? [];
+  const staff = appointmentsQuery.data?.staff ?? [];
+  const error = appointmentsQuery.error ? appointmentsQuery.error instanceof ApiClientError ? appointmentsQuery.error.message : 'Не удалось загрузить записи.' : null;
+  const loading = appointmentsQuery.isPending;
 
   const visible = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('ru');
@@ -83,7 +88,7 @@ export function AppointmentsPage() {
     {error ? <p className="mt-4 rounded-md border border-danger-solid/30 bg-danger-bg p-3 text-sm text-danger-fg" role="alert">{error}</p> : null}
     <div aria-label="Таблица записей" className="mt-4 hidden overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-0 min-[1280px]:block" role="region" tabIndex={0}>
       <table className="w-full min-w-[760px] border-collapse text-left text-[13px]"><thead><tr className="h-10 border-b border-neutral-200 bg-neutral-50 text-[11px] font-medium uppercase tracking-wide text-neutral-500"><th className="w-28 px-3">Время</th><th className="px-3">Клиент</th><th className="px-3">Услуга</th><th className="px-3">Мастер</th><th className="px-3 text-right">Сумма</th><th className="px-3">Статус</th><th className="w-12 px-2"><span className="sr-only">Действия</span></th></tr></thead>
-        {grouped.map(([date, appointments]) => <tbody key={date}><tr className="h-9 border-b border-neutral-200 bg-neutral-50"><th colSpan={7} className="px-3 text-xs font-semibold text-neutral-700">{DateTime.fromISO(date, { zone: timezone }).setLocale('ru').toFormat('dd.LL · ccc')}</th></tr>{appointments.map((row) => <tr key={row.id} className="h-[52px] border-b border-neutral-100 hover:bg-neutral-50"><td className="px-3 tabular-nums text-neutral-600">{DateTime.fromISO(row.startAt).setZone(timezone).toFormat('HH:mm')}</td><td className="px-3"><button className="text-left font-medium text-neutral-900 hover:underline" onClick={() => setSelected(row.id)}>{row.customer.firstName} {row.customer.lastName ?? ''}</button></td><td className="px-3 text-neutral-700">{row.service.name}</td><td className="px-3 text-neutral-600">{row.staff.displayName}</td><td className="px-3 text-right tabular-nums">{new Intl.NumberFormat('ru-RU', { style: 'currency', currency: row.serviceSnapshot.currency, maximumFractionDigits: 0 }).format(row.serviceSnapshot.priceMinor / 100)}</td><td className="px-3"><span className={`inline-flex rounded px-2 py-1 text-[11px] font-medium ${statusClasses[row.status]}`}>{statusLabels[row.status]}</span></td><td className="px-2"><details className="relative"><summary aria-label={`Действия: ${row.customer.firstName} ${row.customer.lastName ?? ''} · ${row.service.name} · ${DateTime.fromISO(row.startAt).setZone(timezone).toFormat('HH:mm')}`} className="grid size-8 cursor-pointer list-none place-items-center rounded hover:bg-neutral-100"><FontAwesomeIcon aria-hidden="true" className="size-3.5 text-neutral-500" icon={faEllipsis}/></summary><div className="absolute right-0 top-full z-10 grid min-w-40 gap-1 rounded-md border border-neutral-200 bg-neutral-0 p-1 shadow-sm"><button className="rounded px-2 py-1.5 text-left hover:bg-neutral-50" onClick={() => setSelected(row.id)}>Открыть запись</button>{canCreatePayment && row.status !== 'cancelled' ? <Link className="rounded px-2 py-1.5 hover:bg-neutral-50" to={`/app/payments?appointmentId=${encodeURIComponent(row.id)}`}>Принять оплату</Link> : null}</div></details></td></tr>)}</tbody>)}
+        {grouped.map(([date, appointments]) => <tbody key={date}><tr className="h-9 border-b border-neutral-200 bg-neutral-50"><th colSpan={7} className="px-3 text-xs font-semibold text-neutral-700">{DateTime.fromISO(date, { zone: timezone }).setLocale('ru').toFormat('dd.LL · ccc')}</th></tr>{appointments.map((row) => <tr key={row.id} className="h-[52px] border-b border-neutral-100 hover:bg-neutral-50"><td className="px-3 tabular-nums text-neutral-600">{DateTime.fromISO(row.startAt).setZone(timezone).toFormat('HH:mm')}</td><td className="px-3"><button className="text-left font-medium text-neutral-900 hover:underline" onClick={() => setSelected(row.id)}>{row.customer.firstName} {row.customer.lastName ?? ''}</button></td><td className="px-3 text-neutral-700">{row.service.name}</td><td className="px-3 text-neutral-600">{row.staff.displayName}</td><td className="px-3 text-right tabular-nums">{formatMoneySafe(row.serviceSnapshot?.priceMinor, row.serviceSnapshot?.currency)}</td><td className="px-3"><span className={`inline-flex rounded px-2 py-1 text-[11px] font-medium ${statusClasses[row.status]}`}>{statusLabels[row.status]}</span></td><td className="px-2"><details className="relative"><summary aria-label={`Действия: ${row.customer.firstName} ${row.customer.lastName ?? ''} · ${row.service.name} · ${DateTime.fromISO(row.startAt).setZone(timezone).toFormat('HH:mm')}`} className="grid size-8 cursor-pointer list-none place-items-center rounded hover:bg-neutral-100"><FontAwesomeIcon aria-hidden="true" className="size-3.5 text-neutral-500" icon={faEllipsis}/></summary><div className="absolute right-0 top-full z-10 grid min-w-40 gap-1 rounded-md border border-neutral-200 bg-neutral-0 p-1 shadow-sm"><button className="rounded px-2 py-1.5 text-left hover:bg-neutral-50" onClick={() => setSelected(row.id)}>Открыть запись</button>{canCreatePayment && row.status !== 'cancelled' ? <Link className="rounded px-2 py-1.5 hover:bg-neutral-50" to={`/app/payments?appointmentId=${encodeURIComponent(row.id)}`}>Принять оплату</Link> : null}</div></details></td></tr>)}</tbody>)}
         {loading ? <tbody><tr><td colSpan={7} className="py-16 text-center text-sm text-neutral-500" role="status">Загружаем записи…</td></tr></tbody> : null}
         {!loading && grouped.length === 0 ? <tbody><tr><td colSpan={7} className="py-16 text-center text-sm text-neutral-500">Записей по выбранным фильтрам нет.</td></tr></tbody> : null}
       </table>
@@ -96,7 +101,7 @@ export function AppointmentsPage() {
         <ul className="grid gap-2">{appointments.map((row) => {
           const customerName = `${row.customer.firstName} ${row.customer.lastName ?? ''}`.trim();
           const appointmentTime = DateTime.fromISO(row.startAt).setZone(timezone).toFormat('HH:mm');
-          const amount = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: row.serviceSnapshot.currency, maximumFractionDigits: 0 }).format(row.serviceSnapshot.priceMinor / 100);
+          const amount = formatMoneySafe(row.serviceSnapshot?.priceMinor, row.serviceSnapshot?.currency);
           return <li key={row.id}><article aria-label={`Запись: ${customerName} · ${row.service.name}`} className="grid min-w-0 gap-3 rounded-lg border border-neutral-200 bg-neutral-0 p-3 shadow-sm sm:p-4">
             <div className="flex min-w-0 items-start justify-between gap-3"><button className="min-w-0 truncate text-left text-sm font-semibold text-neutral-900 hover:underline" onClick={() => setSelected(row.id)}>{customerName}</button><span className={`inline-flex shrink-0 rounded px-2 py-1 text-[11px] font-medium ${statusClasses[row.status]}`}>{statusLabels[row.status]}</span></div>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-y border-neutral-100 py-3 text-xs">
@@ -111,6 +116,6 @@ export function AppointmentsPage() {
         })}</ul>
       </section>) : null}
     </div>
-    {selected ? <AppointmentDetailDialog id={selected} timezone={timezone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelected(null)} onChanged={() => setRefresh((value) => value + 1)}/> : null}
+    {selected ? <AppointmentDetailDialog id={selected} timezone={timezone} role={session.data?.active.role ?? 'owner'} permissions={session.data?.permissions ?? []} onClose={() => setSelected(null)} onChanged={() => { void queryClient.invalidateQueries({ queryKey: ['appointments', 'list', businessId] }); void queryClient.invalidateQueries({ queryKey: ['calendar', businessId] }); }}/> : null}
   </main>;
 }

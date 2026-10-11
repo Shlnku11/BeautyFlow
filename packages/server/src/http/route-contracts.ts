@@ -619,6 +619,25 @@ export const MVP_ROUTE_CONTRACTS = [
 ] satisfies readonly RouteContract[];
 export const MVP_ROUTE_IDS = new Set(MVP_ROUTE_CONTRACTS.map((route) => route.id));
 
+export const OPTIONAL_EXTENSION_ROUTE_CONTRACTS: readonly RouteContract[] = [
+  { id: 'NTF-01', method: 'get', path: '/api/notifications/inbox', auth: 'session', contextSource: 'SESSION', permission: 'notifications:read', rateLimit: 'RL-API' },
+  { id: 'NTF-02', method: 'post', path: '/api/notifications/inbox/read', auth: 'session', contextSource: 'SESSION', permission: 'notifications:read', rateLimit: 'RL-API' },
+  { id: 'NTF-03', method: 'get', path: '/api/notifications/preferences', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'NTF-04', method: 'patch', path: '/api/notifications/preferences', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'NTF-05', method: 'put', path: '/api/notifications/push-subscription', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'NTF-06', method: 'delete', path: '/api/notifications/push-subscription', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'NTF-07', method: 'post', path: '/api/notifications/push-test', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'NTF-08', method: 'delete', path: '/api/notifications/push-subscriptions/:id', auth: 'session', contextSource: 'SESSION', permission: 'account:self', rateLimit: 'RL-API' },
+  { id: 'INV-01', method: 'get', path: '/api/inventory', auth: 'session', contextSource: 'SESSION', permission: 'inventory:read', rateLimit: 'RL-API' },
+  { id: 'INV-02', method: 'post', path: '/api/inventory', auth: 'session', contextSource: 'SESSION', permission: 'inventory:write', rateLimit: 'RL-API' },
+  { id: 'INV-03', method: 'patch', path: '/api/inventory/:id', auth: 'session', contextSource: 'SESSION', permission: 'inventory:write', rateLimit: 'RL-API' },
+  { id: 'INV-04', method: 'post', path: '/api/inventory/:id/adjust', auth: 'session', contextSource: 'SESSION', permission: 'inventory:write', rateLimit: 'RL-API' },
+  { id: 'INV-05', method: 'get', path: '/api/inventory/:id/movements', auth: 'session', contextSource: 'SESSION', permission: 'inventory:read', rateLimit: 'RL-API' },
+  { id: 'WAI-01', method: 'get', path: '/api/waitlist', auth: 'session', contextSource: 'SESSION', permission: 'waitlist:read', rateLimit: 'RL-API' },
+  { id: 'WAI-02', method: 'post', path: '/api/waitlist', auth: 'session', contextSource: 'SESSION', permission: 'waitlist:write', rateLimit: 'RL-API' },
+  { id: 'WAI-03', method: 'patch', path: '/api/waitlist/:id', auth: 'session', contextSource: 'SESSION', permission: 'waitlist:write', rateLimit: 'RL-API' },
+];
+
 export const OPTIONAL_AUTH_ROUTE_CONTRACTS: readonly RouteContract[] = [
   { id: 'AUTH-13', method: 'post', path: '/api/auth/google', auth: 'none', contextSource: 'NONE', permission: null, rateLimit: 'RL-LOGIN' },
   { id: 'AUTH-14', method: 'get', path: '/api/auth/google/config', auth: 'none', contextSource: 'NONE', permission: null, rateLimit: null },

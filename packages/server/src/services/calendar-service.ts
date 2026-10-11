@@ -7,10 +7,20 @@ import { localDayBounds } from '../domain/time';
 import { computeWorkingIntervals } from '../domain/booking-engine/working-intervals';
 import { NotFoundError } from '../http/errors';
 import { CalendarRepository } from '../repositories/calendar-repository';
+import { PaymentRepository } from '../repositories/payment-repository';
 
 const repository = new CalendarRepository();
+const paymentRepository = new PaymentRepository();
 type CalendarQuery = z.infer<typeof CalendarQuerySchema>;
 type MinuteRange = { start: number; end: number };
+
+function withoutMoney(snapshot: Record<string, unknown>) {
+  const visible = { ...snapshot };
+  delete visible.costMinor;
+  delete visible.priceMinor;
+  delete visible.currency;
+  return visible;
+}
 
 function subtractRange(ranges: MinuteRange[], cut: MinuteRange): MinuteRange[] {
   return ranges.flatMap((range) => {
@@ -56,6 +66,7 @@ export class CalendarService {
       repository.findSettings(ctx),
     ]) : [[], [], [], [], await repository.findSettings(ctx)];
     const references = await repository.listReferences(ctx, [...new Set(appointments.map((row) => row.customerId.toString()))].map((id) => new Types.ObjectId(id)), [...new Set(appointments.map((row) => row.serviceId.toString()))].map((id) => new Types.ObjectId(id)));
+    const paymentBalances = ctx.role === 'master' ? undefined : await paymentRepository.appointmentBalances(ctx, appointments);
     const appointmentDtos = appointments.flatMap((row) => {
       const customer = references.customers.get(row.customerId.toString());
       const service = references.services.get(row.serviceId.toString());
@@ -67,12 +78,12 @@ export class CalendarService {
         staff: { id: staffRow._id.toString(), displayName: staffRow.displayName, color: staffRow.color },
         service: { id: service._id.toString(), name: service.name },
         startAt: row.startAt.toISOString(), endAt: row.endAt.toISOString(), blockedUntilAt: row.blockedUntilAt.toISOString(), status: row.status, source: row.source,
-        serviceSnapshot: row.serviceSnapshot,
+        serviceSnapshot: ctx.role === 'master' ? withoutMoney(row.serviceSnapshot as unknown as Record<string, unknown>) : row.serviceSnapshot,
         ...(row.customerNote ? { customerNote: row.customerNote } : {}),
         ...(ctx.role !== 'master' && row.internalNote ? { internalNote: row.internalNote } : {}),
         ...(ctx.role === 'master' && row.visitNote ? { visitNote: row.visitNote } : {}),
         rescheduleCount: row.rescheduleCount,
-        ...(ctx.role === 'master' ? {} : { payment: { paidMinor: 0, refundedMinor: 0, balanceMinor: row.serviceSnapshot.priceMinor } }),
+        ...(ctx.role === 'master' ? {} : { payment: paymentBalances?.get(row._id.toString()) }),
       }];
     });
     const scheduleMap = new Map(schedules.map((item) => [item.staffId.toString(), item.weekly]));

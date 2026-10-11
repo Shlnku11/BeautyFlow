@@ -7,9 +7,11 @@ import { assertPermission } from '../domain/permissions';
 import { previousPeriod as priorPeriod, resolvePeriod, utcBounds } from '../domain/dashboard-math';
 import { NotFoundError } from '../http/errors';
 import { DashboardRepository } from '../repositories/dashboard-repository';
+import { PaymentRepository } from '../repositories/payment-repository';
 import { CalendarService } from './calendar-service';
 
 const repository = new DashboardRepository();
+const paymentRepository = new PaymentRepository();
 const calendar = new CalendarService();
 type SummaryQuery = z.infer<typeof DashboardQuerySchema>;
 type UpcomingQuery = z.infer<typeof DashboardUpcomingQuerySchema>;
@@ -51,13 +53,14 @@ export class DashboardService {
     if (query.staffId && !(await repository.staffExists(ctx, query.staffId))) throw new NotFoundError();
     const rows = await repository.upcoming(ctx, new Date(), query.limit, query.staffId);
     const [customers, staff] = await repository.references(ctx, [...new Set(rows.map((row) => row.customerId.toString()))].map((id) => new Types.ObjectId(id)), [...new Set(rows.map((row) => row.staffId.toString()))].map((id) => new Types.ObjectId(id)));
+    const paymentBalances = await paymentRepository.appointmentBalances(ctx, rows);
     const customerMap = new Map(customers.map((row) => [row._id.toString(), row]));
     const staffMap = new Map(staff.map((row) => [row._id.toString(), row]));
     return rows.flatMap((row) => {
       const customer = customerMap.get(row.customerId.toString());
       const member = staffMap.get(row.staffId.toString());
       if (!customer || !member) return [];
-      return [{ id: row._id.toString(), customer: { id: customer._id.toString(), firstName: customer.firstName, ...(customer.lastName ? { lastName: customer.lastName } : {}), phone: customer.phone, ...(customer.email ? { email: customer.email } : {}) }, staff: { id: member._id.toString(), displayName: member.displayName, color: member.color }, service: { id: row.serviceId.toString(), name: row.serviceSnapshot.name }, startAt: row.startAt.toISOString(), endAt: row.endAt.toISOString(), blockedUntilAt: row.blockedUntilAt.toISOString(), status: row.status, source: row.source, serviceSnapshot: row.serviceSnapshot, ...(row.customerNote ? { customerNote: row.customerNote } : {}), rescheduleCount: row.rescheduleCount, payment: { paidMinor: 0, refundedMinor: 0, balanceMinor: row.serviceSnapshot.priceMinor } }];
+      return [{ id: row._id.toString(), customer: { id: customer._id.toString(), firstName: customer.firstName, ...(customer.lastName ? { lastName: customer.lastName } : {}), phone: customer.phone, ...(customer.email ? { email: customer.email } : {}) }, staff: { id: member._id.toString(), displayName: member.displayName, color: member.color }, service: { id: row.serviceId.toString(), name: row.serviceSnapshot.name }, startAt: row.startAt.toISOString(), endAt: row.endAt.toISOString(), blockedUntilAt: row.blockedUntilAt.toISOString(), status: row.status, source: row.source, serviceSnapshot: row.serviceSnapshot, ...(row.customerNote ? { customerNote: row.customerNote } : {}), rescheduleCount: row.rescheduleCount, payment: paymentBalances.get(row._id.toString()) }];
     });
   }
 

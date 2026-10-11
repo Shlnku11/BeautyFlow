@@ -7,6 +7,12 @@ export interface NotificationMessage {
   html?: string;
   idempotencyKey: string;
   headers?: Record<string, string>;
+  businessId?: string;
+  userId?: string;
+  title?: string;
+  body?: string;
+  url?: string;
+  tag?: string;
 }
 
 export interface SendResult { providerMessageId: string; }

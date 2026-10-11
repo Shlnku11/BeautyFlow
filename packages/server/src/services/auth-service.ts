@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { Types } from 'mongoose';
 import { withTransaction } from '../db/transactions';
 import { AuthRepository } from '../repositories/auth-repository';
+import { AuditLog } from '../db/models';
 import { createSessionToken, hashSessionToken } from '../auth/session-token';
 import { getEnv } from '../config/env';
 import { AppError, ConflictError, RateLimitError } from '../http/errors';
@@ -79,6 +80,15 @@ async function issueSession(userId: Types.ObjectId, businessId: Types.ObjectId, 
 }
 
 export class AuthService {
+  async updateProfile(userId: string, businessId: string, role: 'owner' | 'admin' | 'master', name: string) {
+    return withTransaction(async (session) => {
+      const user = await repository.updateProfile(new Types.ObjectId(userId), name, session);
+      if (!user) throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа');
+      await AuditLog.create([{ businessId: new Types.ObjectId(businessId), actorUserId: new Types.ObjectId(userId), actorRole: role, action: 'account.profile_updated', entityType: 'user', entityId: new Types.ObjectId(userId), metadata: { fields: ['name'] } }], { session });
+      return userDto(user);
+    });
+  }
+
   googleOAuthConfig() {
     const env = getEnv();
     return { enabled: isGoogleOAuthConfigured(), clientId: isGoogleOAuthConfigured() ? env.GOOGLE_CLIENT_ID : null };

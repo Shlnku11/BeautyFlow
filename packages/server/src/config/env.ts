@@ -43,6 +43,9 @@ const EnvSchema = z
     APP_DEFAULT_COUNTRY_CODE: z.enum(['RU', 'KZ', 'KG', 'US', 'OTHER']).default('RU'),
     SMS_PROVIDER: optionalString,
     PUSH_PROVIDER: optionalString,
+    PUSH_VAPID_PUBLIC_KEY: optionalString,
+    PUSH_VAPID_PRIVATE_KEY: optionalString,
+    PUSH_VAPID_SUBJECT: optionalString,
     TEST_MONGODB_URI: optionalUrl,
   })
   .superRefine((env, context) => {
@@ -64,6 +67,18 @@ const EnvSchema = z
           });
         }
       }
+    }
+
+    const pushValues = [env.PUSH_VAPID_PUBLIC_KEY, env.PUSH_VAPID_PRIVATE_KEY, env.PUSH_VAPID_SUBJECT];
+    if (pushValues.some(Boolean) && !pushValues.every(Boolean)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'PUSH_VAPID_PUBLIC_KEY, PUSH_VAPID_PRIVATE_KEY и PUSH_VAPID_SUBJECT должны задаваться вместе',
+        path: ['PUSH_VAPID_PUBLIC_KEY'],
+      });
+    }
+    if (env.PUSH_VAPID_SUBJECT && !/^(?:mailto:.+|https:\/\/[^\s]+)$/i.test(env.PUSH_VAPID_SUBJECT)) {
+      context.addIssue({ code: 'custom', message: 'Ожидается mailto: адрес или HTTPS URL', path: ['PUSH_VAPID_SUBJECT'] });
     }
   });
 

@@ -8,13 +8,14 @@ import { getEnv } from '../config/env';
 import { assertPermission } from '../domain/permissions';
 import { ERROR_CODES } from '@/shared/error-codes';
 import type { z } from 'zod';
-import type { CreateStaffSchema } from '@/shared/schemas/staff';
+import { CreateStaffSchema } from '@/shared/schemas/staff';
 import { buildDedupeKey } from '../notifications/dedupe-key';
+import { AuditLog, Shift } from '../db/models';
 
 const repository = new StaffRepository();
 
 function toDto(staff: Record<string, unknown>) {
-  const { _id, displayName, email, phone, bio, color, isActive, acceptsOnlineBooking, displayOrder, serviceIds } = staff;
+  const { _id, displayName, email, phone, bio, color, isActive, acceptsOnlineBooking, displayOrder, serviceIds, hourlyRateMinor } = staff;
   return {
     id: String(_id),
     displayName,
@@ -25,11 +26,12 @@ function toDto(staff: Record<string, unknown>) {
     isActive,
     acceptsOnlineBooking,
     displayOrder,
+    hourlyRateMinor: typeof hourlyRateMinor === 'number' ? hourlyRateMinor : 0,
     ...(Array.isArray(serviceIds) ? { serviceIds } : {}),
   };
 }
 
-type CreateStaffInput = z.infer<typeof CreateStaffSchema>;
+type CreateStaffInput = z.input<typeof CreateStaffSchema>;
 
 function isDuplicateKey(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
@@ -49,13 +51,14 @@ export class StaffService {
   }
 
   async create(ctx: TenantContext, input: CreateStaffInput) {
-    if (input.email) assertPermission(ctx.role, 'members:invite');
+    const normalized = CreateStaffSchema.parse(input);
+    if (normalized.email) assertPermission(ctx.role, 'members:invite');
     try {
       return await withTransaction(async (session) => {
-        const staff = await repository.createInTransaction(ctx, input, session);
-        if (!input.email) return { staff: toDto(staff.toObject() as unknown as Record<string, unknown>), accessInvite: 'none' as const };
+        const staff = await repository.createInTransaction(ctx, normalized, session);
+        if (!normalized.email) return { staff: toDto(staff.toObject() as unknown as Record<string, unknown>), accessInvite: 'none' as const };
 
-        const emailNormalized = input.email.toLowerCase();
+        const emailNormalized = normalized.email.toLowerCase();
         const existingUser = await repository.findUserByEmail(ctx, emailNormalized, session);
         let userId: import('mongoose').Types.ObjectId;
         if (existingUser) {
@@ -65,7 +68,7 @@ export class StaffService {
           userId = existingUser._id;
         } else {
           const user = await repository.createInvitedUser(ctx, {
-            email: input.email, emailNormalized, name: input.displayName, passwordHash: null, locale: 'ru', status: 'invited',
+            email: normalized.email, emailNormalized, name: normalized.displayName, passwordHash: null, locale: 'ru', status: 'invited',
           }, session);
           userId = user._id;
         }
@@ -82,10 +85,10 @@ export class StaffService {
         const now = new Date();
         const inviteUrl = `${getEnv().APP_BASE_URL}/accept-invite?token=${encodeURIComponent(inviteToken)}`;
         await repository.enqueueInvite(ctx, {
-          channel: 'email', kind: 'staff_invite', recipient: { email: input.email, name: input.displayName }, status: 'scheduled',
+          channel: 'email', kind: 'staff_invite', recipient: { email: normalized.email, name: normalized.displayName }, status: 'scheduled',
           scheduledFor: now, nextAttemptAt: now, attempts: 0, maxAttempts: 5,
           dedupeKey: buildDedupeKey({ channel: 'email', kind: 'staff_invite', memberId: member._id.toString(), tokenHash: inviteTokenHash }),
-          templateData: { businessName: business.name, staffName: input.displayName, inviteUrl },
+          templateData: { businessName: business.name, staffName: normalized.displayName, inviteUrl },
         }, session);
         await repository.recordInvite(ctx, member._id, session);
         return { staff: toDto(staff.toObject() as unknown as Record<string, unknown>), accessInvite: 'sent' as const };
@@ -111,6 +114,13 @@ export class StaffService {
         }
         const staff = await repository.updateInTransaction(ctx, id, fields, session);
         if (!staff) throw new NotFoundError();
+        const now = new Date();
+        const shift = await Shift.findOneAndUpdate({ businessId: ctx.businessId, staffId: id, closedAt: { $exists: false } }, { $set: { closedAt: now } }, { returnDocument: 'after', session }).lean().exec();
+        if (shift) {
+          const minutes = Math.max(1, Math.floor((now.getTime() - shift.startedAt.getTime()) / 60_000));
+          const wageMinor = Math.round(shift.hourlyRateMinor * (now.getTime() - shift.startedAt.getTime()) / 3_600_000);
+          await AuditLog.create([{ businessId: new Types.ObjectId(ctx.businessId), actorUserId: new Types.ObjectId(ctx.userId), actorRole: ctx.role, action: 'shift.closed', entityType: 'shift', entityId: shift._id, metadata: { staffId: id, minutes, wageMinor, closedBy: 'staff_deactivated' } }], { session });
+        }
         await repository.disableLinkedMember(ctx, id, session);
         if (current.isActive) await repository.recordDeactivation(ctx, id, session);
         return toDto(staff as unknown as Record<string, unknown>);

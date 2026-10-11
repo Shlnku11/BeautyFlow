@@ -26,3 +26,7 @@ const templates: Record<EmailKind, (data: NotificationTemplateData) => RenderedE
 };
 
 export function renderRuTemplate(kind: EmailKind, data: NotificationTemplateData): RenderedEmail { return templates[kind](data); }
+
+export function isEmailKind(kind: NotificationDocument['kind']): kind is EmailKind {
+  return Object.hasOwn(templates, kind);
+}

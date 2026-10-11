@@ -2,6 +2,19 @@ import { Types } from 'mongoose';
 import type { TenantContext } from '@/shared/types/tenant-context';
 import { Appointment, Business, Customer, Service, Settings, Staff, Transaction } from '../db/models';
 
+function withoutMoney(snapshot: Record<string, unknown>) {
+  const visible = { ...snapshot };
+  delete visible.costMinor;
+  delete visible.priceMinor;
+  delete visible.currency;
+  return visible;
+}
+
+function toIsoDate(value: unknown): string | undefined {
+  const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
 export class CustomerRepository {
   async masterPhoneVisibility(ctx: TenantContext): Promise<boolean> {
     const settings = await Settings.findOne({ businessId: new Types.ObjectId(ctx.businessId) }).select({ 'privacy.masterSeesCustomerPhone': 1 }).lean().exec();
@@ -98,7 +111,7 @@ export class CustomerRepository {
         staff: { id: staff._id.toString(), displayName: staff.displayName, color: staff.color },
         service: { id: service._id.toString(), name: service.name },
         startAt: appointment.startAt.toISOString(), endAt: appointment.endAt.toISOString(), blockedUntilAt: appointment.blockedUntilAt.toISOString(),
-        status: appointment.status, source: appointment.source, serviceSnapshot: snapshot,
+        status: appointment.status, source: appointment.source, serviceSnapshot: ctx.role === 'master' ? withoutMoney(snapshot as unknown as Record<string, unknown>) : snapshot,
         ...(appointment.customerNote ? { customerNote: appointment.customerNote } : {}),
         ...(ctx.role !== 'master' && appointment.internalNote ? { internalNote: appointment.internalNote } : {}),
         ...(appointment.visitNote ? { visitNote: appointment.visitNote } : {}), rescheduleCount: appointment.rescheduleCount,
@@ -132,7 +145,7 @@ export class CustomerRepository {
       }
     }
     const direction = query.order === 'asc' ? 1 : -1;
-    const total = await Customer.countDocuments(where).exec();
+    const totalPromise = Customer.countDocuments(where).exec();
     let customers;
     if (query.sort === 'lastVisitAt') {
       customers = await Customer.aggregate([
@@ -144,11 +157,12 @@ export class CustomerRepository {
         { $set: { lastVisitAt: { $arrayElemAt: ['$lastVisitRows.startAt', 0] } } },
         { $sort: { lastVisitAt: direction, _id: direction } },
         { $skip: (query.page - 1) * query.limit }, { $limit: query.limit }, { $unset: 'lastVisitRows' },
+        { $project: { firstName: 1, lastName: 1, phone: 1, email: 1, source: 1, createdAt: 1 } },
       ]).exec();
     } else {
-      customers = await Customer.find(where).sort({ [query.sort]: direction }).skip((query.page - 1) * query.limit).limit(query.limit).lean().exec();
+      customers = await Customer.find(where).select({ firstName: 1, lastName: 1, phone: 1, email: 1, source: 1, createdAt: 1 }).sort({ [query.sort]: direction }).skip((query.page - 1) * query.limit).limit(query.limit).lean().exec();
     }
-    const privacy = await Settings.findOne({ businessId: ctx.businessId }).select({ 'privacy.masterSeesCustomerPhone': 1 }).lean().exec();
+    const [privacy, total] = await Promise.all([Settings.findOne({ businessId: ctx.businessId }).select({ 'privacy.masterSeesCustomerPhone': 1 }).lean().exec(), totalPromise]);
     const allowed = ctx.role !== 'master' || privacy?.privacy.masterSeesCustomerPhone !== false;
     const customerIds = customers.map((customer) => customer._id);
     const now = new Date();
@@ -163,6 +177,7 @@ export class CustomerRepository {
     ]).exec();
     const activityByCustomer = new Map(activity.map((row) => [row._id.toString(), row]));
     const data = customers.map((customer) => {
+      const createdAt = toIsoDate(customer.createdAt);
       const result = {
         id: customer._id.toString(), firstName: customer.firstName,
         ...(customer.lastName ? { lastName: customer.lastName } : {}),
@@ -172,7 +187,7 @@ export class CustomerRepository {
           ...(customer.notes ? { notes: customer.notes } : {}),
           ...(customer.contacts ? { contacts: customer.contacts } : {}),
           source: customer.source,
-          createdAt: customer.createdAt.toISOString(),
+          ...(createdAt ? { createdAt } : {}),
           visitsCount: activityByCustomer.get(customer._id.toString())?.visitsCount ?? 0,
           ...(activityByCustomer.get(customer._id.toString())?.lastVisitAt ? { lastVisitAt: activityByCustomer.get(customer._id.toString())?.lastVisitAt?.toISOString() } : {}),
           ...(activityByCustomer.get(customer._id.toString())?.nextVisitAt ? { nextVisitAt: activityByCustomer.get(customer._id.toString())?.nextVisitAt?.toISOString() } : {}),

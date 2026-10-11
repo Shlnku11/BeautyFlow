@@ -6,7 +6,7 @@ import { logger } from '@/server/http/logger';
 import { retryDelayMs } from './backoff';
 import { PermanentProviderError, TransientProviderError } from './errors';
 import { getDefaultProviderRegistry, ProviderRegistry } from './providers/registry';
-import { renderRuTemplate } from './templates/ru';
+import { isEmailKind, renderRuTemplate } from './templates/ru';
 import type { NotificationChannel, NotificationTemplateData } from './types';
 
 const LEASE_MS = 5 * 60_000;
@@ -110,7 +110,11 @@ export async function runNotificationBatch(options: BatchOptions = {}): Promise<
       summary.skipped += 1;
       continue;
     }
-    const recipient = notification.channel === 'email' ? notification.recipient.email : notification.recipient.phone;
+    const recipient = notification.channel === 'email'
+      ? notification.recipient.email
+      : notification.channel === 'sms'
+        ? notification.recipient.phone
+        : notification.recipient.userId?.toString();
     if (!recipient) {
       await skip(notification, workerId, 'NO_RECIPIENT', now);
       summary.skipped += 1;
@@ -131,13 +135,34 @@ export async function runNotificationBatch(options: BatchOptions = {}): Promise<
         delete data.manageUrl;
       }
       if (notification.channel !== 'email') {
-        const outcome = await provider.send({ to: recipient, text: '', idempotencyKey: notification._id.toString() });
+        const message = notification.channel === 'push'
+          ? (() => {
+              const data = isRecord(notification.templateData) ? notification.templateData : {};
+              return {
+                to: recipient,
+                userId: recipient,
+                businessId: notification.businessId.toString(),
+                ...(typeof data.title === 'string' ? { title: data.title } : {}),
+                ...(typeof data.body === 'string' ? { body: data.body } : {}),
+                url: typeof data.url === 'string' && data.url.startsWith('/app/') ? data.url : '/app',
+                tag: typeof data.tag === 'string' ? data.tag : notification._id.toString(),
+                text: '',
+                idempotencyKey: notification._id.toString(),
+              };
+            })()
+          : { to: recipient, text: '', idempotencyKey: notification._id.toString() };
+        const outcome = await provider.send(message);
         if (outcome.status === 'skipped') {
           await skip(notification, workerId, outcome.reason, now);
           summary.skipped += 1;
           continue;
         }
       } else {
+        if (!isEmailKind(notification.kind)) {
+          await skip(notification, workerId, 'EMAIL_TEMPLATE_NOT_AVAILABLE', now);
+          summary.skipped += 1;
+          continue;
+        }
         const rendered = renderRuTemplate(notification.kind, data);
         const outcome = await provider.send({ to: recipient, ...rendered, idempotencyKey: notification._id.toString() });
         if (outcome.status === 'skipped') {

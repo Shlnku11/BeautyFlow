@@ -9,8 +9,44 @@ import type { z } from 'zod';
 import { ValidationError } from '../http/errors';
 
 type PaymentListQuery = z.infer<typeof PaymentListQuerySchema>;
+type AppointmentPrice = { _id: Types.ObjectId; serviceSnapshot?: { priceMinor?: number } };
+type AppointmentPaymentSummary = { paidMinor: number; refundedMinor: number; pendingMinor: number; dueBeforePendingMinor: number; balanceMinor: number };
 
 export class PaymentRepository {
+  async appointmentBalances(ctx: TenantContext, appointments: AppointmentPrice[], session?: ClientSession) {
+    if (!appointments.length) return new Map<string, AppointmentPaymentSummary>();
+    const appointmentIds = appointments.map((appointment) => appointment._id);
+    const aggregate = Payment.aggregate<{ _id: Types.ObjectId; paidMinor: number; refundedMinor: number; pendingMinor: number }>([
+      { $match: { businessId: new Types.ObjectId(ctx.businessId), appointmentId: { $in: appointmentIds }, status: { $in: ['paid', 'refunded', 'pending'] } } },
+      { $group: {
+        _id: '$appointmentId',
+        paidMinor: { $sum: { $cond: [{ $in: ['$status', ['paid', 'refunded']] }, '$amountMinor', 0] } },
+        refundedMinor: { $sum: { $cond: [{ $in: ['$status', ['paid', 'refunded']] }, '$refundedMinor', 0] } },
+        pendingMinor: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amountMinor', 0] } },
+      } },
+    ]);
+    const totals = await (session ? aggregate.session(session) : aggregate).exec();
+    const totalsById = new Map(totals.map((row) => [row._id.toString(), row]));
+    return new Map(appointments.map((appointment) => {
+      const total = totalsById.get(appointment._id.toString());
+      const priceMinor = Number.isSafeInteger(appointment.serviceSnapshot?.priceMinor) ? appointment.serviceSnapshot?.priceMinor ?? 0 : 0;
+      const paidMinor = total?.paidMinor ?? 0;
+      const refundedMinor = total?.refundedMinor ?? 0;
+      const pendingMinor = total?.pendingMinor ?? 0;
+      const dueBeforePendingMinor = Math.max(0, priceMinor - paidMinor + refundedMinor);
+      return [appointment._id.toString(), { paidMinor, refundedMinor, pendingMinor, dueBeforePendingMinor, balanceMinor: Math.max(0, dueBeforePendingMinor - pendingMinor) }] as const;
+    }));
+  }
+
+  async lockAppointmentForPayment(ctx: TenantContext, appointmentId: Types.ObjectId, session: ClientSession) {
+    const result = await Appointment.collection.updateOne(
+      { _id: appointmentId, businessId: new Types.ObjectId(ctx.businessId) },
+      { $inc: { __v: 1 } },
+      { session },
+    );
+    return result.matchedCount === 1;
+  }
+
   findById(ctx: TenantContext, id: string, session?: ClientSession) {
     const query = Payment.findOne({ _id: id, businessId: new Types.ObjectId(ctx.businessId) });
     return (session ? query.session(session) : query).lean().exec();

@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { AuthService } from '../services/auth-service';
-import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, GoogleLoginSchema, GoogleRegisterBusinessSchema, LoginSchema, LoginVerificationResendSchema, LoginVerificationSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
+import { AcceptInviteSchema, ChangePasswordSchema, EmailSchema, EmptyBodySchema, GoogleLoginSchema, GoogleRegisterBusinessSchema, LoginSchema, LoginVerificationResendSchema, LoginVerificationSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema, UpdateProfileSchema } from '@/shared/schemas';
 import { getEnv } from '../config/env';
 import { defineExpressRoute } from './define-express-route';
 import { AppError } from './errors';
@@ -13,6 +13,13 @@ export const IMPLEMENTED_AUTH_ROUTE_IDS = new Set(['AUTH-01','AUTH-02','AUTH-03'
 export const OPTIONAL_AUTH_ROUTE_IDS = new Set(['AUTH-13','AUTH-14','AUTH-15']);
 
 export function registerAuthRoutes(app: Express): void {
+  app.patch('/api/auth/profile', defineExpressRoute({
+    id: 'AUTH-18', method: 'PATCH', path: '/api/auth/profile', auth: 'session', permission: 'account:self', contextSource: 'SESSION', bodySchema: UpdateProfileSchema,
+    handler: async ({ body, context }) => {
+      if (!context || !('userId' in context)) throw new AppError(ERROR_CODES.UNAUTHENTICATED, 401, 'Требуется вход в систему');
+      return authService.updateProfile(context.userId, context.businessId, context.role, body.name);
+    },
+  }));
   app.get('/api/auth/google/config', defineExpressRoute({
     id: 'AUTH-14', method: 'GET', path: '/api/auth/google/config', auth: 'none', contextSource: 'NONE',
     handler: async () => Response.json({ data: authService.googleOAuthConfig() }),

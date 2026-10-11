@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { connectToDatabase, disconnectFromDatabase } from '../../packages/server/src/db/connection';
 import { up as createIndexes } from '../../packages/server/migrations/000_init';
 import { AppointmentService } from '../../packages/server/src/services/appointment-service';
-import { Appointment, Business, Customer, Notification, Service, Settings, Staff } from '../../packages/server/src/db/models';
+import { Appointment, Business, Customer, Notification, Service, Settings, Staff, StaffSchedule, StaffService } from '../../packages/server/src/db/models';
 import type { TenantContext } from '../../packages/shared/src/types/tenant-context';
 
 describe('appointment internal lifecycle', () => {
@@ -65,5 +65,55 @@ describe('appointment internal lifecycle', () => {
     expect(cancelled?.__v).toBe(1);
     expect(await Notification.countDocuments({ businessId: businessA, appointmentId, kind: 'appointment_cancelled', status: 'scheduled' })).toBe(1);
     expect(await Notification.findOne({ businessId: businessA, appointmentId, kind: 'appointment_cancelled' }).then((row) => row?.dedupeKey)).toBe(`email:appointment_cancelled:${appointmentId.toString()}:1`);
+  });
+
+  it('keeps the appointment list available when legacy rows have missing links or dates', async () => {
+    const orphanId = new mongoose.Types.ObjectId();
+    const missingDateId = new mongoose.Types.ObjectId();
+    const missingCustomerId = new mongoose.Types.ObjectId();
+    const missingStaffId = new mongoose.Types.ObjectId();
+    const missingServiceId = new mongoose.Types.ObjectId();
+    await Appointment.collection.insertMany([
+      {
+        _id: orphanId, businessId: businessA, customerId: missingCustomerId, staffId: missingStaffId, serviceId: missingServiceId,
+        startAt: new Date('2026-10-03T04:00:00.000Z'), endAt: new Date('2026-10-03T04:30:00.000Z'), blockedUntilAt: new Date('2026-10-03T04:30:00.000Z'),
+        bufferMinutes: 0, status: 'confirmed', source: 'internal', serviceSnapshot: { name: 'Legacy service', durationMinutes: 30, priceMinor: 1000, currency: 'KGS' }, rescheduleCount: 0,
+      },
+      {
+        _id: missingDateId, businessId: businessA, customerId: customerA, staffId: staffA, serviceId: serviceA,
+        endAt: new Date('2026-10-03T05:00:00.000Z'), blockedUntilAt: new Date('2026-10-03T05:00:00.000Z'),
+        bufferMinutes: 0, status: 'confirmed', source: 'internal', serviceSnapshot: { name: 'Legacy service', durationMinutes: 30, priceMinor: 1000, currency: 'KGS' }, rescheduleCount: 0,
+      },
+    ]);
+
+    const owner: TenantContext = { businessId: businessA.toString(), userId: new mongoose.Types.ObjectId().toString(), role: 'owner' };
+    const rows = await service.list(owner, { page: 1, limit: 25 });
+    const appointmentRows = rows as Array<{ id: string; customer: { firstName: string }; staff: { displayName: string }; service: { name: string } }>;
+    expect(appointmentRows).toHaveLength(2);
+    expect(appointmentRows.find((row) => row.id === orphanId.toString())).toMatchObject({ customer: { firstName: 'Клиент' }, staff: { displayName: 'Сотрудник' }, service: { name: 'Legacy service' } });
+    expect(appointmentRows.some((row) => row.id === missingDateId.toString())).toBe(false);
+  });
+
+  it('creates an internal appointment and returns its serialized details', async () => {
+    await Promise.all([
+      StaffSchedule.create({ businessId: businessA, staffId: staffA, weekly: [{ isoWeekday: 1, intervals: [{ start: '09:00', end: '17:00' }], breaks: [] }] }),
+      StaffService.create({ businessId: businessA, staffId: staffA, serviceId: serviceA }),
+    ]);
+    const owner: TenantContext = { businessId: businessA.toString(), userId: new mongoose.Types.ObjectId().toString(), role: 'owner' };
+
+    const result = await service.create(owner, {
+      customerId: customerA.toString(), staffId: staffA.toString(), serviceId: serviceA.toString(),
+      startAt: '2026-10-12T03:00:00.000Z', status: 'pending',
+    }, 'internal-appointment-create');
+
+    expect(result.statusCode).toBe(201);
+    expect(result.appointment).toMatchObject({
+      customer: { id: customerA.toString(), firstName: 'Client' },
+      staff: { id: staffA.toString(), displayName: 'Stylist' },
+      service: { id: serviceA.toString(), name: 'Cut' },
+      startAt: '2026-10-12T03:00:00.000Z',
+      status: 'pending',
+    });
+    expect(await Appointment.countDocuments({ businessId: businessA, idempotencyKey: 'internal-appointment-create' })).toBe(1);
   });
 });

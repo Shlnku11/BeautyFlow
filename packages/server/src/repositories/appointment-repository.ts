@@ -5,6 +5,14 @@ import { Appointment, BlockedPeriod, Business, Customer, Service, Settings, Staf
 
 export class AppointmentRepository {
   list(ctx: TenantContext, filter: Record<string, unknown>, skip: number, limit: number) { return Appointment.find({ businessId: ctx.businessId, ...filter }).sort({ startAt: 1, _id: 1 }).skip(skip).limit(limit).lean().exec(); }
+  listReferences(ctx: TenantContext, ids: { customerIds: Types.ObjectId[]; staffIds: Types.ObjectId[]; serviceIds: Types.ObjectId[] }) {
+    const businessId = new Types.ObjectId(ctx.businessId);
+    return Promise.all([
+      ids.customerIds.length ? Customer.find({ _id: { $in: ids.customerIds }, businessId }).lean().exec() : Promise.resolve([]),
+      ids.staffIds.length ? Staff.find({ _id: { $in: ids.staffIds }, businessId }).lean().exec() : Promise.resolve([]),
+      ids.serviceIds.length ? Service.find({ _id: { $in: ids.serviceIds }, businessId }).lean().exec() : Promise.resolve([]),
+    ]);
+  }
   findById(ctx: TenantContext, id: string) { return Appointment.findOne({ _id: id, businessId: ctx.businessId }).lean().exec(); }
   updateById(ctx: TenantContext, id: string, update: Record<string, unknown>, session: ClientSession, expectedUpdatedAt?: Date) {
     const increments = update.$inc && typeof update.$inc === 'object' ? update.$inc as Record<string, number> : {};

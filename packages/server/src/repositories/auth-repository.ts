@@ -93,6 +93,9 @@ export class AuthRepository {
     return AuditLog.create([{ businessId, actorUserId: userId, actorRole: 'system', action: 'auth.password_changed', entityType: 'user', entityId: userId }], { session });
   }
   findUserById(userId: Types.ObjectId, session?: ClientSession) { const query = User.findOne({ _id: userId }); return (session ? query.session(session) : query).lean().exec(); }
+  updateProfile(userId: Types.ObjectId, name: string, session: ClientSession) {
+    return User.findOneAndUpdate({ _id: userId, status: 'active' }, { $set: { name } }, { session, returnDocument: 'after' }).lean().exec();
+  }
   findSessionByTokenHash(tokenHash: string, session?: ClientSession) { return Session.collection.findOne({ tokenHash }, { ...(session ? { session } : {}) }); }
   findInvitationByTokenHash(tokenHash: string, now: Date, session: ClientSession) {
     // API_CONTRACTS §2 resolves AUTH-06 from the one-time token; DATA_MODEL §5's global unique token index makes this exact lookup safe before TenantContext exists.

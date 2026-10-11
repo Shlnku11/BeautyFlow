@@ -15,6 +15,13 @@ export const NOTIFICATION_KINDS = [
   'password_reset',
   'email_verification',
   'login_verification',
+  'staff_appointment_new',
+  'staff_appointment_changed',
+  'staff_appointment_cancelled',
+  'staff_payment_received',
+  'staff_payment_refunded',
+  'staff_waitlist_offer',
+  'staff_test',
 ] as const;
 export const NOTIFICATION_STATUSES = ['scheduled', 'processing', 'sent', 'failed', 'cancelled', 'skipped'] as const;
 
@@ -22,6 +29,7 @@ export interface NotificationRecipient {
   email?: string;
   phone?: string;
   name?: string;
+  userId?: Types.ObjectId;
 }
 
 export interface NotificationDocument {
@@ -54,6 +62,7 @@ const recipientSchema = new Schema<NotificationRecipient>(
     email: { type: String, trim: true, maxlength: 254 },
     phone: { type: String, trim: true, maxlength: 64 },
     name: { type: String, trim: true, maxlength: 120 },
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { _id: false, strict: 'throw' },
 );

@@ -16,6 +16,7 @@ describe('customer detail and appointment history', () => {
   let staffA: mongoose.Types.ObjectId;
   let staffA2: mongoose.Types.ObjectId;
   let serviceA: mongoose.Types.ObjectId;
+  let nextAppointmentAt: Date;
   const customerService = new CustomerService();
 
   beforeAll(async () => {
@@ -31,6 +32,7 @@ describe('customer detail and appointment history', () => {
 
   beforeEach(async () => {
     await Promise.all(Object.values(mongoose.connection.collections).map((collection) => collection.deleteMany({})));
+    nextAppointmentAt = new Date(Date.now() + 24 * 60 * 60_000);
     businessA = new mongoose.Types.ObjectId();
     businessB = new mongoose.Types.ObjectId();
     const [bizA, bizB] = await Business.create([
@@ -59,7 +61,7 @@ describe('customer detail and appointment history', () => {
     serviceA = service._id;
     await Appointment.create([
       { businessId: businessA, customerId: customerA, staffId: staffA, serviceId: serviceA, startAt: new Date('2026-10-02T04:00:00.000Z'), endAt: new Date('2026-10-02T04:30:00.000Z'), blockedUntilAt: new Date('2026-10-02T04:30:00.000Z'), bufferMinutes: 0, status: 'completed', source: 'internal', serviceSnapshot: { name: 'Cut', durationMinutes: 30, priceMinor: 2500, currency: 'KGS' }, internalNote: 'private', rescheduleCount: 0 },
-      { businessId: businessA, customerId: customerA, staffId: staffA2, serviceId: serviceA, startAt: new Date('2026-10-11T04:00:00.000Z'), endAt: new Date('2026-10-11T04:30:00.000Z'), blockedUntilAt: new Date('2026-10-11T04:30:00.000Z'), bufferMinutes: 0, status: 'confirmed', source: 'public', serviceSnapshot: { name: 'Cut', durationMinutes: 30, priceMinor: 2500, currency: 'KGS' }, rescheduleCount: 0 },
+      { businessId: businessA, customerId: customerA, staffId: staffA2, serviceId: serviceA, startAt: nextAppointmentAt, endAt: new Date(nextAppointmentAt.getTime() + 30 * 60_000), blockedUntilAt: new Date(nextAppointmentAt.getTime() + 30 * 60_000), bufferMinutes: 0, status: 'confirmed', source: 'public', serviceSnapshot: { name: 'Cut', durationMinutes: 30, priceMinor: 2500, currency: 'KGS' }, rescheduleCount: 0 },
     ]);
     const paymentId = new mongoose.Types.ObjectId();
     const appointmentId = await Appointment.findOne({ businessId: businessA, status: 'completed' }).then((row) => row?._id);
@@ -80,7 +82,7 @@ describe('customer detail and appointment history', () => {
     const result = await customerService.get(ctx, customerA.toString());
     expect(result).toMatchObject({
       customer: { id: customerA.toString(), email: 'a@example.test' },
-      summary: { visitsCount: 1, lastVisitAt: '2026-10-02T04:00:00.000Z', nextVisitAt: '2026-10-11T04:00:00.000Z', totalPaidMinor: 1500, currency: 'KGS' },
+      summary: { visitsCount: 1, lastVisitAt: '2026-10-02T04:00:00.000Z', nextVisitAt: nextAppointmentAt.toISOString(), totalPaidMinor: 1500, currency: 'KGS' },
     });
   });
 

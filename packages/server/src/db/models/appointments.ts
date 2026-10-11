@@ -11,6 +11,8 @@ export interface ServiceSnapshot {
   durationMinutes: number;
   priceMinor: number;
   currency: (typeof BUSINESS_CURRENCIES)[number];
+  costMinor?: number;
+  inventoryConsumptions?: { inventoryItemId: Types.ObjectId; name: string; unit: string; quantity: number; unitCostMinor: number; costMinor: number }[];
 }
 
 export interface AppointmentDocument {
@@ -51,6 +53,8 @@ const serviceSnapshotSchema = new Schema<ServiceSnapshot>(
     durationMinutes: { type: Number, required: true, min: 5, max: 720 },
     priceMinor: { type: Number, required: true, min: 0 },
     currency: { type: String, enum: BUSINESS_CURRENCIES, required: true },
+    costMinor: { type: Number, min: 0, validate: Number.isSafeInteger },
+    inventoryConsumptions: { type: [{ inventoryItemId: { type: Schema.Types.ObjectId, ref: 'InventoryItem', required: true }, name: { type: String, required: true, maxlength: 120 }, unit: { type: String, required: true, maxlength: 20 }, quantity: { type: Number, required: true, min: 0 }, unitCostMinor: { type: Number, required: true, min: 0 }, costMinor: { type: Number, required: true, min: 0 } }], default: [] },
   },
   { _id: false, strict: 'throw' },
 );

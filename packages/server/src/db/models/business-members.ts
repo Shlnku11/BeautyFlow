@@ -15,9 +15,32 @@ export interface BusinessMemberDocument {
   inviteExpiresAt?: Date;
   invitedBy?: Types.ObjectId;
   joinedAt?: Date;
+  activityReadAt?: Date;
+  notificationPreferences: {
+    appointmentAlerts: boolean;
+    paymentAlerts: boolean;
+    pushEnabled: boolean;
+    soundEnabled: boolean;
+    soundVolume: number;
+    quietHoursStart?: string;
+    quietHoursEnd?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
+
+const notificationPreferencesSchema = new Schema<BusinessMemberDocument['notificationPreferences']>(
+  {
+    appointmentAlerts: { type: Boolean, default: true },
+    paymentAlerts: { type: Boolean, default: true },
+    pushEnabled: { type: Boolean, default: false },
+    soundEnabled: { type: Boolean, default: false },
+    soundVolume: { type: Number, min: 0.1, max: 1, default: 0.45 },
+    quietHoursStart: { type: String, match: /^(?:[01]\d|2[0-3]):[0-5]\d$/ },
+    quietHoursEnd: { type: String, match: /^(?:[01]\d|2[0-3]):[0-5]\d$/ },
+  },
+  { _id: false, strict: 'throw' },
+);
 
 const schema = createModelSchema<BusinessMemberDocument>(
   {
@@ -30,6 +53,8 @@ const schema = createModelSchema<BusinessMemberDocument>(
     inviteExpiresAt: { type: Date },
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     joinedAt: { type: Date },
+    activityReadAt: { type: Date },
+    notificationPreferences: { type: notificationPreferencesSchema, default: () => ({}) },
   },
   { tenant: true },
 );

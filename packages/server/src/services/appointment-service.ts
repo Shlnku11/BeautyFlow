@@ -12,6 +12,7 @@ import { withTransaction } from '../db/transactions';
 import { AppError, ConflictError, NotFoundError } from '../http/errors';
 import { AvailabilityService } from './availability-service';
 import { AppointmentRepository } from '../repositories/appointment-repository';
+import { PaymentRepository } from '../repositories/payment-repository';
 import { canTransitionStatus, type AppointmentStatus } from '../domain/booking-engine/transitions';
 import { assertPermission } from '../domain/permissions';
 import { Appointment, Business, Notification, Service, Staff } from '../db/models';
@@ -20,8 +21,13 @@ import { createHmac } from 'node:crypto';
 import { getEnv } from '../config/env';
 import { buildDedupeKey } from '../notifications/dedupe-key';
 import { enqueueNotification } from '../notifications/enqueue';
+import { enqueueWorkEvent } from '../notifications/work-events';
+import { applyInventoryForStatusChange, buildServiceSnapshot } from './inventory-consumption';
+import { offerReleasedSlot } from './waitlist-service';
+import { logger } from '../http/logger';
 
 const repository = new AppointmentRepository();
+const paymentRepository = new PaymentRepository();
 const availability = new AvailabilityService();
 const notificationRetentionAt = (): Date => new Date(Date.now() + 400 * 86_400_000);
 type CreateInput = z.infer<typeof CreateAppointmentSchema>;
@@ -36,16 +42,36 @@ function isTransactionContention(error: unknown): boolean {
   return 'code' in error && error.code === 112;
 }
 
+function withoutMoney(snapshot: Record<string, unknown>) {
+  const visible = { ...snapshot };
+  delete visible.costMinor;
+  delete visible.inventoryConsumptions;
+  delete visible.priceMinor;
+  delete visible.currency;
+  return visible;
+}
+
 function toDto(appointment: Record<string, unknown>, customer: Record<string, unknown>, staff: Record<string, unknown>, service: Record<string, unknown>) {
-  const snapshot = appointment.serviceSnapshot as { name: string; durationMinutes: number; priceMinor: number; currency: string };
+  const sourceSnapshot = appointment.serviceSnapshot && typeof appointment.serviceSnapshot === 'object' ? appointment.serviceSnapshot as Record<string, unknown> : {};
+  const startAt = appointmentDateIso(appointment.startAt);
+  const endAt = appointmentDateIso(appointment.endAt);
+  if (!startAt || !endAt) throw new TypeError('Appointment has an invalid startAt or endAt');
+  const blockedUntilAt = appointmentDateIso(appointment.blockedUntilAt) ?? endAt;
+  const snapshot = {
+    name: typeof sourceSnapshot.name === 'string' ? sourceSnapshot.name : typeof service.name === 'string' ? service.name : 'Услуга удалена',
+    durationMinutes: typeof sourceSnapshot.durationMinutes === 'number' && Number.isFinite(sourceSnapshot.durationMinutes) ? sourceSnapshot.durationMinutes : typeof service.durationMinutes === 'number' ? service.durationMinutes : 0,
+    priceMinor: typeof sourceSnapshot.priceMinor === 'number' && Number.isFinite(sourceSnapshot.priceMinor) ? sourceSnapshot.priceMinor : typeof service.priceMinor === 'number' ? service.priceMinor : 0,
+    currency: typeof sourceSnapshot.currency === 'string' ? sourceSnapshot.currency : typeof service.currency === 'string' ? service.currency : 'KGS',
+    ...(typeof sourceSnapshot.costMinor === 'number' ? { costMinor: sourceSnapshot.costMinor } : {}),
+  };
   return {
     id: String(appointment._id),
-    customer: { id: String(customer._id), firstName: customer.firstName, ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}), phone: customer.phone, ...(typeof customer.email === 'string' ? { email: customer.email } : {}) },
-    staff: { id: String(staff._id), displayName: staff.displayName, color: staff.color },
-    service: { id: String(service._id), name: service.name },
-    startAt: (appointment.startAt as Date).toISOString(),
-    endAt: (appointment.endAt as Date).toISOString(),
-    blockedUntilAt: (appointment.blockedUntilAt as Date).toISOString(),
+    customer: { id: String(customer._id ?? appointment.customerId), firstName: typeof customer.firstName === 'string' ? customer.firstName : 'Клиент', ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}), phone: typeof customer.phone === 'string' ? customer.phone : '', ...(typeof customer.email === 'string' ? { email: customer.email } : {}) },
+    staff: { id: String(staff._id ?? appointment.staffId), displayName: typeof staff.displayName === 'string' ? staff.displayName : 'Сотрудник', color: typeof staff.color === 'string' ? staff.color : 'slate' },
+    service: { id: String(service._id ?? appointment.serviceId), name: typeof service.name === 'string' ? service.name : snapshot.name },
+    startAt,
+    endAt,
+    blockedUntilAt,
     status: appointment.status,
     source: appointment.source,
     serviceSnapshot: snapshot,
@@ -54,6 +80,11 @@ function toDto(appointment: Record<string, unknown>, customer: Record<string, un
     rescheduleCount: appointment.rescheduleCount,
     payment: { paidMinor: 0, refundedMinor: 0, balanceMinor: snapshot.priceMinor },
   };
+}
+
+function appointmentDateIso(value: unknown): string | null {
+  const date = value instanceof Date ? value : value === undefined || value === null ? null : new Date(String(value));
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
 export class AppointmentService {
@@ -103,26 +134,56 @@ export class AppointmentService {
   async list(ctx: TenantContext, query: Record<string, unknown>) {
     const filter: Record<string, unknown> = {};
     if (ctx.role === 'master') filter.staffId = ctx.staffId;
-    for (const key of ['staffId', 'customerId', 'serviceId', 'source'] as const) if (typeof query[key] === 'string') filter[key] = query[key];
+    for (const key of ['staffId', 'customerId', 'serviceId', 'source'] as const) if (typeof query[key] === 'string' && !(ctx.role === 'master' && key === 'staffId')) filter[key] = query[key];
     if (typeof query.from === 'string' || typeof query.to === 'string') filter.startAt = { ...(typeof query.from === 'string' ? { $gte: new Date(query.from) } : {}), ...(typeof query.to === 'string' ? { $lt: new Date(query.to) } : {}) };
     if (query.status) filter.status = Array.isArray(query.status) ? { $in: query.status } : query.status;
     const rows = await repository.list(ctx, filter, ((query.page as number) - 1) * (query.limit as number), query.limit as number);
-    const result = await Promise.all(rows.map(async (row) => this.renderExisting(ctx, row)));
-    return Promise.all(result.map((value) => ctx.role === 'master' ? this.masterDto(ctx, value) : value));
+    const uniqueIds = (key: 'customerId' | 'staffId' | 'serviceId') => [...new Map(rows.map((row) => [String(row[key]), row[key]])).values()];
+    const [customers, staff, services] = await repository.listReferences(ctx, { customerIds: uniqueIds('customerId'), staffIds: uniqueIds('staffId'), serviceIds: uniqueIds('serviceId') });
+    const customerById = new Map(customers.map((row) => [row._id.toString(), row]));
+    const staffById = new Map(staff.map((row) => [row._id.toString(), row]));
+    const serviceById = new Map(services.map((row) => [row._id.toString(), row]));
+    const result = rows.flatMap((row) => {
+      try {
+        const snapshot = row.serviceSnapshot as { name?: unknown } | undefined;
+        const value = toDto(
+          row as unknown as Record<string, unknown>,
+          (customerById.get(String(row.customerId)) ?? { _id: row.customerId }) as unknown as Record<string, unknown>,
+          (staffById.get(String(row.staffId)) ?? { _id: row.staffId }) as unknown as Record<string, unknown>,
+          (serviceById.get(String(row.serviceId)) ?? { _id: row.serviceId, name: snapshot?.name }) as unknown as Record<string, unknown>,
+        );
+        return [value];
+      } catch (error: unknown) {
+        logger.warn({ appointmentId: String(row._id), err: error }, 'appointment omitted from list because its saved data is invalid');
+        return [];
+      }
+    });
+    if (ctx.role !== 'master') {
+      const balances = await paymentRepository.appointmentBalances(ctx, rows);
+      return result.map((value) => ({ ...value, payment: balances.get(value.id) ?? value.payment }));
+    }
+    const settings = await repository.findSettings(ctx);
+    return result.map((value) => this.masterDto(value, Boolean(settings?.privacy.masterSeesCustomerPhone)));
   }
 
   async get(ctx: TenantContext, id: string) {
     const row = await repository.findById(ctx, id);
     if (!row || (ctx.role === 'master' && String(row.staffId) !== ctx.staffId)) throw new NotFoundError();
     const dto = await this.renderExisting(ctx, row);
-    return ctx.role === 'master' ? this.masterDto(ctx, dto) : dto;
+    if (ctx.role !== 'master') {
+      const [balance] = (await paymentRepository.appointmentBalances(ctx, [row])).values();
+      return { ...dto, payment: balance ?? dto.payment };
+    }
+    const settings = await repository.findSettings(ctx);
+    return this.masterDto(dto, Boolean(settings?.privacy.masterSeesCustomerPhone));
   }
 
-  private async masterDto(ctx: TenantContext, value: unknown) {
+  private masterDto(value: unknown, masterSeesCustomerPhone: boolean) {
     const dto = value as Record<string, unknown>;
     const customer = dto.customer as Record<string, unknown>;
-    const settings = await repository.findSettings(ctx);
-    return { ...dto, customer: { id: customer.id, firstName: customer.firstName, ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}), ...(settings?.privacy.masterSeesCustomerPhone && typeof customer.phone === 'string' ? { phone: customer.phone } : {}) }, payment: undefined, internalNote: undefined };
+    const serviceSnapshot = dto.serviceSnapshot as Record<string, unknown>;
+    const visibleSnapshot = withoutMoney(serviceSnapshot);
+    return { ...dto, customer: { id: customer.id, firstName: customer.firstName, ...(typeof customer.lastName === 'string' ? { lastName: customer.lastName } : {}), ...(masterSeesCustomerPhone && typeof customer.phone === 'string' ? { phone: customer.phone } : {}) }, serviceSnapshot: visibleSnapshot, payment: undefined, internalNote: undefined };
   }
 
   async update(ctx: TenantContext, id: string, input: Record<string, unknown>) {
@@ -146,7 +207,7 @@ export class AppointmentService {
       const available = await availability.get(ctx, { serviceId, staffId, date: DateTime.fromJSDate(startAt, { zone: (await repository.findBusiness(ctx))?.timezone ?? 'UTC' }).toISODate() ?? '', enforceNotice: false, excludeAppointmentId: id });
       if (!available.slots.some((slot) => slot.startAt === startAt.toISOString())) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
       set.staffId = staff._id; set.serviceId = service._id; set.endAt = endAt; set.blockedUntilAt = blockedUntilAt; set.bufferMinutes = service.bufferMinutes;
-      set.serviceSnapshot = { name: service.name, durationMinutes: service.durationMinutes, priceMinor: service.priceMinor, currency: service.currency };
+      set.serviceSnapshot = await buildServiceSnapshot(ctx.businessId, service);
       // BOOKING_ENGINE_SPEC §5.2: occupiedKeys must be recomputed whenever staff, duration, or buffer changes.
       set.occupiedKeys = occupiedKeysFor(staffId, startAt, blockedUntilAt);
     }
@@ -161,7 +222,26 @@ export class AppointmentService {
         }
       }
       if (set.staffId && (await repository.hasOverlap(ctx, nextStaff, row.startAt, set.blockedUntilAt as Date, session, id) || await repository.hasBlockOverlap(ctx, nextStaff, row.startAt, set.blockedUntilAt as Date, session))) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
-      return repository.updateById(ctx, id, { $set: set }, session, row.updatedAt);
+      const saved = await repository.updateById(ctx, id, { $set: set }, session, row.updatedAt);
+      if (saved && (set.staffId || set.serviceId)) {
+        const currentServiceName = typeof (set.serviceSnapshot as { name?: unknown } | undefined)?.name === 'string' ? (set.serviceSnapshot as { name: string }).name : row.serviceSnapshot.name;
+        const eventTime = DateTime.fromJSDate(row.startAt).setZone((await repository.findBusiness(ctx))?.timezone ?? 'UTC').toFormat('dd.LL · HH:mm');
+        await enqueueWorkEvent({
+          businessId: ctx.businessId,
+          kind: 'appointment_changed',
+          category: 'appointment',
+          staffIds: [...new Set([previousStaff, nextStaff])],
+          ...(ctx.userId ? { actorUserId: ctx.userId } : {}),
+          entityId: id,
+          dedupeKey: `appointment-updated:${id}:${saved.__v}`,
+          title: 'Запись изменена',
+          body: `${currentServiceName} · ${eventTime}`,
+          route: `/app/appointments/${id}`,
+          session,
+        });
+        await offerReleasedSlot({ businessId: ctx.businessId, session }, { serviceId: row.serviceId, staffId: row.staffId, startAt: row.startAt, serviceName: row.serviceSnapshot.name });
+      }
+      return saved;
     });
     if (!changed) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Запись уже изменена');
     return this.get(ctx, id);
@@ -204,6 +284,21 @@ export class AppointmentService {
           const scheduledFor = new Date(startAt.getTime() - offset);
           if (scheduledFor > new Date()) await this.enqueueEmail(ctx, session, saved._id, customer._id, email, name, kind, scheduledFor, String(startAt.getTime()), settings.notifications.emailEnabled && enabled);
         }
+        const localTime = DateTime.fromJSDate(startAt, { zone: business.timezone }).toFormat('dd.LL · HH:mm');
+        await enqueueWorkEvent({
+          businessId: ctx.businessId,
+          kind: 'appointment_changed',
+          category: 'appointment',
+          staffIds: [...new Set([String(row.staffId), staffId])],
+          ...(ctx.userId ? { actorUserId: ctx.userId } : {}),
+          entityId: String(saved._id),
+          dedupeKey: `appointment-rescheduled:${saved._id.toString()}:${saved.__v}`,
+          title: 'Запись перенесена',
+          body: `${service.name} · ${localTime}`,
+          route: `/app/appointments/${saved._id.toString()}`,
+          session,
+        });
+        if (row.startAt.getTime() !== startAt.getTime() || row.staffId.toString() !== staffId) await offerReleasedSlot({ businessId: ctx.businessId, session }, { serviceId: row.serviceId, staffId: row.staffId, startAt: row.startAt, serviceName: row.serviceSnapshot.name });
       }
       return saved;
     });
@@ -222,13 +317,14 @@ export class AppointmentService {
     const unset: Record<string, ''> = {};
     if (status === 'cancelled') { set.cancelledAt = new Date(); set.cancelledBy = input.actor === 'customer' ? 'customer' : 'staff'; if (input.cancelReason) set.cancelReason = input.cancelReason; unset.occupiedKeys = ''; }
     if (status === 'no_show') unset.occupiedKeys = '';
-    if (status === 'confirmed') { set.occupiedKeys = row.occupiedKeys ?? occupiedKeysFor(String(row.staffId), row.startAt, row.blockedUntilAt); unset.cancelledAt = ''; unset.cancelledBy = ''; unset.cancelReason = ''; }
+    if (status === 'confirmed') { set.occupiedKeys = row.occupiedKeys ?? occupiedKeysFor(String(row.staffId), row.startAt, row.blockedUntilAt); unset.cancelledAt = ''; unset.cancelledBy = ''; unset.cancelReason = ''; if (row.status === 'completed') unset.completedAt = ''; }
     if (status === 'completed') set.completedAt = new Date();
     const updated = await withTransaction(async (session) => {
       const staff = await repository.findStaffById(ctx, String(row.staffId), session);
       if (!staff || (await repository.incrementBookingVersion(ctx, String(row.staffId), staff.bookingVersion, session)).modifiedCount !== 1) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Расписание изменилось');
       if (status === 'confirmed' && (await repository.hasOverlap(ctx, String(row.staffId), row.startAt, row.blockedUntilAt, session, id) || await repository.hasBlockOverlap(ctx, String(row.staffId), row.startAt, row.blockedUntilAt, session))) throw new ConflictError(ERROR_CODES.SLOT_UNAVAILABLE, 'Это время уже занято');
       const saved = await repository.updateById(ctx, id, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) }, session, row.updatedAt);
+      if (saved && status !== row.status) await applyInventoryForStatusChange({ businessId: ctx.businessId, actorUserId: ctx.userId, appointmentId: saved._id, fromStatus: row.status, toStatus: status, serviceSnapshot: row.serviceSnapshot, cycleKey: status === 'completed' ? saved.updatedAt.toISOString() : row.updatedAt.toISOString() }, session);
       const settings = await repository.findSettings(ctx);
       const refs = await repository.findReferences(ctx, row);
       if (saved && settings && refs) {
@@ -238,6 +334,22 @@ export class AppointmentService {
         if (status === 'cancelled') {
           await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled', expireAt: notificationRetentionAt() } }, { session }).exec();
           await this.enqueueEmail(ctx, session, saved._id, customer._id, typeof row.contactEmail === 'string' ? row.contactEmail : customer.email, name, 'appointment_cancelled', new Date(), String(saved.__v), settings.notifications.emailEnabled && settings.notifications.cancellationEnabled);
+          const business = await repository.findBusiness(ctx);
+          const localTime = DateTime.fromJSDate(row.startAt, { zone: business?.timezone ?? 'UTC' }).toFormat('dd.LL · HH:mm');
+          await enqueueWorkEvent({
+            businessId: ctx.businessId,
+            kind: 'appointment_cancelled',
+            category: 'appointment',
+            staffIds: [String(row.staffId)],
+            ...(ctx.userId ? { actorUserId: ctx.userId } : {}),
+            entityId: String(saved._id),
+            dedupeKey: `appointment-cancelled:${saved._id.toString()}:${saved.__v}`,
+            title: 'Запись отменена',
+            body: `${row.serviceSnapshot.name} · ${localTime}`,
+            route: `/app/appointments/${saved._id.toString()}`,
+            session,
+          });
+          await offerReleasedSlot({ businessId: ctx.businessId, session }, { serviceId: row.serviceId, staffId: row.staffId, startAt: row.startAt, serviceName: row.serviceSnapshot.name });
         }
         if (status === 'no_show' || status === 'completed') await Notification.updateMany({ businessId: ctx.businessId, appointmentId: saved._id, status: 'scheduled', kind: { $in: ['reminder_24h', 'reminder_1h'] } }, { $set: { status: 'cancelled', expireAt: notificationRetentionAt() } }, { session }).exec();
         if (status === 'completed') await this.enqueueEmail(ctx, session, saved._id, customer._id, typeof row.contactEmail === 'string' ? row.contactEmail : customer.email, name, 'followup_after_visit', new Date(Date.now() + settings.notifications.followUpDelayMinutes * 60_000), String(saved.__v), settings.notifications.emailEnabled && settings.notifications.followUpEnabled);
@@ -316,7 +428,7 @@ export class AppointmentService {
             }
           }
           if (!actualCustomer) throw new NotFoundError('Клиент не найден');
-          const snapshot = { name: service.name, durationMinutes: service.durationMinutes, priceMinor: service.priceMinor, currency: service.currency };
+          const snapshot = await buildServiceSnapshot(ctx.businessId, service, session);
           const appointment = await repository.create(ctx, {
             ...(options?.source === 'public' ? { _id: appointmentId } : {}),
             customerId: actualCustomer._id,
@@ -341,6 +453,20 @@ export class AppointmentService {
             const manageUrl = manageToken && options?.source === 'public' ? `${getEnv().APP_BASE_URL}/b/${encodeURIComponent(business.slug)}/manage/${encodeURIComponent(manageToken)}` : undefined;
             await this.enqueueConfirmed(ctx, session, appointment._id, actualCustomer._id, input.newCustomer?.email ?? actualCustomer.email, `${actualCustomer.firstName}${actualCustomer.lastName ? ` ${actualCustomer.lastName}` : ''}`, startAt, settings, manageUrl);
           }
+          const localTime = DateTime.fromJSDate(startAt, { zone: business.timezone }).toFormat('dd.LL · HH:mm');
+          await enqueueWorkEvent({
+            businessId: ctx.businessId,
+            kind: 'appointment_new',
+            category: 'appointment',
+            staffIds: [staff._id.toString()],
+            ...(typeof ctx.userId === 'string' ? { actorUserId: ctx.userId } : {}),
+            entityId: appointment._id.toString(),
+            dedupeKey: `appointment-created:${appointment._id.toString()}`,
+            title: 'Новая запись',
+            body: `${service.name} · ${localTime}`,
+            route: `/app/appointments/${appointment._id.toString()}`,
+            session,
+          });
           return { dto: toDto(appointment.toObject() as unknown as Record<string, unknown>, actualCustomer as unknown as Record<string, unknown>, staff as unknown as Record<string, unknown>, service as unknown as Record<string, unknown>), statusCode: 201 as const };
         });
         return { appointment: result.dto, statusCode: result.statusCode, ...(manageToken ? { manageToken } : {}) };
@@ -371,9 +497,19 @@ export class AppointmentService {
   }
 
   private async renderExisting(ctx: TenantContext, appointment: NonNullable<Awaited<ReturnType<AppointmentRepository['findIdempotent']>>>) {
-    const refs = await repository.findReferences(ctx, appointment);
-    if (!refs) throw new NotFoundError();
-    return toDto(appointment as unknown as Record<string, unknown>, refs.customer as unknown as Record<string, unknown>, refs.staff as unknown as Record<string, unknown>, refs.service as unknown as Record<string, unknown>);
+    const [customer, staff, service] = await repository.references(ctx, appointment);
+    try {
+      const snapshot = appointment.serviceSnapshot as { name?: unknown } | undefined;
+      return toDto(
+        appointment as unknown as Record<string, unknown>,
+        (customer ?? { _id: appointment.customerId }) as unknown as Record<string, unknown>,
+        (staff ?? { _id: appointment.staffId }) as unknown as Record<string, unknown>,
+        (service ?? { _id: appointment.serviceId, name: snapshot?.name }) as unknown as Record<string, unknown>,
+      );
+    } catch (error: unknown) {
+      logger.warn({ appointmentId: String(appointment._id), err: error }, 'appointment is unavailable because its saved data is invalid');
+      throw new NotFoundError('Запись недоступна: данные записи повреждены');
+    }
   }
 
   private deriveManageToken(appointmentId: Types.ObjectId, idempotencyKey: string): string {

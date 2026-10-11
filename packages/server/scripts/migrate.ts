@@ -6,6 +6,10 @@ import { connectToDatabase, disconnectFromDatabase } from '@/server/db/connectio
 import { logger } from '@/server/http/logger';
 import { up as initializeIndexes, migrationId } from '../migrations/000_init';
 import { up as addGoogleIdentityIndex, migrationId as googleIdentityMigrationId } from '../migrations/001_google_identity';
+import { up as addShiftIndexes, migrationId as shiftMigrationId } from '../migrations/002_shifts';
+import { up as addCustomerListIndex, migrationId as customerListMigrationId } from '../migrations/003_customer_list';
+import { up as addWebPushIndexes, migrationId as webPushMigrationId } from '../migrations/004_web_push';
+import { up as addInventoryWaitlistIndexes, migrationId as inventoryWaitlistMigrationId } from '../migrations/005_inventory_waitlist';
 
 async function runMigrations(): Promise<void> {
   const mongoose = await connectToDatabase();
@@ -17,6 +21,10 @@ async function runMigrations(): Promise<void> {
   const migrations = [
     { id: migrationId, filename: '000_init.ts', up: initializeIndexes },
     { id: googleIdentityMigrationId, filename: '001_google_identity.ts', up: addGoogleIdentityIndex },
+    { id: shiftMigrationId, filename: '002_shifts.ts', up: addShiftIndexes },
+    { id: customerListMigrationId, filename: '003_customer_list.ts', up: addCustomerListIndex },
+    { id: webPushMigrationId, filename: '004_web_push.ts', up: addWebPushIndexes },
+    { id: inventoryWaitlistMigrationId, filename: '005_inventory_waitlist.ts', up: addInventoryWaitlistIndexes },
   ];
   for (const migration of migrations) {
     const migrationPath = fileURLToPath(new URL(`../migrations/${migration.filename}`, import.meta.url));

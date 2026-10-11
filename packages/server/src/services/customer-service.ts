@@ -20,9 +20,15 @@ function isDuplicate(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 11000;
 }
 
+function toIsoDate(value: unknown): string | undefined {
+  const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
 function toDto(value: Record<string, unknown>) {
   const { _id, firstName, lastName, phone, email, contacts, notes, source, createdAt } = value;
-  return { id: String(_id), firstName, ...(typeof lastName === 'string' ? { lastName } : {}), phone, ...(typeof email === 'string' ? { email } : {}), ...(Array.isArray(contacts) ? { contacts } : {}), ...(typeof notes === 'string' ? { notes } : {}), source, createdAt: createdAt instanceof Date ? createdAt.toISOString() : createdAt };
+  const createdAtIso = toIsoDate(createdAt);
+  return { id: String(_id), firstName, ...(typeof lastName === 'string' ? { lastName } : {}), phone, ...(typeof email === 'string' ? { email } : {}), ...(Array.isArray(contacts) ? { contacts } : {}), ...(typeof notes === 'string' ? { notes } : {}), source, ...(createdAtIso ? { createdAt: createdAtIso } : {}) };
 }
 
 export class CustomerService {

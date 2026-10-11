@@ -45,10 +45,10 @@
 
 - **UserDto** `{id,name,email,emailVerified,locale}`; **MembershipDto** `{businessId,businessName,slug,role,staffId?}`.
 - **CustomerDto** `{id,firstName,lastName?,phone,email?,contacts[],notes?,source,createdAt}`; **CustomerLimitedDto** (master) `{id,firstName,lastName?,phone?}`; **CustomerSummary** `{visitsCount (completed), lastVisitAt?, nextVisitAt?, totalPaidMinor (net of refunds), currency}`.
-- **StaffDto** `{id,displayName,email?,phone?,bio?,color,isActive,acceptsOnlineBooking,displayOrder,serviceIds[]?}`.
+- **StaffDto** `{id,displayName,email?,phone?,bio?,color,isActive,acceptsOnlineBooking,hourlyRateMinor,displayOrder,serviceIds[]?}`.
 - **ScheduleDto** `{weekly:[{isoWeekday,intervals:[{start,end}],breaks:[{start,end}]}]}`; **ExceptionDto** `{date,kind,intervals[],breaks[],reason?}`; **BlockedPeriodDto** `{id,staffId,startAt,endAt,reason?,groupId?}`.
-- **ServiceDto** `{id,name,description?,durationMinutes,bufferMinutes,priceMinor,currency,onlineBookingEnabled,isActive,displayOrder,staffIds[]?}`.
-- **AppointmentDto** `{id,customer:{id,firstName,lastName?,phone,email?},staff:{id,displayName,color},service:{id,name},startAt,endAt,blockedUntilAt,status,source,serviceSnapshot,customerNote?,internalNote?,visitNote?,rescheduleCount,payment:{paidMinor,refundedMinor,balanceMinor}}`; **AppointmentMasterDto** — без `internalNote`, `payment`, `customer.email`.
+- **ServiceDto** `{id,name,description?,durationMinutes,bufferMinutes,priceMinor,currency,onlineBookingEnabled,isActive,displayOrder,staffIds[]?,costItems?:[{name,amountMinor}],inventoryConsumptions?:[{inventoryItemId,quantity}]}` (`costItems` и складские материалы доступны владельцу/менеджеру, скрыты у master).
+- **AppointmentDto** `{id,customer:{id,firstName,lastName?,phone,email?},staff:{id,displayName,color},service:{id,name},startAt,endAt,blockedUntilAt,status,source,serviceSnapshot:{name,durationMinutes,priceMinor,currency,costMinor?,inventoryConsumptions?},customerNote?,internalNote?,visitNote?,rescheduleCount,payment:{paidMinor,refundedMinor,balanceMinor}}`; **AppointmentMasterDto** — без `internalNote`, `payment`, `customer.email` и денежных полей снимка.
 - **AppointmentPublicDto** `{id,business:{name,slug,timezone,address?,phone?},service:{name,durationMinutes,priceMinor,currency},staff:{displayName},startAt,endAt,status,canCancel,canReschedule}`.
 - **SlotDto** `{startAt}` (при конкретном мастере дополнительно `staffId`).
 - **PaymentDto** `{id,appointmentId,customerId,staffId,amountMinor,refundedMinor,currency,method,status,paidAt?,notes?,createdBy:{id,name},createdAt}`; **TransactionDto** `{id,paymentId,appointmentId,customerId,staffId,type,direction,amountMinor,currency,method,occurredAt,note?,createdBy:{id,name}}`.
@@ -138,7 +138,7 @@ Codes: 200 `MemberDto`, 403, 404, 409 `LAST_OWNER`, 422. Tests: admin пытае
 
 **MEM-05 `POST /api/members/transfer-ownership`** · **post-MVP** — передать владение. Auth: `members:transfer_ownership` (owner). Request: `{ targetMemberId, password }`. Транзакция: owner→admin, target(admin)→owner. Response `200`. Codes: 200, 403 `WRONG_PASSWORD`, 404, 409 `TARGET_NOT_ADMIN`, 422. Isolation: target по `businessId`. Tests: после передачи ровно один owner; бывший владелец теряет owner-права; атомарность.
 
-**AUD-01 `GET /api/audit-logs`** · **post-MVP** — журнал аудита. Auth: `audit:read` (owner) · `SESSION`. Query: `action`, `from`, `to`, `actorUserId`, `page`, `limit`. Response `200` `{id,action,actorRole,actor?:{id,name},entityType,entityId,metadata,createdAt,ip}[]`. Codes: 200, 401, 403. Tests: admin → 403; журнал B не виден A.
+**AUD-01 `GET /api/audit`** · **расширение приложения** — журнал действий. Auth: `audit:read` (owner) · `SESSION`. Query: `from`, `to`, `actorId`, `limit`. Response `200 {data:[{id,action,actor,entityType,entityId,routeId?,method?,fieldNames?,createdAt}],meta}`. Персональные значения полей не пишутся в общий журнал. Codes: 200, 401, 403.
 
 ---
 
@@ -336,7 +336,7 @@ Tests: ST-1/2/3; значения на фиксированных фикстур
 ## 15. Settings
 
 **SET-01 `GET /api/settings`** — настройки. `settings:business_read` (разделы `business`, `booking`, `privacy`) и `settings:notifications_read` (раздел `notifications`) — оба у owner, admin. Response `200 SettingsDto`. Для admin `notifications` — только чтение (флаг `readOnly:true`). Tests: ST-1/2/3; master → 403.
-**SET-02 `PATCH /api/settings/business`** — профиль бизнеса. `settings:business_write` (owner). Request: `{ name?, phone?, email?, address?, publicDescription?, timezone?, currency?, countryCode?, privacy?:{ masterSeesCustomerPhone?, dataRetentionDays?, consentText?, requireConsent? } }` (`slug` → 422). Смена `countryCode` не пересчитывает существующие `phoneNormalized` (DATA_MODEL §12); `dataRetentionDays` информационное (DATA_MODEL §4). <!-- CHANGED: A1 --> `timezone`/`currency` с будущими активными записями → `409 TIMEZONE_CHANGE_BLOCKED`/`CURRENCY_CHANGE_BLOCKED`. Response `200`. Аудит `settings.updated`. Tests: admin → 403; slug → 422; блокировка смены timezone.
+**SET-02 `PATCH /api/settings/business`** — профиль бизнеса. `settings:business_write` (owner). Request: `{ name?, phone?, email?, address?, publicDescription?, timezone?, currency?, countryCode?, privacy?:{ masterSeesCustomerPhone?, dataRetentionDays?, consentText?, requireConsent? } }` (`slug` → 422). Смена `countryCode` не пересчитывает существующие `phoneNormalized` (DATA_MODEL §12); `dataRetentionDays` применяется ежедневной анонимизацией клиентов без недавних записей (DATA_MODEL §4/§19). `timezone`/`currency` с будущими активными записями → `409 TIMEZONE_CHANGE_BLOCKED`/`CURRENCY_CHANGE_BLOCKED`. Response `200`. Аудит `settings.updated`. Tests: admin → 403; slug → 422; блокировка смены timezone.
 **SET-03 `PATCH /api/settings/booking`** — правила записи. `settings:booking_write` (owner, admin). Request: подмножество `booking.*`. Response `200`. Tests: ST-2/4/5; значения вне диапазонов → 422; влияние на слоты.
 **SET-04 `PATCH /api/settings/notifications`** · **post-MVP** — уведомления. `settings:notifications_write` (owner). Request: подмножество `notifications.*`. Response `200`. Tests: admin → 403; отключение напоминаний не отменяет уже `sent`, отменяет `scheduled` соответствующего вида.
 
@@ -345,3 +345,18 @@ Tests: ST-1/2/3; значения на фиксированных фикстур
 ## 16. Реестр маршрутов (для contract-теста)
 
 Каждый маршрут объявляется через `defineRoute({ id, method, path, auth, permission, contextSource, bodySchema, querySchema, rateLimit, handler })`. Тест `routes.contract.test` обязан: (1) убедиться, что **все ID этого документа без пометки post-MVP** (64) зарегистрированы и наоборот, а post-MVP ID в реестре отсутствуют; <!-- CHANGED: A2 --> (2) для каждого `:id`-маршрута с `contextSource=SESSION` выполнить ST-3; (3) для каждого маршрута проверить ST-1 и (при `permission`) ST-2 по матрице; (4) проверить, что `bodySchema` strict.
+
+## 17. Включённые расширения приложения
+
+Эти маршруты реализованы отдельно от MVP-реестра, чтобы сохранить неизменным контрактный набор MVP.
+
+- **AUTH-18 `PATCH /api/auth/profile`** — `account:self`; strict body `{name}`; обновляет имя пользователя и пишет событие аудита.
+- **SHF-01 `GET /api/shifts/current`**, **SHF-02 `POST /api/shifts/start`**, **SHF-03 `POST /api/shifts/end`** — `account:self`, только master с привязанным staff. Все рабочие API-запросы master требуют открытой смены; завершение смены или деактивация сотрудника закрывает смену. Ставка сохраняется в смене как снимок.
+- **RPT-01 `GET /api/reports/financial?from=YYYY-MM-DD&to=YYYY-MM-DD`** — `dashboard:read`; даты включительно в часовом поясе бизнеса. Выручка/возвраты берутся из неизменяемого журнала операций; материалы — из снимков завершённых записей; начисления — из пересечения смен с периодом. Чистая прибыль = выручка − возвраты − материалы − начисленная оплата; если в периоде есть завершённые записи без исторической себестоимости, прибыль возвращается `null` и UI показывает предупреждение.
+- **ACT-01 `GET /api/activity?limit=1..30`**, **ACT-02 `POST /api/activity/read`** — `notifications:read`; последние события и отметка прочтения для текущего участника.
+- **AUD-01 `GET /api/audit?from=&to=&actorId=&limit=1..100`** — `audit:read` (владелец); поиск действий сотрудников по датам/автору.
+- **NTF-01..08** — персональный центр уведомлений, настройки звука/тихих часов, подписка на Web Push и отключение устройств; разрешение браузера запрашивается только по нажатию пользователя.
+- **INV-01..05 `/api/inventory`** — склад, безопасные корректировки остатка и журнал операций; складские материалы привязываются к услугам, сохраняются в снимке записи и списываются транзакционно при завершении.
+- **WAI-01..03 `/api/waitlist`** — лист ожидания с назначением клиента, услуги, периода, времени и мастера; при отмене/переносе подходящего окна уведомление получают владелец и менеджеры.
+
+При создании сотрудника система отправляет одноразовое приглашение на email; сотрудник сам задаёт пароль на странице `/accept-invite`. После успешной оплаты интерфейс скачивает PDF-квитанцию с данными операции и записи; квитанция не является фискальным чеком.

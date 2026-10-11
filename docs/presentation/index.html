@@ -1,44 +1,334 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BeautyFlow — защита проекта</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/print/pdf.css" media="print" />
-    <style>
-      :root { --r-background-color: #fafafa; --r-main-color: #09090b; --r-heading-color: #09090b; --r-link-color: #5b5bd6; }
-      .reveal { font-family: Inter, sans-serif; font-size: 28px; }
-      .reveal h1, .reveal h2 { letter-spacing: -0.03em; }
-      .reveal h1 { font-size: 2.2em; }
-      .reveal h2 { font-size: 1.4em; }
-      .reveal ul { display: block; }
-      .reveal li { margin: 0.45em 0; }
-      .reveal .eyebrow, .reveal .foot { color: #71717a; font-size: 0.5em; }
-      .reveal .eyebrow { letter-spacing: 0.12em; text-transform: uppercase; }
-      .reveal .metric { color: #5b5bd6; font-size: 1.5em; font-weight: 700; }
-      .reveal img { width: auto !important; max-width: 90%; height: 180px !important; max-height: none !important; border: 1px solid #e4e4e7; border-radius: 12px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#201b21" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Интерактивная презентация BeautyFlow — CRM и онлайн-запись для салонов красоты." />
+    <title>BeautyFlow — презентация проекта</title>
+    <script>
+      try {
+        document.documentElement.dataset.theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      } catch {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    </script>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./presentation.js"></script>
   </head>
   <body>
-    <div class="reveal"><div class="slides">
-      <section><p class="eyebrow">CRM для салонов</p><h1>BeautyFlow</h1><p>Онлайн-запись и рабочее пространство команды</p><p class="foot">Vite · React 19 · Express 5 · MongoDB 8</p></section>
-      <section><p class="eyebrow">Проблема</p><h2>Расписание и данные разъезжаются по разным инструментам</h2><ul><li>Записи конфликтуют</li><li>История клиента теряется</li><li>Уведомления требуют ручной работы</li></ul></section>
-      <section><p class="eyebrow">Решение</p><h2>Один рабочий процесс для салона</h2><p>Публичная запись → календарь → визит → оплата → аналитика</p></section>
-      <section><p class="eyebrow">Возможности</p><h2>Запись и управление бизнесом</h2><ul><li>Онлайн-запись и управление визитом</li><li>Календарь команды и загрузка мастеров</li><li>Клиенты, оплаты и уведомления</li><li>Dashboard владельца и «Мой день» мастера</li></ul></section>
-      <section><p class="eyebrow">Технологии</p><h2>TypeScript monorepo</h2><p>React 19 · Express 5 · MongoDB 8 · Node 24</p><p>packages/client · packages/server · packages/shared</p></section>
-      <section><p class="eyebrow">Дизайн</p><h2>Нейтральная рабочая среда</h2><ul><li>Светлая и тёмная темы</li><li>Inter Variable и дизайн-токены</li><li>Адаптивный календарь день/неделя/месяц</li></ul></section>
-      <section><p class="eyebrow">Booking engine</p><h2>Слот учитывает реальные ограничения</h2><p>Услуга, рабочие часы, перерывы, исключения, мастер и часовой пояс</p><p>DST gap/fold проверяется отдельно</p></section>
-      <section><p class="eyebrow">Гонки бронирования</p><h2>occupiedKeys + unique multikey index</h2><p>Интервалы резервируются атомарно в транзакции</p><p class="metric">20 запросов → 1 запись</p></section>
-      <section><p class="eyebrow">Multi-tenancy</p><h2>Данные принадлежат одному бизнесу</h2><ul><li>Tenant context</li><li>Mongoose tenant plugin</li><li>Проверки связанных сущностей</li><li>A/B isolation tests</li></ul></section>
-      <section><p class="eyebrow">Payments</p><h2>Append-only журнал операций</h2><ul><li>Целые суммы в minor units</li><li>Идемпотентная регистрация оплаты</li><li>Полный и частичный возврат</li><li>Оплата и transaction в одной транзакции</li></ul></section>
-      <section><p class="eyebrow">Уведомления</p><h2>Очередь с повторными попытками</h2><p>MongoDB queue · dedupe · lease · retry/backoff · worker</p><p>ConsoleEmailProvider для разработки и тестов</p></section>
-      <section><p class="eyebrow">Качество и архитектура</p><h2>Route → Service → Repository → Model</h2><p class="metric">115</p><p>unit, integration и API тестов · плюс два race-теста</p></section>
-      <section><p class="eyebrow">Демо</p><h2>Dashboard BeautyFlow</h2><img src="../../packages/client/public/images/dashboard-preview.png" alt="Dashboard BeautyFlow"/><p class="foot">Локальный API сценарий требует работающей MongoDB.</p></section>
-      <section><p class="eyebrow">Ограничения и следующий шаг</p><h2>Production проверяется отдельно</h2><ul><li>Нужны production DNS, TLS, SMTP и backup restore</li><li>5 high advisories в dev-цепочке Tailwind 3</li><li>Дальше: staging, inbox, SMS/push и acquiring</li></ul></section>
-    </div></div>
-    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
-    <script>Reveal.initialize({ hash: true, slideNumber: true, transition: 'fade', controls: true, progress: true });</script>
+    <a class="skip-link" href="#presentation-stage">Перейти к слайдам</a>
+
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" style="display:none">
+      <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path d="M4.5 12h14M12.5 5.5 19 12l-6.5 6.5"/></symbol>
+      <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M19.5 12h-14M11.5 5.5 5 12l6.5 6.5"/></symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.4 15.3A8.5 8.5 0 0 1 8.7 3.6 8.6 8.6 0 1 0 20.4 15.3Z"/></symbol>
+      <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 8l6-5m12 5-6-5M3 16l6 5m12-5-6 5"/></symbol>
+      <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+      <symbol id="icon-wallet" viewBox="0 0 24 24"><path d="M20 8V5a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v11H5a3 3 0 0 1-3-3V6"/><path d="M20 12h-4a2 2 0 0 0 0 4h4z"/></symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 4 3 6-7"/></symbol>
+      <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+      <symbol id="icon-box" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z"/><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/></symbol>
+    </svg>
+
+    <noscript><style>.opening-overlay { display: none !important; }</style></noscript>
+    <div class="opening-overlay" id="opening-overlay" aria-hidden="true"><span class="opening-mark">B</span></div>
+
+    <div class="presentation" id="presentation">
+      <header class="deck-header">
+        <a class="brand" href="#slide-1" aria-label="BeautyFlow, первый слайд">
+          <span class="brand-mark">B</span>
+          <span class="brand-name">BeautyFlow</span>
+          <span class="brand-divider" aria-hidden="true"></span>
+          <span class="brand-caption">Защита проекта</span>
+        </a>
+        <nav class="header-actions" aria-label="Действия презентации">
+          <a class="notes-link" href="./speech.txt" target="_blank" rel="noreferrer">Текст выступления</a>
+          <button class="icon-button theme-button" id="theme-toggle" type="button" aria-label="Переключить тему" aria-pressed="false" title="Переключить тему (T)">
+            <svg class="theme-icon-dark" aria-hidden="true"><use href="#icon-sun" xlink:href="#icon-sun"/></svg>
+            <svg class="theme-icon-light" aria-hidden="true"><use href="#icon-moon" xlink:href="#icon-moon"/></svg>
+          </button>
+          <button class="icon-button fullscreen-button" id="fullscreen-toggle" type="button" aria-label="Включить полноэкранный режим" aria-pressed="false" title="Полный экран (F)">
+            <svg aria-hidden="true"><use href="#icon-expand" xlink:href="#icon-expand"/></svg>
+          </button>
+        </nav>
+      </header>
+
+      <main class="stage" id="presentation-stage" aria-label="Слайды презентации" tabindex="-1">
+        <div class="slide-live-region" id="slide-live-region" aria-live="polite" aria-atomic="true"></div>
+
+        <section class="slide slide-cover is-active" id="slide-1" data-title="BeautyFlow — CRM для салона" aria-labelledby="title-cover">
+          <div class="slide-inner cover-grid">
+            <div class="cover-copy">
+              <p class="eyebrow"><span class="eyebrow-dot"></span>Управление beauty-бизнесом</p>
+              <h1 id="title-cover"><span class="cover-brand-name">BeautyFlow</span><span class="cover-headline">CRM и онлайн-запись<br class="desktop-break" /> для салонов красоты</span></h1>
+              <p class="cover-description">Расписание команды, клиенты и оплаты — в одном рабочем пространстве.</p>
+              <div class="cover-meta">
+                <span><svg aria-hidden="true"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg>От записи до отчёта</span>
+                <span><svg aria-hidden="true"><use href="#icon-users" xlink:href="#icon-users"/></svg>Для всей команды</span>
+              </div>
+              <div class="slide-actions">
+                <button class="primary-button" type="button" data-next>Посмотреть проект <svg aria-hidden="true"><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></button>
+                <span class="action-hint">11 слайдов · около 5–6 минут</span>
+              </div>
+            </div>
+            <figure class="screen-card cover-screen">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>BeautyFlow · Рабочее пространство</span><span class="screen-status"><i></i>Продукт</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/public-landing-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/public-landing-light.png" data-dark="../screenshots/redesign/after/public-landing-dark.png" src="../screenshots/redesign/after/public-landing-dark.png" alt="Главная страница BeautyFlow в тёмной теме" width="1440" height="3788" fetchpriority="high" /></picture>
+              <figcaption class="screen-caption"><span>BeautyFlow</span><span>Порядок в расписании. Время для роста.</span></figcaption>
+            </figure>
+          </div>
+          <div class="cover-orbit cover-orbit-one" aria-hidden="true"></div><div class="cover-orbit cover-orbit-two" aria-hidden="true"></div>
+        </section>
+
+        <section class="slide" data-title="Задача и решение" aria-labelledby="title-problem" inert>
+          <div class="slide-inner">
+            <div class="section-intro">
+              <p class="eyebrow">Задача проекта</p>
+              <h2 id="title-problem">Салону нужен общий ритм работы</h2>
+              <p class="lead">Когда расписание, клиенты и расчёты живут отдельно, команде сложнее держать всё под контролем.</p>
+            </div>
+            <div class="problem-layout">
+              <div class="problem-list">
+                <article class="problem-item"><span class="item-index">01</span><div><h3>Записи разбросаны</h3><p>Сложнее увидеть загрузку команды и вовремя заметить пересечение.</p></div></article>
+                <article class="problem-item"><span class="item-index">02</span><div><h3>История теряется</h3><p>Перед визитом приходится вспоминать контакты и прошлые посещения.</p></div></article>
+                <article class="problem-item"><span class="item-index">03</span><div><h3>Итоги считают вручную</h3><p>Оплаты, расходы и работа сотрудников требуют сверки в нескольких местах.</p></div></article>
+              </div>
+              <div class="solution-card">
+                <span class="solution-mark"><svg aria-hidden="true"><use href="#icon-spark" xlink:href="#icon-spark"/></svg></span>
+                <p class="solution-label">РЕШЕНИЕ BEAUTYFLOW</p>
+                <h3>Один связанный процесс</h3>
+                <p>От выбора свободного времени до финансовой сводки — данные остаются внутри одной системы.</p>
+                <div class="flow-inline" aria-label="Онлайн-запись, календарь, визит, оплата, отчёт">
+                  <span>Запись</span><i aria-hidden="true"></i><span>Календарь</span><i aria-hidden="true"></i><span>Визит</span><i aria-hidden="true"></i><span>Оплата</span><i aria-hidden="true"></i><span>Отчёт</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Онлайн-запись" aria-labelledby="title-booking" inert>
+          <div class="slide-inner split-layout">
+            <div class="section-copy">
+              <p class="eyebrow">01 / Клиентский путь</p>
+              <h2 id="title-booking">Клиент выбирает удобное время сам</h2>
+              <p class="lead">Публичная страница салона превращает свободный слот в запись без переписки туда-обратно.</p>
+              <ul class="check-list">
+                <li><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span>Услуга, специалист, дата и доступное время — в одном сценарии.</span></li>
+                <li><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span>Свободные интервалы учитывают расписание и длительность услуги.</span></li>
+                <li><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span>После записи клиент может открыть страницу управления визитом.</span></li>
+              </ul>
+              <div class="callout"><span class="callout-icon"><svg aria-hidden="true"><use href="#icon-clock" xlink:href="#icon-clock"/></svg></span><span><b>Меньше ручной координации</b><small>Ссылка для записи доступна клиентам отдельно от кабинета команды.</small></span></div>
+            </div>
+            <figure class="screen-card screen-card-tall">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Публичная запись · Выбор услуги</span><span class="screen-status"><i></i>Для клиента</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/public-public-booking-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/public-public-booking-light.png" data-dark="../screenshots/redesign/after/public-public-booking-dark.png" src="../screenshots/redesign/after/public-public-booking-dark.png" alt="Экран публичной онлайн-записи клиента" width="1440" height="1148" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Публичная запись</span><span>Услуга · мастер · время</span></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Календарь команды" aria-labelledby="title-calendar" inert>
+          <div class="slide-inner split-layout split-reverse">
+            <figure class="screen-card screen-card-calendar">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Календарь · Неделя</span><span class="screen-status"><i></i>Команда</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/owner-calendar-week-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/owner-calendar-week-light.png" data-dark="../screenshots/redesign/after/owner-calendar-week-dark.png" src="../screenshots/redesign/after/owner-calendar-week-dark.png" alt="Недельный календарь записей команды BeautyFlow" width="1440" height="1581" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Расписание команды</span><span>День · неделя · месяц</span></figcaption>
+            </figure>
+            <div class="section-copy">
+              <p class="eyebrow">02 / Расписание</p>
+              <h2 id="title-calendar">Все записи команды — в одном календаре</h2>
+              <p class="lead">Владелец и менеджер быстро видят занятость специалистов и открытые интервалы.</p>
+              <div class="feature-stack">
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg></span><div><h3>Несколько представлений</h3><p>Переключение между днём, неделей и месяцем.</p></div></article>
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-users" xlink:href="#icon-users"/></svg></span><div><h3>Расписание по мастерам</h3><p>Записи и загрузка специалистов собраны на общей временной сетке.</p></div></article>
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-shield" xlink:href="#icon-shield"/></svg></span><div><h3>Проверка до создания</h3><p>Сервер повторно сверяет доступность слота при сохранении записи.</p></div></article>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Команда и доступы" aria-labelledby="title-team" inert>
+          <div class="slide-inner split-layout">
+            <div class="section-copy">
+              <p class="eyebrow">03 / Команда и роли</p>
+              <h2 id="title-team">У каждого сотрудника — своя рабочая зона</h2>
+              <p class="lead">Права соответствуют роли, поэтому мастер видит нужную ему часть рабочего дня.</p>
+              <div class="role-cards">
+                <article><span class="role-dot role-owner"></span><div><b>Владелец</b><small>Настройки и показатели бизнеса</small></div></article>
+                <article><span class="role-dot role-manager"></span><div><b>Менеджер</b><small>Записи, клиенты и приём оплаты</small></div></article>
+                <article><span class="role-dot role-master"></span><div><b>Мастер</b><small>Свои записи и рабочий экран</small></div></article>
+              </div>
+              <div class="callout"><span class="callout-icon"><svg aria-hidden="true"><use href="#icon-clock" xlink:href="#icon-clock"/></svg></span><span><b>Учёт смен</b><small>Мастер открывает смену для начала работы и закрывает её по завершении.</small></span></div>
+            </div>
+            <figure class="screen-card screen-card-short">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Команда · Специалисты</span><span class="screen-status"><i></i>Доступы</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/owner-staff-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/owner-staff-light.png" data-dark="../screenshots/redesign/after/owner-staff-dark.png" src="../screenshots/redesign/after/owner-staff-dark.png" alt="Список сотрудников и статусы специалистов в BeautyFlow" width="1440" height="1000" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Профили специалистов</span><span>Услуги · график · доступ</span></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Клиентская база" aria-labelledby="title-customers" inert>
+          <div class="slide-inner split-layout split-reverse">
+            <figure class="screen-card screen-card-medium">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Клиенты · Карточка</span><span class="screen-status"><i></i>История</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/owner-customers-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/owner-customers-light.png" data-dark="../screenshots/redesign/after/owner-customers-dark.png" src="../screenshots/redesign/after/owner-customers-dark.png" alt="Клиентская база BeautyFlow" width="1440" height="2083" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Клиентская база</span><span>Поиск · визиты · платежи</span></figcaption>
+            </figure>
+            <div class="section-copy">
+              <p class="eyebrow">04 / Контекст клиента</p>
+              <h2 id="title-customers">История клиента остаётся под рукой</h2>
+              <p class="lead">Команда видит профиль клиента и может продолжить работу с тем же контекстом.</p>
+              <div class="customer-journey">
+                <div><span class="journey-point"></span><p><b>Найти</b><small>По имени или номеру телефона</small></p></div>
+                <div><span class="journey-point"></span><p><b>Открыть профиль</b><small>Контактные данные и сводка посещений</small></p></div>
+                <div><span class="journey-point"></span><p><b>Посмотреть историю</b><small>Связанные записи и платежи</small></p></div>
+              </div>
+              <p class="small-note">Доступ к данным клиента ограничен правами текущей роли.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Услуги и расходы" aria-labelledby="title-services" inert>
+          <div class="slide-inner split-layout">
+            <div class="section-copy">
+              <p class="eyebrow">05 / Услуги и материалы</p>
+              <h2 id="title-services">Стоимость услуги учитывает её себестоимость</h2>
+              <p class="lead">Для услуги задаются цена и материалы — это помогает смотреть на выручку вместе с учтёнными расходами.</p>
+              <div class="service-equation" aria-label="Цена услуги минус стоимость материалов равно результат после учтённых расходов">
+                <span class="equation-part"><small>УСЛУГА</small><b>Цена</b></span>
+                <span class="equation-sign">−</span>
+                <span class="equation-part"><small>МАТЕРИАЛЫ</small><b>Себестоимость</b></span>
+                <span class="equation-sign">=</span>
+                <span class="equation-part equation-result"><small>РАСЧЁТ</small><b>Результат</b></span>
+              </div>
+              <ul class="check-list compact-list">
+                <li><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span>Расход материалов можно связать с выполненной услугой.</span></li>
+                <li><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span>Складские остатки и движения материалов учитываются отдельно.</span></li>
+              </ul>
+              <p class="small-note">Расчёт после учтённых расходов не включает аренду, налоги и расходы, не внесённые в систему.</p>
+            </div>
+            <figure class="screen-card screen-card-short">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Услуги · Каталог</span><span class="screen-status"><i></i>Настройки</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/owner-services-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/owner-services-light.png" data-dark="../screenshots/redesign/after/owner-services-dark.png" src="../screenshots/redesign/after/owner-services-dark.png" alt="Каталог услуг BeautyFlow" width="1440" height="1000" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Каталог услуг</span><span>Цена · длительность · затраты</span></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Оплаты и отчёты" aria-labelledby="title-finance" inert>
+          <div class="slide-inner split-layout split-reverse">
+            <figure class="screen-card screen-card-payments">
+              <div class="screen-chrome"><span class="window-dots"><i></i><i></i><i></i></span><span>Финансы · Оплаты</span><span class="screen-status"><i></i>Журнал</span></div>
+              <picture class="product-picture"><source data-theme-source="light" media="(prefers-color-scheme: light)" srcset="../screenshots/redesign/after/owner-payments-light.png" /><img class="product-screen" data-theme-image data-light="../screenshots/redesign/after/owner-payments-light.png" data-dark="../screenshots/redesign/after/owner-payments-dark.png" src="../screenshots/redesign/after/owner-payments-dark.png" alt="Журнал оплат и возвратов BeautyFlow" width="1440" height="3642" loading="lazy" /></picture>
+              <figcaption class="screen-caption"><span>Журнал платежей</span><span>Поступления · возвраты</span></figcaption>
+            </figure>
+            <div class="section-copy">
+              <p class="eyebrow">06 / Финансы</p>
+              <h2 id="title-finance">Оплаты связывают визит с итогами бизнеса</h2>
+              <p class="lead">Финансовая история привязана к записи, клиенту и ответственному действию.</p>
+              <div class="finance-points">
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-wallet" xlink:href="#icon-wallet"/></svg></span><div><h3>Учёт оплат</h3><p>Метод, сумма, статус операции и возвраты.</p></div></article>
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-chart" xlink:href="#icon-chart"/></svg></span><div><h3>Отчёт за период</h3><p>Выберите даты, сформируйте сводку и скачайте PDF.</p></div></article>
+                <article><span class="feature-icon"><svg aria-hidden="true"><use href="#icon-layers" xlink:href="#icon-layers"/></svg></span><div><h3>Квитанция</h3><p>Менеджер может скачать PDF-подтверждение оплаты.</p></div></article>
+              </div>
+              <p class="small-note">PDF-подтверждение не является фискальным кассовым чеком.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Уведомления и журнал действий" aria-labelledby="title-control" inert>
+          <div class="slide-inner">
+            <div class="section-intro control-heading">
+              <p class="eyebrow">07 / Контроль работы</p>
+              <h2 id="title-control">Система помогает не упускать важные события</h2>
+              <p class="lead">Уведомления поддерживают рабочий процесс, а журнал помогает восстановить последовательность действий.</p>
+            </div>
+            <div class="control-grid">
+              <article class="control-card">
+                <span class="control-card-icon"><svg aria-hidden="true"><use href="#icon-bell" xlink:href="#icon-bell"/></svg></span>
+                <p class="card-overline">УВЕДОМЛЕНИЯ</p>
+                <h3>События приходят в рабочий контекст</h3>
+                <p>В приложении можно управлять предпочтениями уведомлений и подключением браузерных push-уведомлений.</p>
+                <div class="notification-sample"><span class="notification-dot"></span><span><b>Новое событие</b><small>Откройте центр уведомлений в BeautyFlow</small></span><svg aria-hidden="true"><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></div>
+              </article>
+              <article class="control-card audit-card">
+                <span class="control-card-icon"><svg aria-hidden="true"><use href="#icon-shield" xlink:href="#icon-shield"/></svg></span>
+                <p class="card-overline">ЖУРНАЛ ДЕЙСТВИЙ</p>
+                <h3>Понятно, кто изменил запись</h3>
+                <p>События связываются с пользователем, временем и затронутой сущностью.</p>
+                <div class="audit-sample">
+                  <div><span class="audit-avatar">М</span><p><b>Изменение записи</b><small>Ответственный участник · время события</small></p><span class="audit-tag">ЗАПИСЬ</span></div>
+                  <div><span class="audit-avatar audit-avatar-alt">А</span><p><b>Принятие оплаты</b><small>Ответственный участник · время события</small></p><span class="audit-tag">ОПЛАТА</span></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="Защита и устройство системы" aria-labelledby="title-architecture" inert>
+          <div class="slide-inner">
+            <div class="architecture-heading">
+              <div class="section-intro">
+                <p class="eyebrow">08 / Надёжность и устройство</p>
+                <h2 id="title-architecture">Правила доступа и записи проверяются на сервере</h2>
+                <p class="lead">Интерфейс ускоряет работу, а важные ограничения остаются на стороне API и базы данных.</p>
+              </div>
+              <div class="stack-pills" aria-label="Технологии проекта"><span>TypeScript</span><span>React</span><span>Express</span><span>MongoDB</span></div>
+            </div>
+            <div class="architecture-flow" aria-label="Клиентский интерфейс, серверный API, бизнес-правила и MongoDB">
+              <article><span class="architecture-number">01</span><span class="architecture-icon"><svg aria-hidden="true"><use href="#icon-layers" xlink:href="#icon-layers"/></svg></span><h3>Интерфейс</h3><p>Кабинет команды и публичная запись</p></article>
+              <span class="architecture-connector" aria-hidden="true"><svg><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></span>
+              <article><span class="architecture-number">02</span><span class="architecture-icon"><svg aria-hidden="true"><use href="#icon-shield" xlink:href="#icon-shield"/></svg></span><h3>API и роли</h3><p>Проверка прав участника и бизнеса</p></article>
+              <span class="architecture-connector" aria-hidden="true"><svg><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></span>
+              <article><span class="architecture-number">03</span><span class="architecture-icon"><svg aria-hidden="true"><use href="#icon-calendar" xlink:href="#icon-calendar"/></svg></span><h3>Бизнес-правила</h3><p>Расписание, оплаты и операции</p></article>
+              <span class="architecture-connector" aria-hidden="true"><svg><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></span>
+              <article><span class="architecture-number">04</span><span class="architecture-icon"><svg aria-hidden="true"><use href="#icon-box" xlink:href="#icon-box"/></svg></span><h3>MongoDB</h3><p>Данные бизнеса и история действий</p></article>
+            </div>
+            <div class="assurance-row">
+              <div><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span><b>Разделение бизнесов</b><small>Пользователь не получает данные другого салона.</small></span></div>
+              <div><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span><b>Защита от двойной записи</b><small>Слот повторно проверяется при сохранении.</small></span></div>
+              <div><svg aria-hidden="true"><use href="#icon-check" xlink:href="#icon-check"/></svg><span><b>Связанные операции</b><small>Ключевые изменения проходят согласованно.</small></span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide slide-closing" data-title="Итог и демонстрация" aria-labelledby="title-close" inert>
+          <div class="slide-inner closing-inner">
+            <div class="closing-mark" aria-hidden="true">B</div>
+            <p class="eyebrow">BeautyFlow</p>
+            <h2 id="title-close">Порядок в расписании.<br /><span>Время для роста.</span></h2>
+            <p class="lead">BeautyFlow соединяет онлайн-запись, команду, клиентов и финансы в одной CRM для салона.</p>
+            <div class="closing-actions">
+              <a class="primary-button" href="https://beautyflowy.vercel.app" target="_blank" rel="noreferrer">Открыть приложение <svg aria-hidden="true"><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></a>
+              <button class="secondary-button" type="button" data-restart>Посмотреть сначала</button>
+            </div>
+            <p class="closing-note">Спасибо за внимание. Готов ответить на вопросы.</p>
+            <div class="closing-stack"><span>React</span><i></i><span>Express</span><i></i><span>MongoDB</span><i></i><span>TypeScript</span></div>
+          </div>
+          <div class="closing-orbit" aria-hidden="true"></div>
+        </section>
+      </main>
+
+      <footer class="deck-footer">
+        <button class="nav-button previous-button" id="previous-slide" type="button" aria-label="Предыдущий слайд" title="Предыдущий слайд (←)" disabled><svg aria-hidden="true"><use href="#icon-arrow-left" xlink:href="#icon-arrow-left"/></svg></button>
+        <div class="footer-progress">
+          <div class="slide-readout"><span id="slide-number">01</span><span class="readout-divider">/</span><span id="slide-total">11</span><span class="readout-title" id="slide-title">BeautyFlow — CRM для салона</span></div>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-label="Прогресс презентации" aria-valuemin="1" aria-valuemax="11" aria-valuenow="1"><span class="progress-fill" id="progress-fill"></span></div>
+          <nav class="slide-dots" id="slide-dots" aria-label="Выбрать слайд"></nav>
+        </div>
+        <div class="keyboard-hint"><kbd>←</kbd><kbd>→</kbd><span>перелистывать</span></div>
+        <button class="nav-button next-button" id="next-slide" type="button" aria-label="Следующий слайд" title="Следующий слайд (→)"><svg aria-hidden="true"><use href="#icon-arrow-right" xlink:href="#icon-arrow-right"/></svg></button>
+      </footer>
+    </div>
   </body>
 </html>

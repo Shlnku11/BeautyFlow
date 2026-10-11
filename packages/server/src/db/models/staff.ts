@@ -14,6 +14,7 @@ export interface StaffDocument {
   bio?: string;
   color: (typeof STAFF_COLORS)[number];
   isActive: boolean;
+  hourlyRateMinor: number;
   acceptsOnlineBooking: boolean;
   displayOrder: number;
   bookingVersion: number;
@@ -32,6 +33,7 @@ const schema = createModelSchema<StaffDocument>(
     bio: { type: String, trim: true, maxlength: 1000 },
     color: { type: String, enum: STAFF_COLORS, required: true, default: 'violet' },
     isActive: { type: Boolean, required: true, default: true },
+    hourlyRateMinor: { type: Number, required: true, min: 0, default: 0, validate: Number.isSafeInteger },
     acceptsOnlineBooking: { type: Boolean, required: true, default: true },
     displayOrder: { type: Number, required: true, default: 0 },
     bookingVersion: { type: Number, required: true, default: 0 },

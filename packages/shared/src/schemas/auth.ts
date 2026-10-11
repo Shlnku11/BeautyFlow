@@ -8,6 +8,7 @@ export const LoginSchema = z.object({ email: normalizedEmail, password: z.string
 export const LoginVerificationSchema = z.object({ loginToken: z.string().min(32).max(1024), code: z.string().regex(/^\d{6}$/) }).strict();
 export const LoginVerificationResendSchema = z.object({ loginToken: z.string().min(32).max(1024) }).strict();
 export const AcceptInviteSchema = z.object({ token: z.string().min(32).max(512), name: z.string().trim().min(2).max(120), password }).strict();
+export const UpdateProfileSchema = z.object({ name: z.string().trim().min(2).max(120) }).strict();
 export const EmailSchema = z.object({ email: normalizedEmail }).strict();
 export const VerifyEmailSchema = z.object({ email: normalizedEmail, code: z.string().regex(/^\d{6}$/) }).strict();
 export const GoogleLoginSchema = z.object({ idToken: z.string().min(1).max(8192) }).strict();

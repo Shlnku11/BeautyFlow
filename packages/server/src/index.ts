@@ -3,7 +3,7 @@ import { connectToDatabase } from './db/connection';
 import { logger } from './http/logger';
 import { defineExpressRoute } from './http/define-express-route';
 import { AppError } from './http/errors';
-import { MVP_ROUTE_CONTRACTS } from './http/route-contracts';
+import { MVP_ROUTE_CONTRACTS, OPTIONAL_EXTENSION_ROUTE_CONTRACTS } from './http/route-contracts';
 import { PERMISSION_SCOPES, type PermissionKey } from './domain/permissions';
 import type { RateLimitPolicy } from './http/rate-limit';
 import { configureAuthRouteRuntime } from './auth/route-runtime';
@@ -24,6 +24,12 @@ import { IMPLEMENTED_CALENDAR_ROUTE_IDS, registerCalendarRoutes } from './http/c
 import { IMPLEMENTED_NOTIFICATION_ROUTE_IDS, registerNotificationRoutes } from './http/notification-routes';
 import { IMPLEMENTED_PAYMENT_ROUTE_IDS, registerPaymentRoutes } from './http/payment-routes';
 import { IMPLEMENTED_DASHBOARD_ROUTE_IDS, registerDashboardRoutes } from './http/dashboard-routes';
+import { IMPLEMENTED_SHIFT_ROUTE_IDS, registerShiftRoutes } from './http/shift-routes';
+import { IMPLEMENTED_ACTIVITY_ROUTE_IDS, registerActivityRoutes } from './http/activity-routes';
+import { IMPLEMENTED_REPORT_ROUTE_IDS, registerReportRoutes } from './http/report-routes';
+import { IMPLEMENTED_INBOX_NOTIFICATION_ROUTE_IDS, registerInboxNotificationRoutes } from './http/inbox-notification-routes';
+import { IMPLEMENTED_INVENTORY_ROUTE_IDS, registerInventoryRoutes } from './http/inventory-routes';
+import { IMPLEMENTED_WAITLIST_ROUTE_IDS, registerWaitlistRoutes } from './http/waitlist-routes';
 
 export const app: Express = express();
 configureAuthRouteRuntime();
@@ -70,6 +76,12 @@ registerCalendarRoutes(app);
 registerNotificationRoutes(app);
 registerPaymentRoutes(app);
 registerDashboardRoutes(app);
+registerShiftRoutes(app);
+registerActivityRoutes(app);
+registerReportRoutes(app);
+registerInboxNotificationRoutes(app);
+registerInventoryRoutes(app);
+registerWaitlistRoutes(app);
 
 function isPermissionKey(value: string): value is PermissionKey {
   return Object.hasOwn(PERMISSION_SCOPES, value);
@@ -83,7 +95,7 @@ function isRateLimitPolicy(value: string): value is RateLimitPolicy {
   return rateLimitPolicies.has(value);
 }
 
-function defaultRateLimit(contract: (typeof MVP_ROUTE_CONTRACTS)[number]): RateLimitPolicy | undefined {
+function defaultRateLimit(contract: import('./http/route-contracts').RouteContract): RateLimitPolicy | undefined {
   if (contract.contextSource === 'CRON') return undefined;
   if (contract.auth === 'session') return 'RL-API';
   if (contract.path.startsWith('/api/public/manage/')) return 'RL-MANAGE';
@@ -92,8 +104,18 @@ function defaultRateLimit(contract: (typeof MVP_ROUTE_CONTRACTS)[number]): RateL
   return undefined;
 }
 
-for (const contract of MVP_ROUTE_CONTRACTS) {
-  if (IMPLEMENTED_AUTH_ROUTE_IDS.has(contract.id) || IMPLEMENTED_STAFF_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SERVICE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SCHEDULE_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CUSTOMER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_SETTINGS_ROUTE_IDS.has(contract.id) || IMPLEMENTED_AVAILABILITY_ROUTE_IDS.has(contract.id) || IMPLEMENTED_APPOINTMENT_ROUTE_IDS.has(contract.id) || IMPLEMENTED_PUBLIC_BOOKING_ROUTE_IDS.has(contract.id) || IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS.has(contract.id) || IMPLEMENTED_MEMBER_ROUTE_IDS.has(contract.id) || IMPLEMENTED_CALENDAR_ROUTE_IDS.has(contract.id) || IMPLEMENTED_NOTIFICATION_ROUTE_IDS.has(contract.id) || IMPLEMENTED_PAYMENT_ROUTE_IDS.has(contract.id) || IMPLEMENTED_DASHBOARD_ROUTE_IDS.has(contract.id)) continue;
+const implementedRouteIds = new Set([
+  ...IMPLEMENTED_AUTH_ROUTE_IDS, ...IMPLEMENTED_STAFF_ROUTE_IDS, ...IMPLEMENTED_SERVICE_ROUTE_IDS,
+  ...IMPLEMENTED_SCHEDULE_ROUTE_IDS, ...IMPLEMENTED_CUSTOMER_ROUTE_IDS, ...IMPLEMENTED_SETTINGS_ROUTE_IDS,
+  ...IMPLEMENTED_AVAILABILITY_ROUTE_IDS, ...IMPLEMENTED_APPOINTMENT_ROUTE_IDS, ...IMPLEMENTED_PUBLIC_BOOKING_ROUTE_IDS,
+  ...IMPLEMENTED_BLOCKED_PERIOD_ROUTE_IDS, ...IMPLEMENTED_MEMBER_ROUTE_IDS, ...IMPLEMENTED_CALENDAR_ROUTE_IDS,
+  ...IMPLEMENTED_NOTIFICATION_ROUTE_IDS, ...IMPLEMENTED_INBOX_NOTIFICATION_ROUTE_IDS, ...IMPLEMENTED_INVENTORY_ROUTE_IDS,
+  ...IMPLEMENTED_WAITLIST_ROUTE_IDS, ...IMPLEMENTED_PAYMENT_ROUTE_IDS, ...IMPLEMENTED_DASHBOARD_ROUTE_IDS,
+  ...IMPLEMENTED_SHIFT_ROUTE_IDS, ...IMPLEMENTED_ACTIVITY_ROUTE_IDS, ...IMPLEMENTED_REPORT_ROUTE_IDS,
+]);
+
+for (const contract of [...MVP_ROUTE_CONTRACTS, ...OPTIONAL_EXTENSION_ROUTE_CONTRACTS]) {
+  if (implementedRouteIds.has(contract.id)) continue;
   const limit = contract.rateLimit && isRateLimitPolicy(contract.rateLimit)
     ? contract.rateLimit
     : defaultRateLimit(contract);

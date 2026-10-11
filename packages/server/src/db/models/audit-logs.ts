@@ -19,6 +19,11 @@ export const AUDIT_ACTIONS = [
   'settings.updated',
   'auth.login_failed_limit',
   'auth.password_changed',
+  'shift.started',
+  'shift.closed',
+  'request.mutated',
+  'request.activity',
+  'account.profile_updated',
 ] as const;
 
 export interface AuditLogDocument {

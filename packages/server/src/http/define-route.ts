@@ -14,6 +14,9 @@ import {
 import { assertJsonContentType, assertMutationOrigin } from '@/server/http/csrf';
 import { enforceRateLimit, type RateLimitPolicy } from '@/server/http/rate-limit';
 import { assertPermission, type PermissionKey } from '@/server/domain/permissions';
+import { AuditLog } from '@/server/db/models';
+import { Types } from 'mongoose';
+import { ERROR_CODES } from '@/shared/error-codes';
 
 export type RouteAuth = 'none' | 'session' | 'cron';
 export type ContextSource = 'NONE' | 'SESSION' | 'SLUG' | 'TOKEN' | 'CRON';
@@ -58,6 +61,7 @@ export interface DefineRouteOptions<
 
 export interface RouteRuntime {
   resolveTenantContext(request: Request): Promise<TenantContext | null>;
+  hasActiveShift?(context: TenantContext): Promise<boolean>;
   resolvePublicContext(
     request: Request,
     source: 'SLUG' | 'TOKEN',
@@ -161,6 +165,12 @@ export function defineRoute<
         assertPermission(context.role, options.permission);
       }
 
+      if (isTenantContext(context) && context.role === 'master' && options.permission !== 'account:self' && routeRuntime?.hasActiveShift) {
+        if (!(await routeRuntime.hasActiveShift(context))) {
+          throw new AppError(ERROR_CODES.SHIFT_REQUIRED, 423, 'Чтобы пользоваться кабинетом, сначала начните смену');
+        }
+      }
+
       const url = new URL(request.url);
       const rawQuery = queryRecord(url.searchParams);
       const query = options.querySchema ? parseOrThrow(options.querySchema, rawQuery) : rawQuery;
@@ -188,6 +198,15 @@ export function defineRoute<
         response instanceof Response
           ? response
           : Response.json({ data: response }, { status: 200 });
+      if (isTenantContext(context) && options.permission !== 'account:self' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method.toUpperCase()) && result.status < 400) {
+        const bodyFields = body && typeof body === 'object' && !Array.isArray(body) ? Object.keys(body as Record<string, unknown>).filter((key) => !/token|password|email|phone/i.test(key)) : [];
+        const entityId = typeof params === 'object' && params !== null && 'id' in params && typeof (params as { id?: unknown }).id === 'string' ? (params as { id: string }).id : `route:${options.id}`;
+        try {
+          await AuditLog.create([{ businessId: new Types.ObjectId(context.businessId), actorUserId: new Types.ObjectId(context.userId), actorRole: context.role, action: 'request.activity', entityType: options.path.split('/')[2] ?? 'request', entityId, metadata: { routeId: options.id, method: request.method.toUpperCase(), path: options.path, fieldNames: bodyFields, requestId } }]);
+        } catch (error: unknown) {
+          logger.error({ requestId, routeId: options.id, err: error }, 'request activity audit failed');
+        }
+      }
       logger.info(
         { requestId, routeId: options.id, method: request.method, statusCode: result.status, durationMs: Date.now() - startedAt },
         'request completed',

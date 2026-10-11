@@ -120,7 +120,7 @@ Soft delete: нет (статус `disabled`).
 | notifications.senderName | String | name бизнеса | ≤80 |
 | notifications.replyTo | String | email бизнеса | валидный email |
 | privacy.masterSeesCustomerPhone | Boolean | true | см. PERMISSIONS_MATRIX |
-| privacy.dataRetentionDays | Number (целое) | 730 | 30–3650. **Информационное поле: в MVP автоматическая очистка/анонимизация не выполняется** (задача очистки — post-MVP). Не вводить в заблуждение: в UI подпись «не применяется автоматически» <!-- CHANGED: A1 --> |
+| privacy.dataRetentionDays | Number (целое) | 730 | 30–3650; применяется ежедневным воркером: персональные данные старых клиентов анонимизируются, если не было недавних записей; финансовые документы сохраняются |
 | privacy.consentText | String | `""` (пусто → UI показывает стандартный текст из словаря) | ≤2000; показывается на шаге подтверждения публичной записи (PUB-01 → `consent.text`) <!-- CHANGED: A1 --> |
 | privacy.requireConsent | Boolean | true | true → `acceptPrivacy:true` обязателен в PUB-06 и сохраняется `appointments.privacyAcceptedAt`; false → согласие не запрашивается <!-- CHANGED: A1 --> |
 
@@ -141,6 +141,7 @@ Soft delete: нет (статус `disabled`).
 | inviteExpiresAt | Date | нет | +7 дней |
 | invitedBy | ObjectId→users | нет | |
 | joinedAt | Date | нет | |
+| activityReadAt | Date | нет | последняя отметка прочтения ленты уведомлений участником |
 
 Индексы:
 - `unique {businessId:1, userId:1}`;
@@ -163,6 +164,7 @@ Soft delete: нет (`status: disabled`). Передача владения — 
 | color | String enum из 8 цветов палитры календаря (DESIGN_SYSTEM §Календарь) | да | автоподбор | |
 | isActive | Boolean | да | true | неактивный не доступен для записи и не показывается публично |
 | acceptsOnlineBooking | Boolean | да | true | |
+| hourlyRateMinor | Number | да | 0 | безопасное целое, минимальные единицы валюты бизнеса за час; ставка копируется в смену при старте |
 | displayOrder | Number | да | 0 | |
 | bookingVersion | Number | да | 0 | счётчик для сериализации записи/блокировок (см. §17) |
 | isDeleted / deletedAt | | | false/null | |
@@ -224,6 +226,8 @@ Soft delete: нет (`status: disabled`). Передача владения — 
 | durationMinutes | Number | да | | 5–720, кратно 5 |
 | bufferMinutes | Number | да | 0 | 0–120, кратно 5; идёт **после** услуги |
 | priceMinor | Number | да | | целое ≥0 |
+| costItems | Array(≤30) of `{name, amountMinor}` | да | `[]` | материалы и себестоимость одной услуги; доступно владельцу и менеджеру |
+| inventoryConsumptions | Array(≤50) of `{inventoryItemId, quantity}` | да | `[]` | расход складских единиц за один визит; доступно владельцу и менеджеру |
 | currency | String | да | = business.currency | в MVP обязана совпадать с валютой бизнеса |
 | onlineBookingEnabled | Boolean | да | true | |
 | isActive | Boolean | да | true | |
@@ -231,7 +235,7 @@ Soft delete: нет (`status: disabled`). Передача владения — 
 | isDeleted / deletedAt | | | | |
 
 Индексы: `unique {businessId:1, nameNormalized:1}` partial `{isDeleted:false}`; `{businessId:1, isDeleted:1, isActive:1, displayOrder:1}`.
-Изменение цены/длительности **не меняет** существующие записи (у записи есть снимок, §12).
+Изменение цены/длительности/материалов **не меняет** существующие записи (у записи есть снимок, §13).
 
 ## 11. staffServices
 
@@ -282,7 +286,7 @@ Hard delete допустим (связь без истории). Замена с
 | occupiedKeys | [String] | **условно** | ключи 5-минутных ячеек `"<staffId>:<n>"` для диапазона `[startAt, blockedUntilAt)`, `n = floor(epochMinutes/5)`. Присутствует **только** у статусов `pending`,`confirmed`,`completed`; у `cancelled`,`no_show` поле **удаляется** (`$unset`). См. §17 |
 | status | enum `pending`,`confirmed`,`completed`,`cancelled`,`no_show` | да | |
 | source | enum `public`,`internal` | да | |
-| serviceSnapshot | `{name, durationMinutes, priceMinor, currency}` | да | |
+| serviceSnapshot | `{name, durationMinutes, priceMinor, currency, costMinor?, inventoryConsumptions?}` | да | себестоимость и название/количество складских материалов фиксируются на момент создания/изменения записи; мастер не получает денежные поля снимка |
 | contactEmail | String | нет | email, указанный при записи; на него уходят уведомления |
 | customerNote | String ≤500 | нет | комментарий клиента |
 | internalNote | String ≤2000 | нет | заметка админа (не видна master) |
@@ -403,7 +407,7 @@ MongoDB не имеет exclusion constraint, поэтому используе�
 | businessId | ObjectId | |
 | actorUserId | ObjectId | null для системных |
 | actorRole | enum `owner`,`admin`,`master`,`system`,`customer` | |
-| action | String enum: `member.invited`,`member.role_changed`,`member.disabled`,`ownership.transferred`,`staff.deactivated`,`service.deleted`,`customer.deleted`,`payment.created`,`payment.refunded`,`payment.cancelled`,`appointment.cancelled`,`settings.updated`,`auth.login_failed_limit`,`auth.password_changed` | |
+| action | String enum: `member.invited`,`member.role_changed`,`member.disabled`,`ownership.transferred`,`staff.deactivated`,`service.deleted`,`customer.deleted`,`payment.created`,`payment.refunded`,`payment.cancelled`,`appointment.cancelled`,`settings.updated`,`auth.login_failed_limit`,`auth.password_changed`,`shift.started`,`shift.closed`,`request.mutated`,`request.activity`,`account.profile_updated` | |
 | entityType, entityId | String / ObjectId | |
 | metadata | Mixed ≤4 КБ | запрещены пароли, токены, полные email-тела |
 | ip | String | |
@@ -414,6 +418,12 @@ MongoDB не имеет exclusion constraint, поэтому используе�
 
 **rateLimits** (глобальная): `key` (String, unique), `count` (Number), `expiresAt` (Date, TTL `expireAfterSeconds:0`). Инкремент через `findOneAndUpdate` с `upsert` и `$inc`.
 **schemaMigrations** (глобальная): `id` (String unique, `NNN_name`), `appliedAt`, `checksum`. Используется скриптом миграций, который создаёт индексы и вносит изменения схемы.
+
+**shifts** (tenant-scoped): `{businessId, staffId, userId, startedAt, closedAt?, hourlyRateMinor}`. Одна открытая смена на сотрудника; `hourlyRateMinor` — неизменяемый снимок ставки при старте. Индексы: `unique {businessId:1, staffId:1}` partial `{closedAt:{$exists:false}}`; `{businessId:1, startedAt:-1}`. Создаётся миграцией `002_shifts`.
+
+**inventoryItems** (tenant-scoped): `{businessId, name, nameNormalized, unit, onHand, reorderThreshold, unitCostMinor, isActive}`. Уникальное название в пределах салона; `onHand` и порог хранят до четырёх десятичных знаков.
+**inventoryMovements** (tenant-scoped, append-only): `{businessId, inventoryItemId, type, quantityDelta, reason, appointmentId?, cycleKey?, actorUserId?, eventKey}`. Остаток обновляется в той же транзакции, что и строка журнала; уникальный `eventKey` не допускает двойного списания одного завершения.
+**waitlistEntries** (tenant-scoped): `{businessId, customerId, serviceId, staffId?, fromDate, toDate, preferredTimeStart?, preferredTimeEnd?, note?, status, lastOfferedAt?, lastOfferedStartAt?, lastOfferedStaffId?, createdBy}`. Сопоставление освободившегося времени выполняется в часовом поясе салона. Индексы добавляются миграцией `005_inventory_waitlist`.
 
 ## 20. Связи (сводка)
 

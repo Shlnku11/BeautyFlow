@@ -10,6 +10,6 @@ export function useApi<TData>(
   return useQuery<TData>({
     ...options,
     queryKey,
-    queryFn: () => apiRequest<TData>(path),
+    queryFn: ({ signal }) => apiRequest<TData>(path, { signal }),
   });
 }

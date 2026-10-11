@@ -20,6 +20,7 @@ function messageOf(error: unknown) {
   if (!(error instanceof ApiClientError)) return 'Не удалось связаться с сервером. Проверьте соединение и повторите попытку.';
   if (error.code === 'SLOT_UNAVAILABLE') return 'Это время уже заняли или оно вне графика. Выберите другой свободный слот.';
   if (error.code === 'STAFF_DOES_NOT_PROVIDE_SERVICE') return 'Выбранный мастер не оказывает эту услугу. Выберите другого мастера.';
+  if (error.status >= 500 && error.requestId) return `${error.message} Код обращения: ${error.requestId}`;
   return error.message;
 }
 

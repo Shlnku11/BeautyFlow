@@ -14,6 +14,7 @@ describe('payment API and ledger invariants', () => {
   let server: Server;
   let baseUrl: string;
   let registerPaymentRoutes: typeof import('../../packages/server/src/http/payment-routes').registerPaymentRoutes;
+  let registerAppointmentRoutes: typeof import('../../packages/server/src/http/appointment-routes').registerAppointmentRoutes;
   let businessA: mongoose.Types.ObjectId;
   let businessB: mongoose.Types.ObjectId;
   let appointmentA: mongoose.Types.ObjectId;
@@ -33,13 +34,14 @@ describe('payment API and ledger invariants', () => {
     process.env.TEST_MONGODB_URI = uri;
     const routeRuntime = await import('../../packages/server/src/http/define-route');
     registerPaymentRoutes = (await import('../../packages/server/src/http/payment-routes')).registerPaymentRoutes;
+    registerAppointmentRoutes = (await import('../../packages/server/src/http/appointment-routes')).registerAppointmentRoutes;
     await connectToDatabase();
     const database = mongoose.connection.db;
     if (!database) throw new Error('Missing MongoDB database');
     await createIndexes(database);
     routeRuntime.configureRouteRuntime({ resolveTenantContext: async (request) => ({ businessId: request.headers.get('x-test-business') ?? businessA.toString(), userId: userId.toString(), role: (request.headers.get('x-test-role') ?? 'owner') as 'owner' | 'admin' | 'master' }), resolvePublicContext: async () => null });
     configureRateLimitAdapter(async () => ({ allowed: true }));
-    const app = express(); app.use(express.json()); registerPaymentRoutes(app);
+    const app = express(); app.use(express.json()); registerAppointmentRoutes(app); registerPaymentRoutes(app);
     server = app.listen(0);
     await new Promise<void>((resolve) => server.once('listening', resolve));
     const address = server.address(); if (!address || typeof address === 'string') throw new Error('Missing test HTTP address');
@@ -102,6 +104,30 @@ describe('payment API and ledger invariants', () => {
     expect(await Transaction.countDocuments({ businessId: businessA, paymentId: payment.id, type: 'charge' })).toBe(1);
   });
 
+  it('uses the remaining balance, reserves pending payments, and serializes concurrent charges', async () => {
+    const [first, second] = await Promise.all([
+      request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'balance-race-a' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 600, method: 'cash' }) }),
+      request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'balance-race-b' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 600, method: 'cash' }) }),
+    ]);
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
+    const rejected = first.status === 409 ? first : second;
+    expect((rejected.payload.error as { code: string }).code).toBe('PAYMENT_EXCEEDS_BALANCE');
+
+    const pending = await request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'balance-pending' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 400, method: 'transfer', status: 'pending' }) });
+    expect(pending.status).toBe(201);
+    const appointments = await request('/api/appointments?page=1&limit=100');
+    const appointmentRows = appointments.payload.data as { id: string; payment: { paidMinor: number; pendingMinor: number; balanceMinor: number } }[];
+    expect(appointmentRows.find((row) => row.id === appointmentA.toString())?.payment).toMatchObject({ paidMinor: 600, pendingMinor: 400, balanceMinor: 0 });
+    const reserved = await request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'balance-reserved' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 1, method: 'cash' }) });
+    expect(reserved.status).toBe(409);
+    expect((reserved.payload.error as { code: string }).code).toBe('PAYMENT_EXCEEDS_BALANCE');
+
+    const pendingId = (pending.payload.data as { id: string }).id;
+    expect((await request(`/api/payments/${pendingId}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Отменена' }) })).status).toBe(200);
+    const released = await request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'balance-released' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 400, method: 'cash' }) });
+    expect(released.status).toBe(201);
+  });
+
   it('records partial and full refunds exactly once and rejects an excess refund', async () => {
     const created = await request('/api/payments', { method: 'POST', headers: { 'idempotency-key': 'refund-pay' }, body: JSON.stringify({ appointmentId: appointmentA.toString(), amountMinor: 1000, method: 'card' }) });
     const payment = created.payload.data as { id: string };
@@ -140,7 +166,8 @@ describe('payment API and ledger invariants', () => {
     const list = await request(`/api/payments?method=cash&status=paid&from=${today}&to=${today}&q=Client`);
     expect(list.status).toBe(200);
     expect((list.payload.meta as { totals: { paidMinor: number } }).totals.paidMinor).toBe(875);
-    const payment = list.payload.data as { id: string }[];
+    const payment = list.payload.data as { id: string; appointment?: { customer: { firstName: string }; service: { name: string } } | null }[];
+    expect(payment[0]?.appointment).toMatchObject({ customer: { firstName: 'Client' }, service: { name: 'Cut' } });
     const id = payment[0]?.id;
     if (!id) throw new Error('Expected payment fixture row');
     const masterResponses = await Promise.all([
