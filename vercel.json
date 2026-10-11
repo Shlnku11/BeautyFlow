@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build --workspace @next-appointments/client",
+  "buildCommand": "npm run build --workspace @next-appointments/client && node scripts/deploy-presentation.mjs",
   "outputDirectory": "dist/client",
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://beautyflow-api-nbga.onrender.com/api/:path*" },
