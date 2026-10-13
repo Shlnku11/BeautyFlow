@@ -91,8 +91,9 @@ export function registerAuthRoutes(app: Express): void {
   }));
   app.post('/api/auth/login', defineExpressRoute({
     id: 'AUTH-02', method: 'POST', path: '/api/auth/login', auth: 'none', contextSource: 'NONE', bodySchema: LoginSchema, rateLimit: 'RL-LOGIN',
-    handler: async ({ body }) => {
-      const result = await authService.login(body.email, body.password);
+    handler: async ({ body, request }) => {
+      const result = await authService.login(body.email, body.password, request);
+      if ('cookie' in result) return Response.json({ data: result.data }, { headers: { 'Set-Cookie': result.cookie } });
       return Response.json({ data: result.data });
     },
   }));

@@ -42,6 +42,10 @@ export interface MembershipDto {
   staffId?: string;
 }
 
+export type LoginResponseDto =
+  | { requiresEmailCode: true; loginToken: string }
+  | { requiresEmailCode: false; user: UserDto; membership: MembershipDto };
+
 export interface MoneyDto {
   amountMinor: number;
   currency: BusinessCurrency;

@@ -10,7 +10,7 @@ import { getEnv } from '../config/env';
 import { AppError, ConflictError, RateLimitError } from '../http/errors';
 import { ERROR_CODES } from '@/shared/error-codes';
 import { PERMISSION_SCOPES } from '../domain/permissions';
-import { DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
+import { DEMO_BUSINESS_SLUG, DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
 import type { BusinessRole } from '@/shared/constants';
 import type { RegisterBusinessRequestDto } from '@/shared/types/dto';
 import { buildDedupeKey } from '../notifications/dedupe-key';
@@ -38,6 +38,12 @@ export interface AuthResult {
 export interface LoginChallengeResult {
   data: { requiresEmailCode: true; loginToken: string };
 }
+
+export type LoginSessionResult = AuthResult & {
+  data: AuthResult['data'] & { requiresEmailCode: false };
+};
+
+export type LoginResult = LoginChallengeResult | LoginSessionResult;
 
 function userDto(user: { _id: Types.ObjectId; name: string; email: string; emailVerified?: boolean }) {
   return { id: user._id.toString(), name: user.name, email: user.email, emailVerified: user.emailVerified ?? false, locale: 'ru' as const };
@@ -336,7 +342,7 @@ export class AuthService {
     });
   }
 
-  async login(email: string, password: string): Promise<LoginChallengeResult> {
+  async login(email: string, password: string, request: Request): Promise<LoginResult> {
     const user = await repository.findUserByEmail(email.toLowerCase());
     const valid = user?.passwordHash ? await verify(user.passwordHash, password) : await verify(await hash('dummy-password-never-used', argonOptions), password).catch(() => false);
     if (!user || !valid || user.status !== 'active') throw new AppError(ERROR_CODES.INVALID_CREDENTIALS, 401, 'Неверный email или пароль');
@@ -345,6 +351,23 @@ export class AuthService {
     if (!memberships) throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
     const business = await repository.findBusinessById(memberships.businessId);
     if (!business || business.status !== 'active') throw new AppError(ERROR_CODES.NO_ACTIVE_MEMBERSHIP, 403, 'Нет активного доступа к бизнесу');
+
+    if (business.slug === DEMO_BUSINESS_SLUG && (memberships.role === 'owner' || memberships.role === 'master')) {
+      return withTransaction(async (session) => {
+        await repository.clearLoginVerification(user._id, session);
+        await repository.cancelPendingLoginVerifications(business._id, user.email, session);
+        const { cookie } = await issueSession(user._id, business._id, request, session);
+        return {
+          data: {
+            requiresEmailCode: false as const,
+            user: userDto(user),
+            membership: membershipDto(business._id, business.name, business.slug, memberships.role),
+          },
+          cookie,
+        };
+      });
+    }
+
     const challenge = createLoginChallenge(user._id.toString());
     const code = createLoginVerificationCode(user.email);
     await withTransaction((session) => this.queueLoginVerification(user, business._id, challenge, code, session));

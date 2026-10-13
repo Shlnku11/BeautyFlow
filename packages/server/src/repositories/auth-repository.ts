@@ -45,6 +45,9 @@ export class AuthRepository {
   setLoginVerification(userId: Types.ObjectId, codeHash: string, expiresAt: Date, session: ClientSession, expectedCodeHash?: string) {
     return User.updateOne({ _id: userId, status: 'active', emailVerified: true, ...(expectedCodeHash ? { loginVerificationCodeHash: expectedCodeHash, loginVerificationExpiresAt: { $gt: new Date() } } : {}) }, { $set: { loginVerificationCodeHash: codeHash, loginVerificationExpiresAt: expiresAt, loginVerificationAttempts: 0 } }, { session }).exec();
   }
+  clearLoginVerification(userId: Types.ObjectId, session: ClientSession) {
+    return User.updateOne({ _id: userId }, { $set: { loginVerificationAttempts: 0 }, $unset: { loginVerificationCodeHash: 1, loginVerificationExpiresAt: 1 } }, { session }).exec();
+  }
   enqueueLoginVerification(data: Record<string, unknown> & { businessId: Types.ObjectId; dedupeKey: string }, session: ClientSession) {
     return Notification.updateOne({ businessId: data.businessId, dedupeKey: data.dedupeKey }, { $setOnInsert: data }, { upsert: true, session }).exec();
   }

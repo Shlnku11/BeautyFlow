@@ -4,6 +4,9 @@ export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 export const SLOT_GRANULARITY_MINUTES = 5;
 
+/** Reserved tenant slug used only for the seeded BeautyFlow demo salon. */
+export const DEMO_BUSINESS_SLUG = 'demo-salon';
+
 /** Local credentials for the seeded development accounts; the server only accepts this code outside production. */
 export const DEV_DEMO_LOGIN_CODE = '000000';
 export const DEV_DEMO_LOGIN_EMAILS = ['owner@demo.local', 'master@demo.local'] as const;

@@ -2,6 +2,7 @@ import { hash } from '@node-rs/argon2';
 import mongoose from 'mongoose';
 import { DateTime } from 'luxon';
 import { getEnv } from '../packages/server/src/config/env';
+import { DEMO_BUSINESS_SLUG } from '../packages/shared/src/constants';
 import { Appointment, Business, BusinessMember, Customer, Payment, Service, Settings, Staff, StaffSchedule, StaffService, Transaction, User } from '../packages/server/src/db/models';
 import type { AppointmentDocument } from '../packages/server/src/db/models/appointments';
 import type { ServiceDocument } from '../packages/server/src/db/models/services';
@@ -11,7 +12,6 @@ const DEMO_EMAIL = 'owner@demo.local';
 const DEMO_PASSWORD = 'demo-password-123';
 const MASTER_EMAIL = 'master@demo.local';
 const MASTER_PASSWORD = 'demo-password-123';
-const DEMO_SLUG = 'demo-salon';
 const TIMEZONE = 'Asia/Bishkek';
 
 const staffRows = [
@@ -117,7 +117,7 @@ async function upsertUser(email: string, name: string, passwordHash: string) {
 
 async function ensureDemoBusiness() {
   const legacy = await Business.findOne({ slug: 'beautyflow-demo' }).lean().exec();
-  const requested = await Business.findOne({ slug: DEMO_SLUG }).lean().exec();
+  const requested = await Business.findOne({ slug: DEMO_BUSINESS_SLUG }).lean().exec();
   if (legacy && !legacy._id.equals(requested?._id ?? legacy._id)) {
     if (requested) {
       const linkedCounts = await Promise.all([
@@ -130,21 +130,21 @@ async function ensureDemoBusiness() {
         Transaction.countDocuments({ businessId: requested._id }).exec(),
         Settings.countDocuments({ businessId: requested._id }).exec(),
       ]);
-      if (linkedCounts.some((count) => count > 0)) throw new Error(`Cannot migrate demo tenant: ${DEMO_SLUG} already contains linked records`);
-      await Business.collection.deleteOne({ _id: requested._id, slug: DEMO_SLUG });
+      if (linkedCounts.some((count) => count > 0)) throw new Error(`Cannot migrate demo tenant: ${DEMO_BUSINESS_SLUG} already contains linked records`);
+      await Business.collection.deleteOne({ _id: requested._id, slug: DEMO_BUSINESS_SLUG });
     }
     // The Business.slug application field is immutable; this local, development-only migration renames the legacy demo tenant without changing its identity.
     await Business.collection.updateOne(
       { _id: legacy._id, slug: 'beautyflow-demo' },
-      { $set: { slug: DEMO_SLUG, name: 'BeautyFlow Demo Studio', timezone: TIMEZONE, currency: 'KGS', countryCode: 'KG', phone: '+996 555 010 010', address: 'Бишкек, проспект Чуй, 123', publicDescription: 'Демонстрационный салон BeautyFlow', status: 'active' } },
+      { $set: { slug: DEMO_BUSINESS_SLUG, name: 'BeautyFlow Demo Studio', timezone: TIMEZONE, currency: 'KGS', countryCode: 'KG', phone: '+996 555 010 010', address: 'Бишкек, проспект Чуй, 123', publicDescription: 'Демонстрационный салон BeautyFlow', status: 'active' } },
     );
     const migrated = await Business.findById(legacy._id).exec();
     if (!migrated) throw new Error('Legacy demo business migration failed');
     return migrated;
   }
   return Business.findOneAndUpdate(
-    { slug: DEMO_SLUG },
-    { $set: { name: 'BeautyFlow Demo Studio', slug: DEMO_SLUG, timezone: TIMEZONE, currency: 'KGS', countryCode: 'KG', phone: '+996 555 010 010', address: 'Бишкек, проспект Чуй, 123', publicDescription: 'Демонстрационный салон BeautyFlow', status: 'active' } },
+    { slug: DEMO_BUSINESS_SLUG },
+    { $set: { name: 'BeautyFlow Demo Studio', slug: DEMO_BUSINESS_SLUG, timezone: TIMEZONE, currency: 'KGS', countryCode: 'KG', phone: '+996 555 010 010', address: 'Бишкек, проспект Чуй, 123', publicDescription: 'Демонстрационный салон BeautyFlow', status: 'active' } },
     { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true },
   ).exec();
 }
@@ -338,7 +338,7 @@ async function seed(): Promise<void> {
     Payment.countDocuments({ businessId: business._id }).exec(),
   ]);
   process.stdout.write(`Создано: ${counts[0]} мастера, ${counts[1]} услуг, ${counts[2]} клиентов, ${counts[3]} записей, ${counts[4]} оплат. Войти: ${DEMO_EMAIL} / ${DEMO_PASSWORD}\n`);
-  process.stdout.write(`Публичная запись: ${process.env.DEV_APP_BASE_URL ?? 'http://localhost:5173'}/b/${DEMO_SLUG}\n`);
+  process.stdout.write(`Публичная запись: ${process.env.DEV_APP_BASE_URL ?? 'http://localhost:5173'}/b/${DEMO_BUSINESS_SLUG}\n`);
 }
 
 seed().catch((error: unknown) => {

@@ -71,7 +71,7 @@ Tests: ST-5, ST-6; honeypot≠"" → 422; дубли slug/email; зарезер�
 
 **AUTH-02 `POST /api/auth/login`** — вход. <!-- CHANGED: stage 2 -->
 Auth: нет · Context: `NONE`.
-Request: `{ email, password }`. Response `200`: `{ data:{ requiresEmailCode:true, loginToken:string } }`, без сессии и cookie. Email с `emailVerified=false` → `403 EMAIL_NOT_VERIFIED` с переходом пользователя на подтверждение адреса. При корректном пароле создаются одноразовый код входа и challenge в очереди; подтверждение выполняет `AUTH-16`.
+Request: `{ email, password }`. Для обычного аккаунта response `200`: `{ data:{ requiresEmailCode:true, loginToken:string } }`, без сессии и cookie. Для аккаунтов с активной ролью `owner` или `master` в зарезервированном демо-бизнесе `demo-salon` response `200`: `{ data:{ requiresEmailCode:false, user:UserDto, membership:MembershipDto } }` + cookie сессии; старые коды входа аннулируются. Email с `emailVerified=false` → `403 EMAIL_NOT_VERIFIED` с переходом пользователя на подтверждение адреса. Для остальных аккаунтов при корректном пароле создаются одноразовый код входа и challenge в очереди; подтверждение выполняет `AUTH-16`.
 Codes: 200, 401 `INVALID_CREDENTIALS` (одинаково для неизвестного email и неверного пароля; время ответа выравнивается), 403 `EMAIL_NOT_VERIFIED`/`NO_ACTIVE_MEMBERSHIP`, 422, 429.
 Rate: `RL-LOGIN`.
 Tests: ST-5, ST-6; одинаковый ответ для неизвестного email; неподтверждённый email; код входа не создаёт сессию до подтверждения; отключённый пользователь/членство.

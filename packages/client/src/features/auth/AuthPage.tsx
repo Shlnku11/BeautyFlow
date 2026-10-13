@@ -7,6 +7,7 @@ import { faArrowLeft, faCalendarCheck, faEye, faEyeSlash, faLock, faPaperPlane }
 import { ru } from '@/shared/i18n/ru';
 import { AcceptInviteSchema, GoogleRegisterBusinessSchema, LoginSchema, RegisterBusinessSchema, ResetPasswordSchema, VerifyEmailSchema } from '@/shared/schemas';
 import { BUSINESS_COUNTRY_CODES, BUSINESS_CURRENCIES, DEV_DEMO_LOGIN_CODE, DEV_DEMO_LOGIN_EMAILS } from '@/shared/constants';
+import type { LoginResponseDto } from '@/shared/types/dto';
 import { apiRequest, ApiClientError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,9 +87,15 @@ function AuthForm({ register }: { register: boolean }) {
         navigate(`/verify-email?email=${encodeURIComponent(parsed.data.email)}`, { state: { flow: 'register', email: parsed.data.email } satisfies AuthLocationState });
         return;
       }
-      const result = await apiRequest<{ requiresEmailCode: true; loginToken: string }>('/api/auth/login', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
-      sessionStorage.setItem('beautyflow-login-token', result.loginToken);
-      navigate('/verify-email', { state: { flow: 'login', email: parsed.data.email, loginToken: result.loginToken } satisfies AuthLocationState });
+      const result = await apiRequest<LoginResponseDto>('/api/auth/login', { method: 'POST', body: parsed.data, redirectOnUnauthorized: false });
+      if (result.requiresEmailCode) {
+        sessionStorage.setItem('beautyflow-login-token', result.loginToken);
+        navigate('/verify-email', { state: { flow: 'login', email: parsed.data.email, loginToken: result.loginToken } satisfies AuthLocationState });
+        return;
+      }
+      sessionStorage.removeItem('beautyflow-login-token');
+      await queryClient.resetQueries({ queryKey: ['session'] });
+      navigate('/app', { replace: true });
     } catch (reason: unknown) {
       if (!register && reason instanceof ApiClientError && reason.code === 'EMAIL_NOT_VERIFIED') {
         await apiRequest('/api/auth/resend-verification', { method: 'POST', body: { email: parsed.data.email }, redirectOnUnauthorized: false }).catch(() => undefined);

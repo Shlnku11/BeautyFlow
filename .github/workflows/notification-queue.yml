@@ -1,0 +1,57 @@
+name: Process notification queue
+
+on:
+  schedule:
+    # GitHub Actions has a five-minute minimum. Offset this from the top of the hour.
+    - cron: '3-58/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: beautyflow-notification-queue
+  cancel-in-progress: false
+
+jobs:
+  process-notifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Run one notification batch on the API
+        shell: bash
+        env:
+          CRON_SECRET: ${{ secrets.BEAUTYFLOW_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CRON_SECRET:-}" ]]; then
+            echo "::error::Add the BEAUTYFLOW_CRON_SECRET Actions secret before running this workflow."
+            exit 1
+          fi
+
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          http_status="$(curl \
+            --silent \
+            --show-error \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --max-time 150 \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header 'Content-Type: application/json' \
+            --data '{"limit":50}' \
+            'https://beautyflow-api-nbga.onrender.com/api/internal/jobs/notifications/run')"
+
+          if [[ "$http_status" != "200" ]]; then
+            echo "::error::Notification endpoint returned HTTP ${http_status}. Check the Render API logs and CRON_SECRET configuration."
+            exit 1
+          fi
+
+          if ! jq -e '.data | type == "object"' "$response_file" >/dev/null; then
+            echo "::error::Notification endpoint returned an unexpected response. Check the Render API logs."
+            exit 1
+          fi
+
+          jq '.data | {claimed, sent, failed, skipped}' "$response_file"
